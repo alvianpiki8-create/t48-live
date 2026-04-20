@@ -1,8 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Crown, Trash2, MoreVertical } from "lucide-react";
+import { Send, Trash2, MoreVertical } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useRealtimeChat";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
+import badgeNetizen from "@/assets/badge-netizen.png";
+import badgePentolan from "@/assets/badge-pentolan.png";
+import badgeKuncen from "@/assets/badge-kuncen.png";
+import badgeTuanMuda from "@/assets/badge-tuan-muda.png";
+import badgeBosBesar from "@/assets/badge-bos-besar.png";
+import badgeOwner from "@/assets/badge-owner.png";
 
 const OWNER_NICKNAME = "TEAM Live";
 const OWNER_CODE = "123323";
