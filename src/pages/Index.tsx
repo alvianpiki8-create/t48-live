@@ -14,12 +14,14 @@ import LineupDisplay from "@/components/LineupDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
+import { useWeeklyViewers } from "@/hooks/useWeeklyViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 
 const Index = () => {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState<string | null>(() => sessionStorage.getItem("teamlive_nickname"));
   const viewerCount = useViewerPresence();
+  const weeklyViewers = useWeeklyViewers();
   const { messages, sendMessage } = useRealtimeChat();
   const [tokenCode, setTokenCode] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -170,7 +172,16 @@ const Index = () => {
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 max-w-4xl mx-auto">
             <p className="text-destructive text-xs font-medium">⚠️ Dilarang restream dari sini! Jika ketahuan, akses akan kami blokir. Kode T4-**** adalah tanda unik Anda — pelanggaran akan terdeteksi.</p>
           </div>
-          <a href="https://whatsapp.com/channel/0029VbBgutpEKyZFRQ8hK33l" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center text-sm text-foreground hover:text-primary transition-colors">Saluran WhatsApp Kami</a>
+          <div className="flex flex-col items-center gap-2">
+            <a href="https://whatsapp.com/channel/0029VbBgutpEKyZFRQ8hK33l" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center text-sm text-foreground hover:text-primary transition-colors">Saluran WhatsApp Kami</a>
+            <a
+              href={`https://wa.me/6282135963767?text=${encodeURIComponent("Halo admin TEAM Live, saya butuh bantuan / konfirmasi pembayaran 🙏")}`}
+              target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-500 hover:bg-green-500/25 transition-colors"
+            >
+              💬 WA Admin: +62 821-3596-3767
+            </a>
+          </div>
           <div className="max-w-4xl mx-auto bg-card/50 border border-border rounded-lg p-3 space-y-2">
             <p className="text-xs text-muted-foreground">Ganti perangkat? Reset akses device (maks. 2x per hari).</p>
             <button
@@ -201,6 +212,11 @@ const Index = () => {
             >
               🔄 Reset Device Akses
             </button>
+          </div>
+          <div className="max-w-4xl mx-auto bg-card/50 border border-border rounded-lg p-3 flex items-center justify-center gap-2">
+            <span className="w-2 h-2 bg-primary rounded-full" style={{ animation: "pulse-live 1.5s infinite" }} />
+            <span className="text-xs text-muted-foreground">Penonton livestreaming dalam 1 minggu:</span>
+            <span className="text-sm text-foreground font-mono font-semibold">{weeklyViewers.toLocaleString("id-ID")}</span>
           </div>
           <div className="text-muted-foreground/30 text-xs font-mono">Powered by TEAM Live · @t48id</div>
         </footer>

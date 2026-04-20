@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Coins, Copy, Check, Clock, MessageCircle } from "lucide-react";
 
-const ADMIN_WHATSAPP = "628123456789"; // ganti dengan nomor admin yang sesungguhnya
+const ADMIN_WHATSAPP = "6282135963767"; // Admin TEAM Live
 import type { User } from "@supabase/supabase-js";
 
 const COIN_PACKAGES = [
