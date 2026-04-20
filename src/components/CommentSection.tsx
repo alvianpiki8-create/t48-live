@@ -155,7 +155,7 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
           const code = getUserCode(msg.nickname);
           return (
             <div key={msg.id}
-              className={`group/msg relative flex items-start gap-2 py-1.5 px-2 rounded-xl transition-colors ${isMsgOwner ? "bg-gradient-to-r from-yellow-400/15 to-orange-500/10 border border-yellow-400/30" : "hover:bg-secondary/30"}`}>
+              className={`group/msg relative flex items-start gap-2 py-1.5 px-2 rounded-xl transition-colors ${isMsgOwner ? "bg-gradient-to-r from-yellow-400/15 to-orange-500/10 border border-yellow-400/30" : (PREMIUM_BG[badge.name] || "hover:bg-secondary/30")}`}>
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 ring-2 ${badge.ring}`}
                 style={{ backgroundColor: msg.color, color: "hsl(var(--background))" }}>
                 {msg.nickname.charAt(0).toUpperCase()}
