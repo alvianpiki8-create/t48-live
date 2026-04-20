@@ -60,9 +60,11 @@ interface CommentSectionProps {
   onSendMessage: (text: string) => void;
   isOwner?: boolean;
   userCode?: string;
+  isBanned?: boolean;
+  banReason?: string;
 }
 
-const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentSectionProps) => {
+const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, banReason }: CommentSectionProps) => {
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollRef = useRef(true);
@@ -202,19 +204,26 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
         )}
       </div>
 
-      <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2 items-center">
-        <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-full flex-shrink-0 ${myBadge.pill}`}>
-          <img src={myBadge.image} alt={myBadge.name} loading="lazy" width={16} height={16} className="w-4 h-4 object-contain drop-shadow" />
-          {myBadge.name}
-        </span>
-        <input type="text" value={message} onChange={(e) => setMessage(e.target.value)}
-          placeholder={`Chat sebagai ${nickname}...`} maxLength={200}
-          className="flex-1 bg-input border border-border rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors" />
-        <button type="submit" disabled={!message.trim()}
-          className="bg-primary text-primary-foreground p-2.5 rounded-full transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed">
-          <Send size={14} />
-        </button>
-      </form>
+      {isBanned ? (
+        <div className="p-3 border-t border-destructive/30 bg-destructive/10 text-center">
+          <p className="text-xs text-destructive font-semibold">🚫 Anda diblokir dari chat</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{banReason || "Mengandung kata tidak pantas"}</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2 items-center">
+          <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-full flex-shrink-0 ${myBadge.pill}`}>
+            <img src={myBadge.image} alt={myBadge.name} loading="lazy" width={16} height={16} className="w-4 h-4 object-contain drop-shadow" />
+            {myBadge.name}
+          </span>
+          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)}
+            placeholder={`Chat sebagai ${nickname}...`} maxLength={200}
+            className="flex-1 bg-input border border-border rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors" />
+          <button type="submit" disabled={!message.trim()}
+            className="bg-primary text-primary-foreground p-2.5 rounded-full transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed">
+            <Send size={14} />
+          </button>
+        </form>
+      )}
     </div>
   );
 };
