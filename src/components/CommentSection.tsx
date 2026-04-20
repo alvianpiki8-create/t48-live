@@ -166,7 +166,7 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className={`inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${badge.pill}`}>
-                    <span className="text-[10px] leading-none">{badge.emoji}</span>
+                    <img src={badge.image} alt={badge.name} loading="lazy" width={16} height={16} className="w-4 h-4 object-contain drop-shadow" />
                     {badge.name}
                   </span>
                   <span className={`font-semibold text-xs ${isMsgOwner ? "text-yellow-500" : ""}`} style={isMsgOwner ? {} : { color: msg.color }}>
