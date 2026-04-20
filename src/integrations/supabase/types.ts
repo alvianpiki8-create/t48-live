@@ -59,6 +59,30 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_banned_devices: {
+        Row: {
+          banned_word: string | null
+          created_at: string
+          device_id: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          banned_word?: string | null
+          created_at?: string
+          device_id: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          banned_word?: string | null
+          created_at?: string
+          device_id?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           color: string
