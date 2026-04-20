@@ -115,24 +115,6 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
     await supabase.from("chat_messages").delete().not("id", "is", null);
   };
 
-  const getTitle = (nick: string) => {
-    if (nick === OWNER_NICKNAME) return "Owner";
-    const len = nick.length;
-    if (len <= 3) return "Newbie";
-    if (len <= 5) return "Member";
-    if (len <= 8) return "Fans";
-    return "Super Fans";
-  };
-
-  const getTitleColor = (title: string) => {
-    switch (title) {
-      case "Owner": return "bg-primary text-primary-foreground";
-      case "Super Fans": return "bg-primary/20 text-primary";
-      case "Fans": return "bg-accent text-accent-foreground";
-      case "Member": return "bg-secondary text-secondary-foreground";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
 
   const getUserCode = (nick: string) => {
     if (nick === OWNER_NICKNAME) return OWNER_CODE;
