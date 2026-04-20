@@ -1,11 +1,48 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Shield, Trash2, MoreVertical } from "lucide-react";
+import { Send, Crown, Trash2, MoreVertical } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useRealtimeChat";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
 
 const OWNER_NICKNAME = "TEAM Live";
 const OWNER_CODE = "123323";
+
+// IDN-Live style badge tiers (assigned deterministically per nickname → no flicker, no delay)
+type BadgeTier = {
+  name: string;
+  emoji: string;
+  // Tailwind classes for the pill background (gradient) + text color
+  pill: string;
+  // Ring color around the avatar
+  ring: string;
+};
+
+const BADGES: BadgeTier[] = [
+  { name: "Netizen",   emoji: "🪙", pill: "bg-gradient-to-r from-slate-400 to-slate-500 text-white",       ring: "ring-slate-400" },
+  { name: "Pentolan",  emoji: "😤", pill: "bg-gradient-to-r from-red-500 to-rose-600 text-white",          ring: "ring-red-500" },
+  { name: "Kuncen",    emoji: "🥸", pill: "bg-gradient-to-r from-orange-500 to-amber-600 text-white",      ring: "ring-orange-500" },
+  { name: "Tuan Muda", emoji: "🎩", pill: "bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white",    ring: "ring-fuchsia-500" },
+  { name: "Bos Besar", emoji: "💎", pill: "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",       ring: "ring-blue-500" },
+];
+
+const OWNER_BADGE: BadgeTier = {
+  name: "OWNER",
+  emoji: "👑",
+  pill: "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black shadow-[0_0_12px_rgba(251,191,36,0.6)]",
+  ring: "ring-yellow-400",
+};
+
+// Deterministic hash → same nickname always gets the same badge (no delay/flicker)
+const hashString = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+};
+
+const getBadge = (nickname: string): BadgeTier => {
+  if (nickname === OWNER_NICKNAME) return OWNER_BADGE;
+  return BADGES[hashString(nickname) % BADGES.length];
+};
 
 interface CommentSectionProps {
   nickname: string;
