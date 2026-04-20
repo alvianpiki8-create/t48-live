@@ -1,8 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Crown, Trash2, MoreVertical } from "lucide-react";
+import { Send, Trash2, MoreVertical } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useRealtimeChat";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
+import badgeNetizen from "@/assets/badge-netizen.png";
+import badgePentolan from "@/assets/badge-pentolan.png";
+import badgeKuncen from "@/assets/badge-kuncen.png";
+import badgeTuanMuda from "@/assets/badge-tuan-muda.png";
+import badgeBosBesar from "@/assets/badge-bos-besar.png";
+import badgeOwner from "@/assets/badge-owner.png";
 
 const OWNER_NICKNAME = "TEAM Live";
 const OWNER_CODE = "123323";
@@ -10,25 +16,22 @@ const OWNER_CODE = "123323";
 // IDN-Live style badge tiers (assigned deterministically per nickname → no flicker, no delay)
 type BadgeTier = {
   name: string;
-  emoji: string;
-  // Tailwind classes for the pill background (gradient) + text color
+  image: string;
   pill: string;
-  // Ring color around the avatar
   ring: string;
 };
 
-// IDN Live exact badge set: emoji + tier name (do NOT change emojis)
 const BADGES: BadgeTier[] = [
-  { name: "Netizen",   emoji: "🐤", pill: "bg-gradient-to-r from-slate-400 to-slate-500 text-white shadow-[0_0_10px_rgba(148,163,184,0.5)]",        ring: "ring-slate-400" },
-  { name: "Pentolan",  emoji: "🔥", pill: "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-[0_0_10px_rgba(244,63,94,0.55)]",            ring: "ring-red-500" },
-  { name: "Kuncen",    emoji: "🧙", pill: "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-[0_0_10px_rgba(249,115,22,0.55)]",      ring: "ring-orange-500" },
-  { name: "Tuan Muda", emoji: "🎩", pill: "bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(217,70,239,0.6)]", ring: "ring-fuchsia-500" },
-  { name: "Bos Besar", emoji: "💎", pill: "bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 text-white shadow-[0_0_14px_rgba(59,130,246,0.65)]",     ring: "ring-blue-500" },
+  { name: "Netizen",   image: badgeNetizen,   pill: "bg-gradient-to-r from-slate-400 to-slate-500 text-white shadow-[0_0_10px_rgba(148,163,184,0.5)]",        ring: "ring-slate-400" },
+  { name: "Pentolan",  image: badgePentolan,  pill: "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-[0_0_10px_rgba(244,63,94,0.55)]",            ring: "ring-red-500" },
+  { name: "Kuncen",    image: badgeKuncen,    pill: "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-[0_0_10px_rgba(249,115,22,0.55)]",      ring: "ring-orange-500" },
+  { name: "Tuan Muda", image: badgeTuanMuda,  pill: "bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(217,70,239,0.6)]", ring: "ring-fuchsia-500" },
+  { name: "Bos Besar", image: badgeBosBesar,  pill: "bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 text-white shadow-[0_0_14px_rgba(59,130,246,0.65)]",     ring: "ring-blue-500" },
 ];
 
 const OWNER_BADGE: BadgeTier = {
   name: "OWNER",
-  emoji: "👑",
+  image: badgeOwner,
   pill: "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black shadow-[0_0_14px_rgba(251,191,36,0.7)]",
   ring: "ring-yellow-400",
 };
@@ -163,7 +166,7 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className={`inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${badge.pill}`}>
-                    <span className="text-[10px] leading-none">{badge.emoji}</span>
+                    <img src={badge.image} alt={badge.name} loading="lazy" width={16} height={16} className="w-4 h-4 object-contain drop-shadow" />
                     {badge.name}
                   </span>
                   <span className={`font-semibold text-xs ${isMsgOwner ? "text-yellow-500" : ""}`} style={isMsgOwner ? {} : { color: msg.color }}>
@@ -201,7 +204,7 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
 
       <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2 items-center">
         <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-full flex-shrink-0 ${myBadge.pill}`}>
-          {isOwner ? <Crown size={10} /> : <span className="leading-none">{myBadge.emoji}</span>}
+          <img src={myBadge.image} alt={myBadge.name} loading="lazy" width={16} height={16} className="w-4 h-4 object-contain drop-shadow" />
           {myBadge.name}
         </span>
         <input type="text" value={message} onChange={(e) => setMessage(e.target.value)}
