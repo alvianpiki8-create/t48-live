@@ -7,6 +7,8 @@ const LOG_KEY = "teamlive_last_visit_log";
 /**
  * Logs a visit (max once per day per device) and returns the count of
  * unique devices that have visited in the last 7 days.
+ * Real-time: subscribes to new viewer_visits inserts so the counter
+ * updates instantly without polling delays.
  */
 export const useWeeklyViewers = () => {
   const [count, setCount] = useState<number>(0);
@@ -14,6 +16,7 @@ export const useWeeklyViewers = () => {
   useEffect(() => {
     let cancelled = false;
     const deviceId = getDeviceId();
+    const seen = new Set<string>();
 
     const logVisit = async () => {
       try {
@@ -35,10 +38,11 @@ export const useWeeklyViewers = () => {
           .from("viewer_visits" as any)
           .select("device_id")
           .gte("visited_at", since)
-          .limit(10000);
+          .limit(20000);
         if (error || cancelled || !data) return;
-        const unique = new Set((data as any[]).map((r) => r.device_id));
-        setCount(unique.size);
+        seen.clear();
+        (data as any[]).forEach((r) => seen.add(r.device_id));
+        setCount(seen.size);
       } catch {
         // ignore
       }
@@ -46,11 +50,30 @@ export const useWeeklyViewers = () => {
 
     logVisit().then(fetchCount);
 
-    // Refresh every 60s
-    const interval = setInterval(fetchCount, 60_000);
+    // Real-time: instantly bump counter when a new device visits
+    const channel = supabase
+      .channel("viewer_visits_rt")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "viewer_visits" },
+        (payload) => {
+          const id = (payload.new as any)?.device_id;
+          if (!id) return;
+          if (!seen.has(id)) {
+            seen.add(id);
+            setCount(seen.size);
+          }
+        }
+      )
+      .subscribe();
+
+    // Background safety refresh every 5 min (in case of long sessions)
+    const interval = setInterval(fetchCount, 5 * 60_000);
+
     return () => {
       cancelled = true;
       clearInterval(interval);
+      try { supabase.removeChannel(channel); } catch {}
     };
   }, []);
 

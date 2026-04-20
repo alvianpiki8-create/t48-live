@@ -22,7 +22,7 @@ const Index = () => {
   const [nickname, setNickname] = useState<string | null>(() => sessionStorage.getItem("teamlive_nickname"));
   const viewerCount = useViewerPresence();
   const weeklyViewers = useWeeklyViewers();
-  const { messages, sendMessage } = useRealtimeChat();
+  const { messages, sendMessage, isBanned, banReason } = useRealtimeChat();
   const [tokenCode, setTokenCode] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
@@ -164,7 +164,7 @@ const Index = () => {
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
           <LineupDisplay lineup={lineup} />
-          <CommentSection nickname={nickname} messages={messages} onSendMessage={handleSendMessage} />
+          <CommentSection nickname={nickname} messages={messages} onSendMessage={handleSendMessage} isBanned={isBanned} banReason={banReason} />
           <OrderShowBanner />
         </main>
 
@@ -213,10 +213,22 @@ const Index = () => {
               🔄 Reset Device Akses
             </button>
           </div>
-          <div className="max-w-4xl mx-auto bg-card/50 border border-border rounded-lg p-3 flex items-center justify-center gap-2">
-            <span className="w-2 h-2 bg-primary rounded-full" style={{ animation: "pulse-live 1.5s infinite" }} />
-            <span className="text-xs text-muted-foreground">Penonton livestreaming dalam 1 minggu:</span>
-            <span className="text-sm text-foreground font-mono font-semibold">{weeklyViewers.toLocaleString("id-ID")}</span>
+          <div
+            className="max-w-4xl mx-auto bg-gradient-to-r from-primary/10 via-card/60 to-primary/10 border border-primary/30 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-center gap-2 shadow-lg backdrop-blur-sm"
+            style={{ animation: "fade-in 0.5s ease-out" }}
+          >
+            <span className="w-2.5 h-2.5 bg-primary rounded-full shadow-[0_0_10px_hsl(var(--primary))]" style={{ animation: "pulse-live 1.5s infinite" }} />
+            <span className="text-sm text-muted-foreground text-center">
+              Kami telah melayani{" "}
+              <span
+                key={weeklyViewers}
+                className="text-foreground font-mono font-bold text-lg text-primary inline-block"
+                style={{ animation: "fade-in 0.4s ease-out" }}
+              >
+                {weeklyViewers.toLocaleString("id-ID")}
+              </span>{" "}
+              orang dalam minggu ini
+            </span>
           </div>
           <div className="text-muted-foreground/30 text-xs font-mono">Powered by TEAM Live · @t48id</div>
         </footer>

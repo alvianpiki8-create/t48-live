@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
+import { toast } from "@/hooks/use-toast";
 
 export interface ChatMessage {
   id: string;
@@ -30,7 +31,49 @@ export const getColorForNickname = (nickname: string) => {
 
 export const useRealtimeChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isBanned, setIsBanned] = useState(false);
+  const [banReason, setBanReason] = useState<string>("");
   const seenIds = useRef<Set<string>>(new Set());
+
+  // Check ban status on mount + subscribe to changes
+  useEffect(() => {
+    const deviceId = getDeviceId();
+
+    const checkBan = async () => {
+      const { data } = await supabase
+        .from("chat_banned_devices" as any)
+        .select("reason")
+        .eq("device_id", deviceId)
+        .maybeSingle();
+      if (data) {
+        setIsBanned(true);
+        setBanReason((data as any).reason || "Diblokir karena pelanggaran");
+      } else {
+        setIsBanned(false);
+        setBanReason("");
+      }
+    };
+    checkBan();
+
+    const banCh = supabase
+      .channel("chat_bans_rt")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_banned_devices", filter: `device_id=eq.${deviceId}` },
+        (payload) => {
+          setIsBanned(true);
+          setBanReason((payload.new as any).reason || "Diblokir karena pelanggaran");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "chat_banned_devices" },
+        () => checkBan()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(banCh); };
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -56,7 +99,6 @@ export const useRealtimeChat = () => {
           if (seenIds.current.has(msg.id)) return;
           seenIds.current.add(msg.id);
           setMessages((prev) => {
-            // Replace optimistic temp message with real one if same nickname+text in last 5s
             const tempIdx = prev.findIndex(
               (p) => p.id.startsWith("tmp-") && p.nickname === msg.nickname && p.text === msg.text
             );
@@ -85,9 +127,19 @@ export const useRealtimeChat = () => {
   }, []);
 
   const sendMessage = useCallback(async (nickname: string, text: string) => {
+    if (isBanned) {
+      toast({
+        title: "Anda diblokir dari chat",
+        description: banReason,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const color = getColorForNickname(nickname);
     const deviceId = getDeviceId();
-    // Optimistic insert — appears instantly, no delay
+
+    // Optimistic insert — appears instantly
     const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic: ChatMessage = {
       id: tempId,
@@ -99,15 +151,47 @@ export const useRealtimeChat = () => {
     };
     setMessages((prev) => [...prev, optimistic]);
 
+    // Moderate in parallel — don't block UI
+    try {
+      const { data: modData } = await supabase.functions.invoke("moderate-chat", {
+        body: { text },
+      });
+
+      if (modData && modData.allow === false) {
+        // Remove optimistic message
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+
+        // Ban this device
+        await supabase.from("chat_banned_devices" as any).insert({
+          device_id: deviceId,
+          reason: modData.reason || "Mengandung kata tidak pantas",
+          banned_word: modData.word || null,
+        } as any);
+
+        setIsBanned(true);
+        setBanReason(modData.reason || "Mengandung kata tidak pantas");
+
+        toast({
+          title: "🚫 Pesan diblokir",
+          description: `${modData.reason || "Kata tidak pantas terdeteksi"}. Anda tidak bisa chat lagi.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (e) {
+      // Moderation failed → fall through to insert (don't block legitimate users)
+      console.warn("Moderation skipped:", e);
+    }
+
     const { error } = await supabase.from("chat_messages").insert({
       nickname, text, color, device_id: deviceId,
     } as any);
 
     if (error) {
-      // Roll back optimistic on failure
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      toast({ title: "Gagal mengirim", description: error.message, variant: "destructive" });
     }
-  }, []);
+  }, [isBanned, banReason]);
 
-  return { messages, sendMessage };
+  return { messages, sendMessage, isBanned, banReason };
 };
