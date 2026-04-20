@@ -139,6 +139,8 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
     return profileMap[nick] || null;
   };
 
+  const myBadge = getBadge(nickname);
+
   return (
     <div className="bg-card border border-border rounded-lg flex flex-col" style={{ height: "380px" }}>
       <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
@@ -157,25 +159,28 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
         </div>
       </div>
 
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         {messages.map((msg) => {
-          const title = getTitle(msg.nickname);
+          const badge = getBadge(msg.nickname);
           const isMsgOwner = msg.nickname === OWNER_NICKNAME;
           const code = getUserCode(msg.nickname);
           return (
             <div key={msg.id}
-              className={`group/msg relative flex items-start gap-2 py-1.5 px-2 rounded-lg transition-colors ${isMsgOwner ? "bg-primary/10 border border-primary/20" : "hover:bg-secondary/30"}`}>
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 ${isMsgOwner ? "ring-2 ring-primary" : ""}`}
-                style={{ backgroundColor: isMsgOwner ? "hsl(var(--primary))" : msg.color, color: "hsl(var(--background))" }}>
-                {isMsgOwner ? <Shield size={12} /> : msg.nickname.charAt(0).toUpperCase()}
+              className={`group/msg relative flex items-start gap-2 py-1.5 px-2 rounded-xl transition-colors ${isMsgOwner ? "bg-gradient-to-r from-yellow-400/15 to-orange-500/10 border border-yellow-400/30" : "hover:bg-secondary/30"}`}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 ring-2 ${badge.ring}`}
+                style={{ backgroundColor: msg.color, color: "hsl(var(--background))" }}>
+                {msg.nickname.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`font-semibold text-xs ${isMsgOwner ? "text-primary" : ""}`} style={isMsgOwner ? {} : { color: msg.color }}>
+                  <span className={`inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${badge.pill}`}>
+                    <span className="text-[10px] leading-none">{badge.emoji}</span>
+                    {badge.name}
+                  </span>
+                  <span className={`font-semibold text-xs ${isMsgOwner ? "text-yellow-500" : ""}`} style={isMsgOwner ? {} : { color: msg.color }}>
                     {msg.nickname}
                   </span>
                   {code && (<span className="text-[9px] font-mono text-muted-foreground bg-secondary px-1 py-0.5 rounded">#{code}</span>)}
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${getTitleColor(title)}`}>{title}</span>
                 </div>
                 <p className="text-sm text-foreground/90 break-words leading-snug">{msg.text}</p>
               </div>
@@ -205,13 +210,11 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
         )}
       </div>
 
-      <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2">
-        {(isOwner || isModerator) && (
-          <div className="flex items-center gap-1 bg-primary/20 text-primary px-2 rounded-full text-[10px] font-bold flex-shrink-0">
-            <Shield size={10} />
-            {isOwner ? "OWNER" : "MOD"}
-          </div>
-        )}
+      <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2 items-center">
+        <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-full flex-shrink-0 ${myBadge.pill}`}>
+          {isOwner ? <Crown size={10} /> : <span className="leading-none">{myBadge.emoji}</span>}
+          {myBadge.name}
+        </span>
         <input type="text" value={message} onChange={(e) => setMessage(e.target.value)}
           placeholder={`Chat sebagai ${nickname}...`} maxLength={200}
           className="flex-1 bg-input border border-border rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors" />
