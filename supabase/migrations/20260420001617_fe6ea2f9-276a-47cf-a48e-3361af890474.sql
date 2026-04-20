@@ -1,0 +1,1 @@
+ALTER TABLE public.stream_settings ADD COLUMN IF NOT EXISTS background_effect text DEFAULT 'rain';

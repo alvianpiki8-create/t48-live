@@ -1,0 +1,1 @@
+ALTER TABLE public.stream_settings ADD COLUMN channel_avatar_2 text;

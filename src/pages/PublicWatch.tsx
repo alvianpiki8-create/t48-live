@@ -1,0 +1,122 @@
+import { useState, useCallback, useEffect } from "react";
+import RainEffect from "@/components/RainEffect";
+import LivePlayer from "@/components/LivePlayer";
+import ChannelInfo from "@/components/ChannelInfo";
+import CommentSection from "@/components/CommentSection";
+import NicknameModal from "@/components/NicknameModal";
+import CountdownOverlay from "@/components/CountdownOverlay";
+import OrderShowBanner from "@/components/OrderShowBanner";
+import LineupDisplay from "@/components/LineupDisplay";
+import { supabase } from "@/integrations/supabase/client";
+import { useViewerPresence } from "@/hooks/useViewerPresence";
+import { useRealtimeChat } from "@/hooks/useRealtimeChat";
+
+const PublicWatch = () => {
+  const [nickname, setNickname] = useState<string | null>(() => sessionStorage.getItem("teamlive_nickname"));
+  const viewerCount = useViewerPresence();
+  const { messages, sendMessage } = useRealtimeChat();
+  const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
+  const [countdownDone, setCountdownDone] = useState(false);
+  const [publicEnabled, setPublicEnabled] = useState<boolean | null>(null);
+
+  const [videoId, setVideoId] = useState("");
+  const [channelName, setChannelName] = useState("TEAM Live");
+  const [streamTitle, setStreamTitle] = useState("Siaran Langsung");
+  const [channelAvatar, setChannelAvatar] = useState("");
+  const [lineup, setLineup] = useState<any[]>([]);
+  const [channelAvatar2, setChannelAvatar2] = useState("");
+  const [countdownBackground, setCountdownBackground] = useState("");
+  const [streamSourceUrl, setStreamSourceUrl] = useState("");
+  const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+
+  useEffect(() => {
+    const applySettings = (data: any) => {
+      if (!data) return;
+      setPublicEnabled(data.public_link_enabled ?? false);
+      setVideoId(data.video_id || "");
+      setChannelName(data.channel_name || "TEAM Live");
+      setStreamTitle(data.stream_title || "Siaran Langsung");
+      setChannelAvatar(data.channel_avatar || "");
+      setChannelAvatar2(data.channel_avatar_2 || "");
+      setCountdownBackground(data.countdown_background || "");
+      setStreamSourceUrl(data.stream_source_url || "");
+      setStreamSourceUrl2(data.stream_source_url_2 || "");
+      setLogoUrl(data.logo_url || "");
+      setLineup(data.lineup || []);
+      if (data.countdown_datetime) {
+        const target = new Date(data.countdown_datetime).getTime();
+        if (target > Date.now()) { setCountdownDatetime(data.countdown_datetime); setCountdownDone(false); }
+        else { setCountdownDatetime(null); setCountdownDone(true); }
+      } else { setCountdownDatetime(null); setCountdownDone(true); }
+    };
+
+    const fetchData = async () => {
+      const { data } = await supabase.from("stream_settings").select("*").limit(1).maybeSingle();
+      if (data) applySettings(data); else { setPublicEnabled(false); setCountdownDone(true); }
+    };
+    fetchData();
+
+    const channel = supabase.channel("public_stream_settings")
+      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, (payload) => applySettings(payload.new))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const handleNickname = useCallback((name: string) => {
+    sessionStorage.setItem("teamlive_nickname", name); setNickname(name);
+  }, []);
+
+  const handleSendMessage = useCallback((text: string) => {
+    if (!nickname) return;
+    sendMessage(nickname, text);
+  }, [nickname, sendMessage]);
+
+  if (publicEnabled === null) {
+    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  }
+  if (!publicEnabled) {
+    return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">🔒</div><h2 className="text-foreground font-semibold text-lg">Link Publik Tidak Aktif</h2><p className="text-muted-foreground text-sm mt-2">Admin belum mengaktifkan akses publik.</p></div></div></>);
+  }
+  if (!nickname) {
+    return (<><RainEffect /><NicknameModal onSubmit={handleNickname} /></>);
+  }
+
+  return (
+    <><RainEffect />
+      <div className="relative z-10 min-h-screen">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />}
+            <h1 className="text-lg font-bold text-foreground tracking-tight">TEAM Live</h1>
+            <span className="text-xs text-muted-foreground font-mono">@t48id</span>
+          </div>
+          <span className="text-sm text-muted-foreground">Hai, <span className="text-foreground font-medium">{nickname}</span></span>
+        </header>
+
+        <main className="max-w-4xl mx-auto px-4 py-4 space-y-3">
+          <div className="relative">
+            {countdownDatetime && !countdownDone ? (
+              <div className="w-full" style={{ aspectRatio: "16/9" }}><CountdownOverlay targetDatetime={countdownDatetime} onComplete={() => setCountdownDone(true)} backgroundImage={countdownBackground} /></div>
+            ) : (
+              <LivePlayer videoId={videoId} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} watermarkText="@t48id" />
+            )}
+          </div>
+          <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
+          <LineupDisplay lineup={lineup} />
+          <CommentSection nickname={nickname} messages={messages} onSendMessage={handleSendMessage} />
+          <OrderShowBanner />
+        </main>
+
+        <footer className="text-center py-5 space-y-3 px-4">
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 max-w-4xl mx-auto">
+            <p className="text-destructive text-xs font-medium">⚠️ Dilarang restream dari sini! Jika ketahuan, akses akan kami blokir. Kode T4-**** adalah tanda unik Anda — pelanggaran akan terdeteksi.</p>
+          </div>
+          <div className="text-muted-foreground/30 text-xs font-mono">Powered by TEAM Live · @t48id</div>
+        </footer>
+      </div>
+    </>
+  );
+};
+
+export default PublicWatch;
