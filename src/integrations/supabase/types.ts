@@ -385,6 +385,24 @@ export type Database = {
         }
         Relationships: []
       }
+      viewer_visits: {
+        Row: {
+          device_id: string
+          id: string
+          visited_at: string
+        }
+        Insert: {
+          device_id: string
+          id?: string
+          visited_at?: string
+        }
+        Update: {
+          device_id?: string
+          id?: string
+          visited_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
