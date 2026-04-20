@@ -111,12 +111,31 @@ const MembershipPanel = () => {
 
   const togglePublicLink = async () => {
     const newVal = !publicLinkEnabled;
-    if (settingsId) {
-      await supabase.from("stream_settings").update({ public_link_enabled: newVal } as any).eq("id", settingsId);
-    } else {
-      await supabase.from("stream_settings").insert({ public_link_enabled: newVal } as any);
-    }
+    // Optimistic UI
     setPublicLinkEnabled(newVal);
+    try {
+      if (settingsId) {
+        const { error } = await supabase
+          .from("stream_settings")
+          .update({ public_link_enabled: newVal, updated_at: new Date().toISOString() } as any)
+          .eq("id", settingsId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("stream_settings")
+          .insert({ public_link_enabled: newVal } as any)
+          .select("id")
+          .single();
+        if (error) throw error;
+        if (data?.id) setSettingsId(data.id);
+      }
+      // Re-sync from DB to confirm persistence
+      await fetchSettings();
+    } catch (e: any) {
+      // Roll back on failure
+      setPublicLinkEnabled(!newVal);
+      alert("Gagal menyimpan: " + (e?.message || "Coba lagi"));
+    }
   };
 
   const saveMembershipSettings = async () => {
