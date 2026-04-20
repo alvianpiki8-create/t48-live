@@ -204,7 +204,7 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner }: CommentS
 
       <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2 items-center">
         <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-full flex-shrink-0 ${myBadge.pill}`}>
-          {isOwner ? <Crown size={10} /> : <span className="leading-none">{myBadge.emoji}</span>}
+          <img src={myBadge.image} alt={myBadge.name} loading="lazy" width={16} height={16} className="w-4 h-4 object-contain drop-shadow" />
           {myBadge.name}
         </span>
         <input type="text" value={message} onChange={(e) => setMessage(e.target.value)}
