@@ -106,7 +106,17 @@ const TokenGate = () => {
             <>
               <div className="text-4xl mb-4">⛔</div>
               <h2 className="text-destructive font-semibold">Token Diblokir</h2>
-              <p className="text-muted-foreground text-sm mt-2">{errorMsg}</p>
+              <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-left">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Alasan pemblokiran:</p>
+                <p className="text-sm text-foreground font-medium break-words">{errorMsg}</p>
+              </div>
+              <a
+                href={`https://wa.me/6282135963767?text=${encodeURIComponent(`Halo admin, token saya diblokir.\nAlasan: ${errorMsg}\nMohon bantuan 🙏`)}`}
+                target="_blank" rel="noreferrer"
+                className="mt-4 inline-flex items-center justify-center gap-2 w-full bg-green-500 text-white text-sm py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+              >
+                💬 Hubungi Admin (WA)
+              </a>
             </>
           )}
           <p className="text-muted-foreground/30 text-xs font-mono mt-6">@t48id</p>
