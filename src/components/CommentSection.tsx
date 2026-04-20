@@ -16,12 +16,18 @@ const OWNER_CODE = "123323";
 // IDN-Live style badge tiers (assigned deterministically per nickname → no flicker, no delay)
 type BadgeTier = {
   name: string;
-  emoji: string;
-  // Tailwind classes for the pill background (gradient) + text color
+  image: string;
   pill: string;
-  // Ring color around the avatar
   ring: string;
 };
+
+const BADGES: BadgeTier[] = [
+  { name: "Netizen",   image: badgeNetizen,   pill: "bg-gradient-to-r from-slate-400 to-slate-500 text-white shadow-[0_0_10px_rgba(148,163,184,0.5)]",        ring: "ring-slate-400" },
+  { name: "Pentolan",  image: badgePentolan,  pill: "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-[0_0_10px_rgba(244,63,94,0.55)]",            ring: "ring-red-500" },
+  { name: "Kuncen",    image: badgeKuncen,    pill: "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-[0_0_10px_rgba(249,115,22,0.55)]",      ring: "ring-orange-500" },
+  { name: "Tuan Muda", image: badgeTuanMuda,  pill: "bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(217,70,239,0.6)]", ring: "ring-fuchsia-500" },
+  { name: "Bos Besar", image: badgeBosBesar,  pill: "bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 text-white shadow-[0_0_14px_rgba(59,130,246,0.65)]",     ring: "ring-blue-500" },
+];
 
 // IDN Live exact badge set: emoji + tier name (do NOT change emojis)
 const BADGES: BadgeTier[] = [
