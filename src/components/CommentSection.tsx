@@ -17,19 +17,26 @@ type BadgeTier = {
   ring: string;
 };
 
+// IDN Live exact badge set: emoji + tier name (do NOT change emojis)
 const BADGES: BadgeTier[] = [
-  { name: "Netizen",   emoji: "🪙", pill: "bg-gradient-to-r from-slate-400 to-slate-500 text-white",       ring: "ring-slate-400" },
-  { name: "Pentolan",  emoji: "😤", pill: "bg-gradient-to-r from-red-500 to-rose-600 text-white",          ring: "ring-red-500" },
-  { name: "Kuncen",    emoji: "🥸", pill: "bg-gradient-to-r from-orange-500 to-amber-600 text-white",      ring: "ring-orange-500" },
-  { name: "Tuan Muda", emoji: "🎩", pill: "bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white",    ring: "ring-fuchsia-500" },
-  { name: "Bos Besar", emoji: "💎", pill: "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",       ring: "ring-blue-500" },
+  { name: "Netizen",   emoji: "🐤", pill: "bg-gradient-to-r from-slate-400 to-slate-500 text-white shadow-[0_0_10px_rgba(148,163,184,0.5)]",        ring: "ring-slate-400" },
+  { name: "Pentolan",  emoji: "🔥", pill: "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-[0_0_10px_rgba(244,63,94,0.55)]",            ring: "ring-red-500" },
+  { name: "Kuncen",    emoji: "🧙", pill: "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-[0_0_10px_rgba(249,115,22,0.55)]",      ring: "ring-orange-500" },
+  { name: "Tuan Muda", emoji: "🎩", pill: "bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(217,70,239,0.6)]", ring: "ring-fuchsia-500" },
+  { name: "Bos Besar", emoji: "💎", pill: "bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 text-white shadow-[0_0_14px_rgba(59,130,246,0.65)]",     ring: "ring-blue-500" },
 ];
 
 const OWNER_BADGE: BadgeTier = {
   name: "OWNER",
   emoji: "👑",
-  pill: "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black shadow-[0_0_12px_rgba(251,191,36,0.6)]",
+  pill: "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black shadow-[0_0_14px_rgba(251,191,36,0.7)]",
   ring: "ring-yellow-400",
+};
+
+// Premium tiers get a chat-bubble background highlight (like owner)
+const PREMIUM_BG: Record<string, string> = {
+  "Tuan Muda": "bg-gradient-to-r from-fuchsia-500/15 to-purple-600/10 border border-fuchsia-500/30",
+  "Bos Besar": "bg-gradient-to-r from-cyan-400/15 to-indigo-600/10 border border-blue-500/30",
 };
 
 // Deterministic hash → same nickname always gets the same badge (no delay/flicker)
