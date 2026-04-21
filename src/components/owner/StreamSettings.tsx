@@ -118,6 +118,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         stream_source_url_2: streamSourceUrl2,
         stream_source_type: detectedType,
         logo_url: logoUrl,
+        catalog_background_url: catalogBgUrl,
+        catalog_background_type: catalogBgType,
         updated_at: new Date().toISOString(),
       } as any).eq("id", settings.id);
       if (error) { alert("Gagal simpan: " + error.message); return; }
