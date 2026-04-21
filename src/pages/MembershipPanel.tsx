@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link } from "lucide-react";
+import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const ADMINS = [
