@@ -151,33 +151,64 @@ const MembershipPanel = () => {
     setTimeout(() => setSavedLink(false), 2000);
   };
 
-  const handleCopyMembershipText = (m: Membership) => {
+  const generateTokenCode = () => {
+    const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+  };
+
+  const createMembershipToken = async (m: Membership): Promise<string | null> => {
+    const days = m.type === "weekly" ? 7 : 30;
+    const token_code = generateTokenCode();
+    const { error } = await supabase.from("access_tokens").insert({
+      token_code,
+      duration_days: days,
+      show_name: `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`,
+    } as any);
+    if (error) {
+      alert("Gagal membuat token membership: " + error.message);
+      return null;
+    }
+    return token_code;
+  };
+
+  const handleCopyMembershipText = async (m: Membership) => {
+    const code = await createMembershipToken(m);
+    if (!code) return;
     const typeLabel = m.type === "weekly" ? "mingguan" : "bulanan";
     const duration = m.type === "weekly" ? "7 hari" : "30 hari";
-    const publicLink = `${window.location.origin}/live`;
+    const link = `${window.location.origin}/watch/${code}`;
 
     const text = `🤩TERIMAKASIH TELAH MELAKUKAN PEMBELIAN MEMBERSHIP (${typeLabel})
 
-⏳Durasi membership: ${duration}
+⏳Durasi membership: ${duration} (mulai dihitung saat link pertama kali dibuka)
 
-🔗Link utama: ${publicLink}
+🔗Link akses: ${link}
 
 📥Link grup: https://chat.whatsapp.com/JyEx1WM1rxnFz7qFM08V9L?mode=gi_t
 
 Replay: ${replayUrl || "t48.lovable.app/replay"} SANDI: ${replayPassword || "-"}
 
+⚠️ PENTING:
+• 1 link = 1 perangkat (terikat otomatis saat dibuka)
+• Hitungan ${duration} dimulai saat Anda pertama kali membuka link
+• Jangan dibagikan ke orang lain
+
 Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
 
     navigator.clipboard.writeText(text);
     setCopiedId(m.id);
-    setTimeout(() => setCopiedId(null), 2000);
+    setTimeout(() => setCopiedId(null), 2500);
   };
 
-  const handleCopyMembershipLink = (m: Membership) => {
-    const publicLink = `${window.location.origin}/live`;
-    navigator.clipboard.writeText(publicLink);
+  const handleCopyMembershipLink = async (m: Membership) => {
+    const code = await createMembershipToken(m);
+    if (!code) return;
+    const link = `${window.location.origin}/watch/${code}`;
+    navigator.clipboard.writeText(link);
     setCopiedLinkId(m.id);
-    setTimeout(() => setCopiedLinkId(null), 2000);
+    setTimeout(() => setCopiedLinkId(null), 2500);
   };
 
   const handleLogout = () => {
