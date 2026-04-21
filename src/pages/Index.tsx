@@ -230,6 +230,13 @@ const Index = () => {
               orang dalam minggu ini
             </span>
           </div>
+          <div className="max-w-4xl mx-auto flex flex-col items-center gap-2">
+            <div className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-foreground">
+              <span className="text-base leading-none">🤖</span>
+              <span>Website ini telah dilengkapi fitur <span className="text-primary font-semibold">AI Moderasi Chat</span> otomatis</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60">Kapasitas server: hingga ~10.000 penonton bersamaan · Streaming real-time tanpa lag</p>
+          </div>
           <div className="text-muted-foreground/30 text-xs font-mono">Powered by TEAM Live · @t48id</div>
         </footer>
       </div>
