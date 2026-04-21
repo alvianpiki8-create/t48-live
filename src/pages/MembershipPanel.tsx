@@ -389,9 +389,12 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-semibold text-foreground text-sm">{m.name}</span>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
                         {m.type === "weekly" ? "Mingguan" : "Bulanan"}
+                      </span>
+                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                        <Ticket size={9} /> {m.type === "weekly" ? "7 hari" : "30 hari"} sejak link dibuka
                       </span>
                       <span className="text-xs text-primary font-medium">
                         Rp {m.price.toLocaleString("id-ID")}
