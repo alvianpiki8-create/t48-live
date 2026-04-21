@@ -145,9 +145,29 @@ const CatalogPage = () => {
     <div className="min-h-screen relative bg-gradient-to-b from-sky-50 via-white to-blue-50">
       {/* Owner-controlled background (image or video) */}
       {bgUrl && (
-        <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
           {bgType === "video" ? (
-            <video src={bgUrl} autoPlay loop muted playsInline className="w-full h-full object-cover opacity-30" />
+            <video
+              key={bgUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              disablePictureInPicture
+              controls={false}
+              ref={(el) => {
+                if (!el) return;
+                el.muted = true;
+                const tryPlay = () => el.play().catch(() => {});
+                tryPlay();
+                el.addEventListener("loadeddata", tryPlay, { once: true });
+              }}
+              className="w-full h-full object-cover opacity-40"
+            >
+              <source src={bgUrl} type="video/mp4" />
+              <source src={bgUrl} type="video/webm" />
+            </video>
           ) : (
             <img src={bgUrl} alt="" className="w-full h-full object-cover opacity-30" />
           )}
