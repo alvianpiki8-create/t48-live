@@ -40,20 +40,29 @@ export const useRealtimeChat = () => {
     const deviceId = getDeviceId();
 
     const checkBan = async () => {
+      // Ban hanya berlaku 24 jam
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("chat_banned_devices" as any)
-        .select("reason")
+        .select("reason, created_at")
         .eq("device_id", deviceId)
+        .gte("created_at", cutoff)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (data) {
         setIsBanned(true);
-        setBanReason((data as any).reason || "Diblokir karena pelanggaran");
+        setBanReason((data as any).reason || "Diblokir karena pelanggaran (24 jam)");
       } else {
         setIsBanned(false);
         setBanReason("");
+        // Bersihkan ban lama (>24 jam)
+        await supabase.from("chat_banned_devices" as any).delete().eq("device_id", deviceId).lt("created_at", cutoff);
       }
     };
     checkBan();
+    // Auto re-check every 5 minutes for ban expiry
+    const banInterval = setInterval(checkBan, 5 * 60 * 1000);
 
     const banCh = supabase
       .channel("chat_bans_rt")
@@ -72,7 +81,7 @@ export const useRealtimeChat = () => {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(banCh); };
+    return () => { supabase.removeChannel(banCh); clearInterval(banInterval); };
   }, []);
 
   useEffect(() => {

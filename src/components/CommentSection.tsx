@@ -206,8 +206,9 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
 
       {isBanned ? (
         <div className="p-3 border-t border-destructive/30 bg-destructive/10 text-center">
-          <p className="text-xs text-destructive font-semibold">🚫 Anda diblokir dari chat</p>
+          <p className="text-xs text-destructive font-semibold">🚫 Anda diblokir dari chat selama 24 jam</p>
           <p className="text-[10px] text-muted-foreground mt-1">{banReason || "Mengandung kata tidak pantas"}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Akses chat akan otomatis kembali setelah 24 jam.</p>
         </div>
       ) : (
         <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2 items-center">

@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Coins, Copy, Check, Clock, MessageCircle } from "lucide-react";
+import { celebrateCoinTopup } from "@/lib/celebration";
+import { toast } from "@/hooks/use-toast";
 
 const ADMIN_WHATSAPP = "6282135963767"; // Admin TEAM Live
 import type { User } from "@supabase/supabase-js";
@@ -47,6 +49,8 @@ const TopUpPage = () => {
   const [history, setHistory] = useState<TopupRequest[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  const prevConfirmedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     const init = async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
@@ -57,24 +61,36 @@ const TopUpPage = () => {
       if (p) setCoins((p as any).coins || 0);
 
       const { data: h } = await supabase.from("coin_topup_requests").select("*").eq("user_id", u.id).order("created_at", { ascending: false }).limit(20);
-      if (h) setHistory(h as any);
+      if (h) {
+        setHistory(h as any);
+        (h as any[]).filter(r => r.status === "confirmed").forEach(r => prevConfirmedRef.current.add(r.id));
+      }
     };
     init();
 
-    // Realtime for profile coins and topup status
     const ch = supabase.channel("topup_rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, async () => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, async (payload) => {
         const { data: { user: u } } = await supabase.auth.getUser();
-        if (u) {
-          const { data: p } = await supabase.from("profiles").select("coins").eq("user_id", u.id).maybeSingle();
-          if (p) setCoins((p as any).coins || 0);
+        if (u && (payload.new as any).user_id === u.id) {
+          setCoins((payload.new as any).coins || 0);
         }
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "coin_topup_requests" }, async () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "coin_topup_requests" }, async (payload) => {
         const { data: { user: u } } = await supabase.auth.getUser();
-        if (u) {
-          const { data: h } = await supabase.from("coin_topup_requests").select("*").eq("user_id", u.id).order("created_at", { ascending: false }).limit(20);
-          if (h) setHistory(h as any);
+        if (!u) return;
+        const row = (payload.new || payload.old) as any;
+        if (row?.user_id !== u.id) return;
+
+        const { data: h } = await supabase.from("coin_topup_requests").select("*").eq("user_id", u.id).order("created_at", { ascending: false }).limit(20);
+        if (h) setHistory(h as any);
+
+        if (payload.eventType === "UPDATE" && row.status === "confirmed" && !prevConfirmedRef.current.has(row.id)) {
+          prevConfirmedRef.current.add(row.id);
+          celebrateCoinTopup();
+          toast({
+            title: "🎉 Koin berhasil masuk!",
+            description: `+${row.amount} Koin telah ditambahkan ke akun kamu.`,
+          });
         }
       })
       .subscribe();

@@ -248,6 +248,7 @@ export type Database = {
       show_catalog: {
         Row: {
           access_hour: string | null
+          background_url: string | null
           created_at: string
           description: string | null
           id: string
@@ -260,6 +261,7 @@ export type Database = {
         }
         Insert: {
           access_hour?: string | null
+          background_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -272,6 +274,7 @@ export type Database = {
         }
         Update: {
           access_hour?: string | null
+          background_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -339,6 +342,8 @@ export type Database = {
           access_days: number | null
           background_effect: string | null
           backup_video_url: string | null
+          catalog_background_type: string | null
+          catalog_background_url: string | null
           channel_avatar: string | null
           channel_avatar_2: string | null
           channel_name: string | null
@@ -363,6 +368,8 @@ export type Database = {
           access_days?: number | null
           background_effect?: string | null
           backup_video_url?: string | null
+          catalog_background_type?: string | null
+          catalog_background_url?: string | null
           channel_avatar?: string | null
           channel_avatar_2?: string | null
           channel_name?: string | null
@@ -387,6 +394,8 @@ export type Database = {
           access_days?: number | null
           background_effect?: string | null
           backup_video_url?: string | null
+          catalog_background_type?: string | null
+          catalog_background_url?: string | null
           channel_avatar?: string | null
           channel_avatar_2?: string | null
           channel_name?: string | null

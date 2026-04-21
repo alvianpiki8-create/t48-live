@@ -28,8 +28,11 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
   const [streamSourceUrl, setStreamSourceUrl] = useState("");
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [catalogBgUrl, setCatalogBgUrl] = useState("");
+  const [catalogBgType, setCatalogBgType] = useState<"image" | "video">("image");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
+  const [uploadingCatBg, setUploadingCatBg] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -195,6 +198,30 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         <label className="text-sm text-muted-foreground mb-1 block">Link Replay</label>
         <input type="text" value={replayUrl} onChange={(e) => setReplayUrl(e.target.value)}
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+      </div>
+
+      {/* Catalog Background — image or video */}
+      <div>
+        <label className="text-sm text-muted-foreground mb-2 block flex items-center gap-1">
+          <ImageIcon size={12} /> Background Halaman Katalog (foto / video)
+        </label>
+        <div className="flex items-center gap-3">
+          <div className="w-20 h-14 rounded-lg overflow-hidden bg-secondary flex items-center justify-center flex-shrink-0 border border-border">
+            {catalogBgUrl ? (
+              catalogBgType === "video"
+                ? <video src={catalogBgUrl} muted className="w-full h-full object-cover" />
+                : <img src={catalogBgUrl} alt="BG" className="w-full h-full object-cover" />
+            ) : <ImageIcon size={20} className="text-muted-foreground" />}
+          </div>
+          <label className="flex-1 cursor-pointer bg-secondary hover:bg-accent text-foreground text-sm text-center py-2 rounded-lg transition-colors">
+            {uploadingCatBg ? "Mengupload..." : "Pilih Foto/Video dari Galeri"}
+            <input type="file" accept="image/*,video/*" className="hidden" onChange={handleCatBgUpload} disabled={uploadingCatBg} />
+          </label>
+          {catalogBgUrl && (
+            <button type="button" onClick={() => setCatalogBgUrl("")} className="text-xs text-destructive hover:underline">Hapus</button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-1">Tampil sebagai background halaman katalog (max 10MB).</p>
       </div>
 
       <div>

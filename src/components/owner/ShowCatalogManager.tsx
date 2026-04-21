@@ -8,6 +8,7 @@ interface CatalogShow {
   title: string;
   description: string | null;
   image_url: string | null;
+  background_url: string | null;
   price_coins: number;
   show_date: string | null;
   access_hour: string | null;
@@ -20,7 +21,9 @@ const ShowCatalogManager = () => {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [backgroundUrl, setBackgroundUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadingBg, setUploadingBg] = useState(false);
   const [priceCoins, setPriceCoins] = useState("4");
   const [showDate, setShowDate] = useState("");
   const [showTime, setShowTime] = useState("");
@@ -53,6 +56,20 @@ const ShowCatalogManager = () => {
     setUploading(false);
   };
 
+  const handleBgFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { alert("Maksimal 8MB"); return; }
+    setUploadingBg(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const fileName = `bg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { data, error } = await supabase.storage.from("catalog-images").upload(fileName, file);
+    if (error) { alert("Gagal upload: " + error.message); setUploadingBg(false); return; }
+    const { data: pub } = supabase.storage.from("catalog-images").getPublicUrl(data.path);
+    setBackgroundUrl(pub.publicUrl);
+    setUploadingBg(false);
+  };
+
   const handleAdd = async () => {
     if (!title.trim()) return;
     let showDatetime: string | null = null;
@@ -62,13 +79,14 @@ const ShowCatalogManager = () => {
       title: title.trim(),
       description: desc.trim() || null,
       image_url: imageUrl.trim() || null,
+      background_url: backgroundUrl.trim() || null,
       price_coins: parseInt(priceCoins) || 4,
       show_date: showDatetime,
       access_hour: showTime || null,
       lineup: selectedLineup.length > 0 ? selectedLineup : null,
     } as any);
 
-    setTitle(""); setDesc(""); setImageUrl(""); setPriceCoins("4");
+    setTitle(""); setDesc(""); setImageUrl(""); setBackgroundUrl(""); setPriceCoins("4");
     setShowDate(""); setShowTime(""); setSelectedLineup([]);
     fetchShows();
   };
@@ -112,6 +130,22 @@ const ShowCatalogManager = () => {
           {imageUrl && (
             <div className="rounded-lg overflow-hidden border border-border aspect-video mt-2">
               <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+            </div>
+          )}
+        </div>
+
+        {/* Per-show background (optional) */}
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Background Show (opsional — tampil saat user buka detail)</label>
+          <label className="flex items-center justify-center gap-2 w-full bg-input border border-dashed border-border hover:border-primary cursor-pointer rounded-lg px-3 py-3 text-foreground text-sm transition-colors">
+            <Upload size={14} />
+            {uploadingBg ? "Mengupload..." : backgroundUrl ? "Ganti background" : "Pilih Background dari Galeri"}
+            <input type="file" accept="image/*" className="hidden" onChange={handleBgFileUpload} disabled={uploadingBg} />
+          </label>
+          {backgroundUrl && (
+            <div className="rounded-lg overflow-hidden border border-border aspect-video mt-2 relative">
+              <img src={backgroundUrl} alt="BG Preview" className="w-full h-full object-cover" />
+              <button type="button" onClick={() => setBackgroundUrl("")} className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">Hapus</button>
             </div>
           )}
         </div>
