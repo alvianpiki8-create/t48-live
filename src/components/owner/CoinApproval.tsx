@@ -44,12 +44,17 @@ const CoinApproval = () => {
   }, [fetchRequests]);
 
   const handleApprove = async (req: TopupRequest) => {
-    await supabase.from("coin_topup_requests").update({ status: "confirmed", confirmed_at: new Date().toISOString() } as any).eq("id", req.id);
+    if (req.status === "confirmed") return; // idempotent — never double-credit
+    // 1) Credit coins FIRST (always-fresh balance)
     const { data: profile } = await supabase.from("profiles").select("coins").eq("user_id", req.user_id).maybeSingle();
-    if (profile) {
-      const newCoins = ((profile as any).coins || 0) + req.amount;
-      await supabase.from("profiles").update({ coins: newCoins } as any).eq("user_id", req.user_id);
-    }
+    const currentCoins = (profile as any)?.coins || 0;
+    const { error: coinErr } = await supabase.from("profiles").update({ coins: currentCoins + req.amount } as any).eq("user_id", req.user_id);
+    if (coinErr) { alert("Gagal menambah koin: " + coinErr.message); return; }
+    // 2) Then mark confirmed → triggers user's confetti via realtime
+    await supabase.from("coin_topup_requests").update({
+      status: "confirmed",
+      confirmed_at: new Date().toISOString(),
+    } as any).eq("id", req.id);
     fetchRequests();
   };
 
