@@ -403,11 +403,11 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                     {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}
                   </div>
                   <div className="flex items-center gap-1">
-                    {/* Copy link only */}
+                    {/* Copy link only — generates a fresh access token */}
                     <button
                       onClick={() => handleCopyMembershipLink(m)}
                       className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                      title="Salin link saja"
+                      title="Buat & salin link akses (token otomatis)"
                     >
                       {copiedLinkId === m.id ? <Check size={14} className="text-green-500" /> : <Link size={14} />}
                     </button>
@@ -415,7 +415,7 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                     <button
                       onClick={() => handleCopyMembershipText(m)}
                       className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                      title="Salin link + teks"
+                      title="Buat token + salin teks lengkap"
                     >
                       {copiedId === m.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                     </button>
