@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link } from "lucide-react";
+import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const ADMINS = [
@@ -151,33 +151,64 @@ const MembershipPanel = () => {
     setTimeout(() => setSavedLink(false), 2000);
   };
 
-  const handleCopyMembershipText = (m: Membership) => {
+  const generateTokenCode = () => {
+    const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+  };
+
+  const createMembershipToken = async (m: Membership): Promise<string | null> => {
+    const days = m.type === "weekly" ? 7 : 30;
+    const token_code = generateTokenCode();
+    const { error } = await supabase.from("access_tokens").insert({
+      token_code,
+      duration_days: days,
+      show_name: `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`,
+    } as any);
+    if (error) {
+      alert("Gagal membuat token membership: " + error.message);
+      return null;
+    }
+    return token_code;
+  };
+
+  const handleCopyMembershipText = async (m: Membership) => {
+    const code = await createMembershipToken(m);
+    if (!code) return;
     const typeLabel = m.type === "weekly" ? "mingguan" : "bulanan";
     const duration = m.type === "weekly" ? "7 hari" : "30 hari";
-    const publicLink = `${window.location.origin}/live`;
+    const link = `${window.location.origin}/watch/${code}`;
 
     const text = `🤩TERIMAKASIH TELAH MELAKUKAN PEMBELIAN MEMBERSHIP (${typeLabel})
 
-⏳Durasi membership: ${duration}
+⏳Durasi membership: ${duration} (mulai dihitung saat link pertama kali dibuka)
 
-🔗Link utama: ${publicLink}
+🔗Link akses: ${link}
 
 📥Link grup: https://chat.whatsapp.com/JyEx1WM1rxnFz7qFM08V9L?mode=gi_t
 
 Replay: ${replayUrl || "t48.lovable.app/replay"} SANDI: ${replayPassword || "-"}
 
+⚠️ PENTING:
+• 1 link = 1 perangkat (terikat otomatis saat dibuka)
+• Hitungan ${duration} dimulai saat Anda pertama kali membuka link
+• Jangan dibagikan ke orang lain
+
 Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
 
     navigator.clipboard.writeText(text);
     setCopiedId(m.id);
-    setTimeout(() => setCopiedId(null), 2000);
+    setTimeout(() => setCopiedId(null), 2500);
   };
 
-  const handleCopyMembershipLink = (m: Membership) => {
-    const publicLink = `${window.location.origin}/live`;
-    navigator.clipboard.writeText(publicLink);
+  const handleCopyMembershipLink = async (m: Membership) => {
+    const code = await createMembershipToken(m);
+    if (!code) return;
+    const link = `${window.location.origin}/watch/${code}`;
+    navigator.clipboard.writeText(link);
     setCopiedLinkId(m.id);
-    setTimeout(() => setCopiedLinkId(null), 2000);
+    setTimeout(() => setCopiedLinkId(null), 2500);
   };
 
   const handleLogout = () => {
@@ -358,9 +389,12 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-semibold text-foreground text-sm">{m.name}</span>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
                         {m.type === "weekly" ? "Mingguan" : "Bulanan"}
+                      </span>
+                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                        <Ticket size={9} /> {m.type === "weekly" ? "7 hari" : "30 hari"} sejak link dibuka
                       </span>
                       <span className="text-xs text-primary font-medium">
                         Rp {m.price.toLocaleString("id-ID")}
@@ -369,11 +403,11 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                     {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}
                   </div>
                   <div className="flex items-center gap-1">
-                    {/* Copy link only */}
+                    {/* Copy link only — generates a fresh access token */}
                     <button
                       onClick={() => handleCopyMembershipLink(m)}
                       className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                      title="Salin link saja"
+                      title="Buat & salin link akses (token otomatis)"
                     >
                       {copiedLinkId === m.id ? <Check size={14} className="text-green-500" /> : <Link size={14} />}
                     </button>
@@ -381,7 +415,7 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                     <button
                       onClick={() => handleCopyMembershipText(m)}
                       className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                      title="Salin link + teks"
+                      title="Buat token + salin teks lengkap"
                     >
                       {copiedId === m.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                     </button>
