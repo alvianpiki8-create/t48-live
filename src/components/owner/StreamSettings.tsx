@@ -49,6 +49,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       setStreamSourceUrl(settings.stream_source_url || "");
       setStreamSourceUrl2((settings as any).stream_source_url_2 || "");
       setLogoUrl(settings.logo_url || "");
+      setCatalogBgUrl((settings as any).catalog_background_url || "");
+      setCatalogBgType(((settings as any).catalog_background_type as "image" | "video") || "image");
     }
   }, [settings]);
 
@@ -85,6 +87,21 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
     setUploadingBg(false);
   };
 
+  const handleCatBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { alert("Maksimal 10MB"); return; }
+    setUploadingCatBg(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const isVideo = file.type.startsWith("video/");
+    const fileName = `catbg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { data, error } = await supabase.storage.from("catalog-images").upload(fileName, file);
+    if (error) { alert("Gagal upload: " + error.message); setUploadingCatBg(false); return; }
+    const { data: pub } = supabase.storage.from("catalog-images").getPublicUrl(data.path);
+    setCatalogBgUrl(pub.publicUrl);
+    setCatalogBgType(isVideo ? "video" : "image");
+    setUploadingCatBg(false);
+  };
+
   const handleSave = async () => {
     let countdown_datetime: string | null = null;
     if (countdownDate && countdownTime) {
@@ -101,6 +118,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         stream_source_url_2: streamSourceUrl2,
         stream_source_type: detectedType,
         logo_url: logoUrl,
+        catalog_background_url: catalogBgUrl,
+        catalog_background_type: catalogBgType,
         updated_at: new Date().toISOString(),
       } as any).eq("id", settings.id);
       if (error) { alert("Gagal simpan: " + error.message); return; }
