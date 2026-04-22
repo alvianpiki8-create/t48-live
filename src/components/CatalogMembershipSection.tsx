@@ -33,6 +33,7 @@ interface CatalogMembershipSectionProps {
   user: User | null;
   profile: Profile | null;
   onCoinsChange: (coins: number) => void;
+  trialAvailable?: boolean;
 }
 
 const getBenefits = (type: string) => {
@@ -44,7 +45,7 @@ const getBenefits = (type: string) => {
   ];
 };
 
-const CatalogMembershipSection = ({ user, profile, onCoinsChange }: CatalogMembershipSectionProps) => {
+const CatalogMembershipSection = ({ user, profile, onCoinsChange, trialAvailable = false }: CatalogMembershipSectionProps) => {
   const navigate = useNavigate();
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [activeMembership, setActiveMembership] = useState<ActiveMembership | null>(null);
@@ -111,10 +112,19 @@ const CatalogMembershipSection = ({ user, profile, onCoinsChange }: CatalogMembe
           <h2 className="mt-2 text-xl font-bold text-card-foreground">Akses live lebih hemat</h2>
           <p className="text-sm text-muted-foreground">Pilih paket, bayar pakai koin, langsung buka livestreaming.</p>
         </div>
-        <button onClick={() => navigate("/trial-live")} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent transition-colors">
-          <Play size={14} /> Tester 3 menit
-        </button>
+        {trialAvailable && (
+          <button onClick={() => navigate("/trial-live")} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent transition-colors animate-fade-in">
+            <Play size={14} /> Tester 3 menit
+          </button>
+        )}
       </div>
+
+      {trialAvailable && (
+        <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 animate-fade-in">
+          <p className="text-sm font-bold text-foreground">Tester live sudah terbuka</p>
+          <p className="text-xs text-muted-foreground mt-1">Coba preview livestreaming selama 3 menit sebelum membeli akses penuh.</p>
+        </div>
+      )}
 
       {activeMembership && (
         <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 space-y-3 animate-fade-in">
