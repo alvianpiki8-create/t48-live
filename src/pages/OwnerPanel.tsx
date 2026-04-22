@@ -165,30 +165,23 @@ const OwnerPanel = () => {
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="owner@teamlive.com"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Password</label>
+              <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1.5"><KeyRound size={14} /> Token Owner</label>
               <input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                inputMode="numeric"
+                value={ownerToken}
+                onChange={(e) => setOwnerToken(e.target.value)}
+                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center font-mono tracking-[0.25em]"
+                placeholder="•••••"
               />
             </div>
             {loginError && <p className="text-destructive text-sm">{loginError}</p>}
             <button
               type="submit"
-              className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all"
+              disabled={loginLoading || !ownerToken.trim()}
+              className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50"
             >
-              Login
+              {loginLoading ? "Memeriksa..." : "Masuk Owner"}
             </button>
           </form>
           <p className="text-center text-muted-foreground/40 text-xs mt-4 font-mono">@t48id</p>
@@ -450,6 +443,9 @@ const OwnerPanel = () => {
         {/* Show Catalog Manager */}
         <ShowCatalogManager />
 
+        {/* Catalog Slider Manager */}
+        <CatalogSlideManager />
+
         {/* Coin Approval */}
         <CoinApproval />
 
@@ -479,27 +475,9 @@ const OwnerPanel = () => {
           </div>
         </button>
 
-        {/* Info Login */}
         <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="font-semibold text-foreground mb-3">Info Login Admin</h2>
-          <div className="space-y-3">
-            {ADMINS.map((admin, i) => (
-              <div key={i} className="text-sm space-y-1 bg-secondary/20 rounded-lg p-3">
-                <div className="text-xs text-muted-foreground font-medium">Admin {i + 1}</div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email:</span>
-                  <span className="text-foreground font-mono text-xs">{admin.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Password:</span>
-                  <span className="text-foreground font-mono text-xs">{admin.password}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground/50 mt-3">
-            Ganti password melalui code untuk keamanan
-          </p>
+          <h2 className="font-semibold text-foreground mb-2">Login Owner</h2>
+          <p className="text-xs text-muted-foreground">Owner panel sekarang memakai token khusus agar lebih cepat dan aman.</p>
         </div>
 
         <p className="text-center text-muted-foreground/30 text-xs font-mono">@t48id</p>
