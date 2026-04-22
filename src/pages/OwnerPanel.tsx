@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, Coins } from "lucide-react";
+import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, KeyRound } from "lucide-react";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
 import ShowManager, { Show } from "@/components/owner/ShowManager";
@@ -11,21 +11,18 @@ import CoinApproval from "@/components/owner/CoinApproval";
 import ShowCatalogManager from "@/components/owner/ShowCatalogManager";
 import ReplayScheduleManager from "@/components/owner/ReplayScheduleManager";
 import ModeratorManager from "@/components/owner/ModeratorManager";
-
-const ADMINS = [
-  { email: "owner@teamlive.com", password: "teamlive2024" },
-  { email: "admin2@teamlive.com", password: "teamlive2024" },
-];
+import CatalogSlideManager from "@/components/owner/CatalogSlideManager";
 
 const AUTH_KEY = "teamlive_owner_auth";
+const OWNER_TOKEN_KEY = "teamlive_owner_token";
 
 const OwnerPanel = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem(AUTH_KEY) === "true";
   });
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [ownerToken, setOwnerToken] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [saved, setSaved] = useState(false);
   const [videoError, setVideoError] = useState("");
@@ -103,15 +100,18 @@ const OwnerPanel = () => {
     }
   }, [isAuthenticated, fetchTokens, fetchShows, fetchStreamSettings]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = ADMINS.some((a) => a.email === email && a.password === password);
-    if (isValid) {
+    setLoginLoading(true);
+    setLoginError("");
+    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { token: ownerToken } });
+    setLoginLoading(false);
+    if (!error && (data as any)?.valid) {
       setIsAuthenticated(true);
       sessionStorage.setItem(AUTH_KEY, "true");
-      setLoginError("");
+      sessionStorage.setItem(OWNER_TOKEN_KEY, ownerToken.trim());
     } else {
-      setLoginError("Email atau password salah");
+      setLoginError("Token owner salah");
     }
   };
 
@@ -151,6 +151,7 @@ const OwnerPanel = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(OWNER_TOKEN_KEY);
     setIsAuthenticated(false);
   };
 
