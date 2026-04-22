@@ -158,6 +158,12 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   if (!publicEnabled) {
     return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">🔒</div><h2 className="text-foreground font-semibold text-lg">Link Publik Tidak Aktif</h2><p className="text-muted-foreground text-sm mt-2">Admin belum mengaktifkan akses publik.</p></div></div></>);
   }
+  if (mode === "membership" && !membershipAllowed) {
+    return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">💎</div><h2 className="text-foreground font-semibold text-lg">Membership Belum Aktif</h2><p className="text-muted-foreground text-sm mt-2">Beli membership dulu untuk membuka livestreaming dan akses replay.</p><button onClick={() => navigate("/catalog")} className="mt-5 w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold">Beli Membership</button></div></div></>);
+  }
+  if (mode === "trial" && !trialAllowed) {
+    return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">⏳</div><h2 className="text-foreground font-semibold text-lg">Tester Sudah Dipakai</h2><p className="text-muted-foreground text-sm mt-2">Akses preview gratis bisa dicoba lagi setelah 24 jam.</p><button onClick={() => navigate("/catalog")} className="mt-5 w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold">Lihat Paket Akses</button></div></div></>);
+  }
   if (!nickname) {
     return (<><RainEffect /><NicknameModal onSubmit={handleNickname} /></>);
   }
@@ -175,6 +181,15 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
         </header>
 
         <main className="max-w-4xl mx-auto px-4 py-4 space-y-3">
+          {mode === "trial" && (
+            <div className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-3 flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-2 min-w-0">
+                <Clock3 size={18} className="text-primary flex-shrink-0" />
+                <p className="text-sm text-foreground font-medium">Preview gratis sedang berjalan — nikmati cuplikan live sebelum memilih akses penuh.</p>
+              </div>
+              <span className="text-sm font-mono text-primary bg-primary/10 px-2.5 py-1 rounded-md">{Math.floor(trialSecondsLeft / 60)}:{String(trialSecondsLeft % 60).padStart(2, "0")}</span>
+            </div>
+          )}
           <div className="relative">
             {countdownDatetime && !countdownDone ? (
               <div className="w-full" style={{ aspectRatio: "16/9" }}><CountdownOverlay targetDatetime={countdownDatetime} onComplete={() => setCountdownDone(true)} backgroundImage={countdownBackground} /></div>
