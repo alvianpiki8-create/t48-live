@@ -228,15 +228,11 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="owner@teamlive.com" />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <label className="text-sm text-muted-foreground mb-1 flex items-center gap-1.5"><KeyRound size={14} /> Token Owner</label>
+              <input type="password" inputMode="numeric" value={ownerToken} onChange={(e) => setOwnerToken(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center font-mono tracking-[0.25em]" placeholder="•••••" />
             </div>
             {loginError && <p className="text-destructive text-sm">{loginError}</p>}
-            <button type="submit" className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all">Login</button>
+            <button type="submit" disabled={loginLoading || !ownerToken.trim()} className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50">{loginLoading ? "Memeriksa..." : "Masuk Owner"}</button>
           </form>
         </div>
       </div>
@@ -362,7 +358,7 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                 type="number"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                placeholder="Harga (Rp)"
+                placeholder="Harga (Koin)"
                 className="bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
@@ -399,7 +395,7 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                         <Ticket size={9} /> {m.type === "weekly" ? "7 hari" : "30 hari"} sejak link dibuka
                       </span>
                       <span className="text-xs text-primary font-medium">
-                        Rp {m.price.toLocaleString("id-ID")}
+                        {m.price.toLocaleString("id-ID")} Koin
                       </span>
                     </div>
                     {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}
