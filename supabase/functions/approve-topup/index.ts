@@ -38,12 +38,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: profile, error: profileError } = await admin
+    let { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("coins")
       .eq("user_id", locked.user_id)
       .maybeSingle();
     if (profileError) throw profileError;
+
+    if (!profile) {
+      const { data: userData } = await admin.auth.admin.getUserById(locked.user_id);
+      const { data: generatedCode, error: codeError } = await admin.rpc("generate_user_code");
+      if (codeError) throw codeError;
+
+      const nickname = userData?.user?.user_metadata?.nickname || userData?.user?.email?.split("@")[0] || "User";
+      const { data: createdProfile, error: createProfileError } = await admin
+        .from("profiles")
+        .insert({ user_id: locked.user_id, nickname, user_code: generatedCode, coins: 0 })
+        .select("coins")
+        .maybeSingle();
+      if (createProfileError) throw createProfileError;
+      profile = createdProfile;
+    }
 
     const nextCoins = Number(profile?.coins || 0) + Number(locked.amount || 0);
     const { error: coinError } = await admin
