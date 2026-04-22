@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock3 } from "lucide-react";
+import { Check, Clock3, Copy, ExternalLink } from "lucide-react";
 import RainEffect from "@/components/RainEffect";
 import LivePlayer from "@/components/LivePlayer";
 import ChannelInfo from "@/components/ChannelInfo";
@@ -38,6 +38,8 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [membershipAllowed, setMembershipAllowed] = useState(mode !== "membership");
+  const [membershipInfo, setMembershipInfo] = useState<any>(null);
+  const [replayCopied, setReplayCopied] = useState(false);
   const [trialAllowed, setTrialAllowed] = useState(mode !== "trial");
   const [trialSecondsLeft, setTrialSecondsLeft] = useState(180);
 
@@ -81,13 +83,14 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
       if (!user) { navigate("/auth", { replace: true }); return; }
       const { data } = await (supabase as any)
         .from("user_memberships")
-        .select("id")
+        .select("id,membership_name,expires_at,replay_url,replay_password")
         .eq("user_id", user.id)
         .gt("expires_at", new Date().toISOString())
         .order("expires_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       setMembershipAllowed(Boolean(data));
+      setMembershipInfo(data || null);
     };
     checkMembership();
     const ch = supabase.channel("membership_watch_rt")
