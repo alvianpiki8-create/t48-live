@@ -155,7 +155,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   if (publicEnabled === null) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
-  if (!publicEnabled) {
+  if (mode === "public" && !publicEnabled) {
     return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">🔒</div><h2 className="text-foreground font-semibold text-lg">Link Publik Tidak Aktif</h2><p className="text-muted-foreground text-sm mt-2">Admin belum mengaktifkan akses publik.</p></div></div></>);
   }
   if (mode === "membership" && !membershipAllowed) {
