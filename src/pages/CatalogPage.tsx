@@ -163,6 +163,8 @@ const CatalogPage = () => {
   // Per-show background overlay (used on details modal)
   const detailBg = selectedShow?.background_url || bgUrl;
   const detailBgType = selectedShow?.background_url ? "image" : bgType; // per-show always image for now
+  const isShowStarted = (show: ShowItem) => !show.show_date || new Date(show.show_date).getTime() <= Date.now();
+  const trialAvailable = shows.some((show) => show.is_active && isShowStarted(show));
 
   return (
     <div className="min-h-screen relative bg-gradient-to-b from-sky-50 via-white to-blue-50">
@@ -273,7 +275,7 @@ const CatalogPage = () => {
             </a>
           </div>
 
-          <CatalogMembershipSection user={user} profile={profile} onCoinsChange={(coins) => setProfile(prev => prev ? { ...prev, coins } : prev)} />
+          <CatalogMembershipSection user={user} profile={profile} trialAvailable={trialAvailable} onCoinsChange={(coins) => setProfile(prev => prev ? { ...prev, coins } : prev)} />
 
           {/* Search */}
           <div className="relative">
@@ -342,6 +344,14 @@ const CatalogPage = () => {
                         Lihat Detail →
                       </button>
                     </div>
+                    {isShowStarted(show) && !purchased && (
+                      <button
+                        onClick={() => navigate("/trial-live")}
+                        className="w-full mt-2 bg-gradient-to-r from-sky-100 to-blue-100 text-sky-700 py-2.5 rounded-xl text-sm font-bold hover:shadow-md hover:shadow-sky-200/50 transition-all"
+                      >
+                        ▶️ Coba Tester Live 3 Menit
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -454,6 +464,14 @@ const CatalogPage = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {isShowStarted(selectedShow) && (
+                      <button
+                        onClick={() => navigate("/trial-live")}
+                        className="w-full border border-sky-200 bg-sky-50 text-sky-700 py-2.5 rounded-2xl text-sm font-bold hover:bg-sky-100 transition-all"
+                      >
+                        ▶️ Tester Live Gratis 3 Menit
+                      </button>
+                    )}
                     {profile && profile.coins < selectedShow.price_coins && (
                       <p className="text-red-500 text-xs text-center">Koin tidak cukup. Silakan top-up terlebih dahulu.</p>
                     )}
