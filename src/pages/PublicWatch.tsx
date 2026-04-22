@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Clock3 } from "lucide-react";
 import RainEffect from "@/components/RainEffect";
 import LivePlayer from "@/components/LivePlayer";
 import ChannelInfo from "@/components/ChannelInfo";
@@ -8,10 +10,16 @@ import CountdownOverlay from "@/components/CountdownOverlay";
 import OrderShowBanner from "@/components/OrderShowBanner";
 import LineupDisplay from "@/components/LineupDisplay";
 import { supabase } from "@/integrations/supabase/client";
+import { getDeviceId } from "@/lib/deviceId";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 
-const PublicWatch = () => {
+interface PublicWatchProps {
+  mode?: "public" | "membership" | "trial";
+}
+
+const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
+  const navigate = useNavigate();
   const [nickname, setNickname] = useState<string | null>(() => sessionStorage.getItem("teamlive_nickname"));
   const viewerCount = useViewerPresence();
   const { messages, sendMessage } = useRealtimeChat();
@@ -29,6 +37,9 @@ const PublicWatch = () => {
   const [streamSourceUrl, setStreamSourceUrl] = useState("");
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [membershipAllowed, setMembershipAllowed] = useState(mode !== "membership");
+  const [trialAllowed, setTrialAllowed] = useState(mode !== "trial");
+  const [trialSecondsLeft, setTrialSecondsLeft] = useState(180);
 
   useEffect(() => {
     const applySettings = (data: any) => {
