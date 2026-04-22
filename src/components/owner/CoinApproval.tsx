@@ -44,17 +44,10 @@ const CoinApproval = () => {
   }, [fetchRequests]);
 
   const handleApprove = async (req: TopupRequest) => {
-    if (req.status === "confirmed") return; // idempotent — never double-credit
-    // 1) Credit coins FIRST (always-fresh balance)
-    const { data: profile } = await supabase.from("profiles").select("coins").eq("user_id", req.user_id).maybeSingle();
-    const currentCoins = (profile as any)?.coins || 0;
-    const { error: coinErr } = await supabase.from("profiles").update({ coins: currentCoins + req.amount } as any).eq("user_id", req.user_id);
-    if (coinErr) { alert("Gagal menambah koin: " + coinErr.message); return; }
-    // 2) Then mark confirmed → triggers user's confetti via realtime
-    await supabase.from("coin_topup_requests").update({
-      status: "confirmed",
-      confirmed_at: new Date().toISOString(),
-    } as any).eq("id", req.id);
+    if (req.status !== "pending") return; // idempotent — never double-credit
+    const ownerToken = sessionStorage.getItem("teamlive_owner_token") || "";
+    const { error } = await supabase.functions.invoke("approve-topup", { body: { requestId: req.id, ownerToken } });
+    if (error) { alert("Gagal menyetujui topup: " + error.message); return; }
     fetchRequests();
   };
 

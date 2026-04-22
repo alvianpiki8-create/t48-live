@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, Coins } from "lucide-react";
+import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, KeyRound } from "lucide-react";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
 import ShowManager, { Show } from "@/components/owner/ShowManager";
@@ -11,21 +11,18 @@ import CoinApproval from "@/components/owner/CoinApproval";
 import ShowCatalogManager from "@/components/owner/ShowCatalogManager";
 import ReplayScheduleManager from "@/components/owner/ReplayScheduleManager";
 import ModeratorManager from "@/components/owner/ModeratorManager";
-
-const ADMINS = [
-  { email: "owner@teamlive.com", password: "teamlive2024" },
-  { email: "admin2@teamlive.com", password: "teamlive2024" },
-];
+import CatalogSlideManager from "@/components/owner/CatalogSlideManager";
 
 const AUTH_KEY = "teamlive_owner_auth";
+const OWNER_TOKEN_KEY = "teamlive_owner_token";
 
 const OwnerPanel = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem(AUTH_KEY) === "true";
   });
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [ownerToken, setOwnerToken] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [saved, setSaved] = useState(false);
   const [videoError, setVideoError] = useState("");
@@ -103,15 +100,18 @@ const OwnerPanel = () => {
     }
   }, [isAuthenticated, fetchTokens, fetchShows, fetchStreamSettings]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = ADMINS.some((a) => a.email === email && a.password === password);
-    if (isValid) {
+    setLoginLoading(true);
+    setLoginError("");
+    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { token: ownerToken } });
+    setLoginLoading(false);
+    if (!error && (data as any)?.valid) {
       setIsAuthenticated(true);
       sessionStorage.setItem(AUTH_KEY, "true");
-      setLoginError("");
+      sessionStorage.setItem(OWNER_TOKEN_KEY, ownerToken.trim());
     } else {
-      setLoginError("Email atau password salah");
+      setLoginError("Token owner salah");
     }
   };
 
@@ -151,6 +151,7 @@ const OwnerPanel = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(OWNER_TOKEN_KEY);
     setIsAuthenticated(false);
   };
 
@@ -164,30 +165,23 @@ const OwnerPanel = () => {
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="owner@teamlive.com"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Password</label>
+              <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1.5"><KeyRound size={14} /> Token Owner</label>
               <input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                inputMode="numeric"
+                value={ownerToken}
+                onChange={(e) => setOwnerToken(e.target.value)}
+                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center font-mono tracking-[0.25em]"
+                placeholder="•••••"
               />
             </div>
             {loginError && <p className="text-destructive text-sm">{loginError}</p>}
             <button
               type="submit"
-              className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all"
+              disabled={loginLoading || !ownerToken.trim()}
+              className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50"
             >
-              Login
+              {loginLoading ? "Memeriksa..." : "Masuk Owner"}
             </button>
           </form>
           <p className="text-center text-muted-foreground/40 text-xs mt-4 font-mono">@t48id</p>
@@ -449,6 +443,9 @@ const OwnerPanel = () => {
         {/* Show Catalog Manager */}
         <ShowCatalogManager />
 
+        {/* Catalog Slider Manager */}
+        <CatalogSlideManager />
+
         {/* Coin Approval */}
         <CoinApproval />
 
@@ -478,27 +475,9 @@ const OwnerPanel = () => {
           </div>
         </button>
 
-        {/* Info Login */}
         <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="font-semibold text-foreground mb-3">Info Login Admin</h2>
-          <div className="space-y-3">
-            {ADMINS.map((admin, i) => (
-              <div key={i} className="text-sm space-y-1 bg-secondary/20 rounded-lg p-3">
-                <div className="text-xs text-muted-foreground font-medium">Admin {i + 1}</div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email:</span>
-                  <span className="text-foreground font-mono text-xs">{admin.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Password:</span>
-                  <span className="text-foreground font-mono text-xs">{admin.password}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground/50 mt-3">
-            Ganti password melalui code untuk keamanan
-          </p>
+          <h2 className="font-semibold text-foreground mb-2">Login Owner</h2>
+          <p className="text-xs text-muted-foreground">Owner panel sekarang memakai token khusus agar lebih cepat dan aman.</p>
         </div>
 
         <p className="text-center text-muted-foreground/30 text-xs font-mono">@t48id</p>
