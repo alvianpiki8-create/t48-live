@@ -74,6 +74,75 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  useEffect(() => {
+    if (mode !== "membership") return;
+    const checkMembership = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate("/auth", { replace: true }); return; }
+      const { data } = await (supabase as any)
+        .from("user_memberships")
+        .select("id")
+        .eq("user_id", user.id)
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setMembershipAllowed(Boolean(data));
+    };
+    checkMembership();
+    const ch = supabase.channel("membership_watch_rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_memberships" }, () => checkMembership())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [mode, navigate]);
+
+  useEffect(() => {
+    if (mode !== "trial") return;
+    const deviceId = getDeviceId();
+    const startTrial = async () => {
+      const now = Date.now();
+      const { data } = await (supabase as any)
+        .from("livestream_trials")
+        .select("started_at,expires_at,cooldown_until")
+        .eq("device_id", deviceId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data && new Date(data.cooldown_until).getTime() > now && new Date(data.expires_at).getTime() <= now) {
+        setTrialAllowed(false);
+        return;
+      }
+
+      const activeExpiry = data && new Date(data.expires_at).getTime() > now ? new Date(data.expires_at).getTime() : now + 180000;
+      if (!data || new Date(data.cooldown_until).getTime() <= now) {
+        await (supabase as any).from("livestream_trials").insert({
+          device_id: deviceId,
+          expires_at: new Date(activeExpiry).toISOString(),
+          cooldown_until: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+      setTrialAllowed(true);
+      setTrialSecondsLeft(Math.max(0, Math.ceil((activeExpiry - Date.now()) / 1000)));
+    };
+    startTrial();
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "trial" || !trialAllowed) return;
+    const timer = window.setInterval(() => {
+      setTrialSecondsLeft((left) => {
+        if (left <= 1) {
+          window.clearInterval(timer);
+          navigate("/catalog", { replace: true });
+          return 0;
+        }
+        return left - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [mode, trialAllowed, navigate]);
+
   const handleNickname = useCallback((name: string) => {
     sessionStorage.setItem("teamlive_nickname", name); setNickname(name);
   }, []);
