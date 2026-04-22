@@ -27,6 +27,8 @@ const App = () => (
           <Route path="/watch/:token" element={<TokenGate />} />
           <Route path="/owner" element={<OwnerPanel />} />
           <Route path="/live" element={<PublicWatch />} />
+          <Route path="/membership-live" element={<PublicWatch mode="membership" />} />
+          <Route path="/trial-live" element={<PublicWatch mode="trial" />} />
           <Route path="/membership" element={<MembershipPanel />} />
           <Route path="/owner-watch" element={<OwnerWatch />} />
           <Route path="/auth" element={<AuthPage />} />
