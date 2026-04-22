@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket } from "lucide-react";
+import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-const ADMINS = [
-  { email: "owner@teamlive.com", password: "teamlive2024" },
-  { email: "admin2@teamlive.com", password: "teamlive2024" },
-];
 const AUTH_KEY = "teamlive_owner_auth";
+const OWNER_TOKEN_KEY = "teamlive_owner_token";
 
 interface Membership {
   id: string;
@@ -22,8 +19,8 @@ interface Membership {
 const MembershipPanel = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem(AUTH_KEY) === "true");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [ownerToken, setOwnerToken] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
@@ -74,14 +71,19 @@ const MembershipPanel = () => {
     }
   }, [isAuthenticated, fetchMemberships, fetchSettings]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (ADMINS.some((a) => a.email === email && a.password === password)) {
+    setLoginLoading(true);
+    setLoginError("");
+    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { token: ownerToken } });
+    setLoginLoading(false);
+    if (!error && (data as any)?.valid) {
       setIsAuthenticated(true);
       sessionStorage.setItem(AUTH_KEY, "true");
+      sessionStorage.setItem(OWNER_TOKEN_KEY, ownerToken.trim());
       setLoginError("");
     } else {
-      setLoginError("Email atau password salah");
+      setLoginError("Token owner salah");
     }
   };
 
@@ -226,15 +228,11 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="owner@teamlive.com" />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <label className="text-sm text-muted-foreground mb-1 flex items-center gap-1.5"><KeyRound size={14} /> Token Owner</label>
+              <input type="password" inputMode="numeric" value={ownerToken} onChange={(e) => setOwnerToken(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center font-mono tracking-[0.25em]" placeholder="•••••" />
             </div>
             {loginError && <p className="text-destructive text-sm">{loginError}</p>}
-            <button type="submit" className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all">Login</button>
+            <button type="submit" disabled={loginLoading || !ownerToken.trim()} className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50">{loginLoading ? "Memeriksa..." : "Masuk Owner"}</button>
           </form>
         </div>
       </div>
@@ -360,7 +358,7 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                 type="number"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                placeholder="Harga (Rp)"
+                placeholder="Harga (Koin)"
                 className="bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
@@ -397,7 +395,7 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                         <Ticket size={9} /> {m.type === "weekly" ? "7 hari" : "30 hari"} sejak link dibuka
                       </span>
                       <span className="text-xs text-primary font-medium">
-                        Rp {m.price.toLocaleString("id-ID")}
+                        {m.price.toLocaleString("id-ID")} Koin
                       </span>
                     </div>
                     {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}

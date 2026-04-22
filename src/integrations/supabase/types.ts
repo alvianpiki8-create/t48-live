@@ -173,6 +173,33 @@ export type Database = {
         }
         Relationships: []
       }
+      livestream_trials: {
+        Row: {
+          cooldown_until: string
+          created_at: string
+          device_id: string
+          expires_at: string
+          id: string
+          started_at: string
+        }
+        Insert: {
+          cooldown_until: string
+          created_at?: string
+          device_id: string
+          expires_at: string
+          id?: string
+          started_at?: string
+        }
+        Update: {
+          cooldown_until?: string
+          created_at?: string
+          device_id?: string
+          expires_at?: string
+          id?: string
+          started_at?: string
+        }
+        Relationships: []
+      }
       memberships: {
         Row: {
           created_at: string
@@ -447,6 +474,56 @@ export type Database = {
           video_id?: string | null
         }
         Relationships: []
+      }
+      user_memberships: {
+        Row: {
+          coins_spent: number
+          created_at: string
+          expires_at: string
+          id: string
+          membership_id: string | null
+          membership_name: string
+          membership_type: string
+          replay_password: string | null
+          replay_url: string | null
+          starts_at: string
+          user_id: string
+        }
+        Insert: {
+          coins_spent?: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          membership_id?: string | null
+          membership_name: string
+          membership_type: string
+          replay_password?: string | null
+          replay_url?: string | null
+          starts_at?: string
+          user_id: string
+        }
+        Update: {
+          coins_spent?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          membership_id?: string | null
+          membership_name?: string
+          membership_type?: string
+          replay_password?: string | null
+          replay_url?: string | null
+          starts_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_memberships_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       viewer_visits: {
         Row: {

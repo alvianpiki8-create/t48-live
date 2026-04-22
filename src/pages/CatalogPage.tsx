@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Search, Coins, LogOut, Eye, Calendar, Sparkles, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { celebrateShowPurchase } from "@/lib/celebration";
+import CatalogMembershipSection from "@/components/CatalogMembershipSection";
 
 interface ShowItem {
   id: string;
@@ -271,6 +272,8 @@ const CatalogPage = () => {
               <MessageCircle size={14} /> Bantuan admin
             </a>
           </div>
+
+          <CatalogMembershipSection user={user} profile={profile} onCoinsChange={(coins) => setProfile(prev => prev ? { ...prev, coins } : prev)} />
 
           {/* Search */}
           <div className="relative">

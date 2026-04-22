@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Check, Clock3, Copy, ExternalLink } from "lucide-react";
 import RainEffect from "@/components/RainEffect";
 import LivePlayer from "@/components/LivePlayer";
 import ChannelInfo from "@/components/ChannelInfo";
@@ -8,10 +10,16 @@ import CountdownOverlay from "@/components/CountdownOverlay";
 import OrderShowBanner from "@/components/OrderShowBanner";
 import LineupDisplay from "@/components/LineupDisplay";
 import { supabase } from "@/integrations/supabase/client";
+import { getDeviceId } from "@/lib/deviceId";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 
-const PublicWatch = () => {
+interface PublicWatchProps {
+  mode?: "public" | "membership" | "trial";
+}
+
+const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
+  const navigate = useNavigate();
   const [nickname, setNickname] = useState<string | null>(() => sessionStorage.getItem("teamlive_nickname"));
   const viewerCount = useViewerPresence();
   const { messages, sendMessage } = useRealtimeChat();
@@ -29,6 +37,11 @@ const PublicWatch = () => {
   const [streamSourceUrl, setStreamSourceUrl] = useState("");
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [membershipAllowed, setMembershipAllowed] = useState(mode !== "membership");
+  const [membershipInfo, setMembershipInfo] = useState<any>(null);
+  const [replayCopied, setReplayCopied] = useState(false);
+  const [trialAllowed, setTrialAllowed] = useState(mode !== "trial");
+  const [trialSecondsLeft, setTrialSecondsLeft] = useState(180);
 
   useEffect(() => {
     const applySettings = (data: any) => {
@@ -63,6 +76,76 @@ const PublicWatch = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  useEffect(() => {
+    if (mode !== "membership") return;
+    const checkMembership = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate("/auth", { replace: true }); return; }
+      const { data } = await (supabase as any)
+        .from("user_memberships")
+        .select("id,membership_name,expires_at,replay_url,replay_password")
+        .eq("user_id", user.id)
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setMembershipAllowed(Boolean(data));
+      setMembershipInfo(data || null);
+    };
+    checkMembership();
+    const ch = supabase.channel("membership_watch_rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_memberships" }, () => checkMembership())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [mode, navigate]);
+
+  useEffect(() => {
+    if (mode !== "trial") return;
+    const deviceId = getDeviceId();
+    const startTrial = async () => {
+      const now = Date.now();
+      const { data } = await (supabase as any)
+        .from("livestream_trials")
+        .select("started_at,expires_at,cooldown_until")
+        .eq("device_id", deviceId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data && new Date(data.cooldown_until).getTime() > now && new Date(data.expires_at).getTime() <= now) {
+        setTrialAllowed(false);
+        return;
+      }
+
+      const activeExpiry = data && new Date(data.expires_at).getTime() > now ? new Date(data.expires_at).getTime() : now + 180000;
+      if (!data || new Date(data.cooldown_until).getTime() <= now) {
+        await (supabase as any).from("livestream_trials").insert({
+          device_id: deviceId,
+          expires_at: new Date(activeExpiry).toISOString(),
+          cooldown_until: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+      setTrialAllowed(true);
+      setTrialSecondsLeft(Math.max(0, Math.ceil((activeExpiry - Date.now()) / 1000)));
+    };
+    startTrial();
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "trial" || !trialAllowed) return;
+    const timer = window.setInterval(() => {
+      setTrialSecondsLeft((left) => {
+        if (left <= 1) {
+          window.clearInterval(timer);
+          navigate("/catalog", { replace: true });
+          return 0;
+        }
+        return left - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [mode, trialAllowed, navigate]);
+
   const handleNickname = useCallback((name: string) => {
     sessionStorage.setItem("teamlive_nickname", name); setNickname(name);
   }, []);
@@ -75,8 +158,14 @@ const PublicWatch = () => {
   if (publicEnabled === null) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
-  if (!publicEnabled) {
+  if (mode === "public" && !publicEnabled) {
     return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">🔒</div><h2 className="text-foreground font-semibold text-lg">Link Publik Tidak Aktif</h2><p className="text-muted-foreground text-sm mt-2">Admin belum mengaktifkan akses publik.</p></div></div></>);
+  }
+  if (mode === "membership" && !membershipAllowed) {
+    return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">💎</div><h2 className="text-foreground font-semibold text-lg">Membership Belum Aktif</h2><p className="text-muted-foreground text-sm mt-2">Beli membership dulu untuk membuka livestreaming dan akses replay.</p><button onClick={() => navigate("/catalog")} className="mt-5 w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold">Beli Membership</button></div></div></>);
+  }
+  if (mode === "trial" && !trialAllowed) {
+    return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">⏳</div><h2 className="text-foreground font-semibold text-lg">Tester Sudah Dipakai</h2><p className="text-muted-foreground text-sm mt-2">Akses preview gratis bisa dicoba lagi setelah 24 jam.</p><button onClick={() => navigate("/catalog")} className="mt-5 w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold">Lihat Paket Akses</button></div></div></>);
   }
   if (!nickname) {
     return (<><RainEffect /><NicknameModal onSubmit={handleNickname} /></>);
@@ -95,6 +184,15 @@ const PublicWatch = () => {
         </header>
 
         <main className="max-w-4xl mx-auto px-4 py-4 space-y-3">
+          {mode === "trial" && (
+            <div className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-3 flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-2 min-w-0">
+                <Clock3 size={18} className="text-primary flex-shrink-0" />
+                <p className="text-sm text-foreground font-medium">Preview gratis sedang berjalan — nikmati cuplikan live sebelum memilih akses penuh.</p>
+              </div>
+              <span className="text-sm font-mono text-primary bg-primary/10 px-2.5 py-1 rounded-md">{Math.floor(trialSecondsLeft / 60)}:{String(trialSecondsLeft % 60).padStart(2, "0")}</span>
+            </div>
+          )}
           <div className="relative">
             {countdownDatetime && !countdownDone ? (
               <div className="w-full" style={{ aspectRatio: "16/9" }}><CountdownOverlay targetDatetime={countdownDatetime} onComplete={() => setCountdownDone(true)} backgroundImage={countdownBackground} /></div>
@@ -104,6 +202,32 @@ const PublicWatch = () => {
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
           <LineupDisplay lineup={lineup} />
+          {mode === "membership" && membershipInfo && (
+            <div className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-4 space-y-3 animate-fade-in">
+              <div>
+                <p className="text-sm font-bold text-foreground">Replay khusus membership</p>
+                <p className="text-xs text-muted-foreground">Salin kode di bawah ini untuk membuka halaman replay.</p>
+              </div>
+              <div className="flex gap-2">
+                <code className="flex-1 rounded-lg bg-input px-3 py-2 text-sm font-mono text-foreground">{membershipInfo.replay_password || "Belum diatur"}</code>
+                <button
+                  onClick={async () => {
+                    if (!membershipInfo.replay_password) return;
+                    await navigator.clipboard.writeText(membershipInfo.replay_password);
+                    setReplayCopied(true);
+                    setTimeout(() => setReplayCopied(false), 2000);
+                  }}
+                  disabled={!membershipInfo.replay_password}
+                  className="rounded-lg bg-secondary px-3 text-secondary-foreground disabled:opacity-50"
+                >
+                  {replayCopied ? <Check size={16} /> : <Copy size={16} />}
+                </button>
+              </div>
+              <a href={membershipInfo.replay_url || "https://t48.lovable.app/replay"} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity">
+                Buka Website Replay <ExternalLink size={14} />
+              </a>
+            </div>
+          )}
           <CommentSection nickname={nickname} messages={messages} onSendMessage={handleSendMessage} />
           <OrderShowBanner />
         </main>
