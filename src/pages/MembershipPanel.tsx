@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket } from "lucide-react";
+import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-const ADMINS = [
-  { email: "owner@teamlive.com", password: "teamlive2024" },
-  { email: "admin2@teamlive.com", password: "teamlive2024" },
-];
 const AUTH_KEY = "teamlive_owner_auth";
+const OWNER_TOKEN_KEY = "teamlive_owner_token";
 
 interface Membership {
   id: string;
@@ -22,8 +19,8 @@ interface Membership {
 const MembershipPanel = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem(AUTH_KEY) === "true");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [ownerToken, setOwnerToken] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
@@ -74,14 +71,19 @@ const MembershipPanel = () => {
     }
   }, [isAuthenticated, fetchMemberships, fetchSettings]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (ADMINS.some((a) => a.email === email && a.password === password)) {
+    setLoginLoading(true);
+    setLoginError("");
+    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { token: ownerToken } });
+    setLoginLoading(false);
+    if (!error && (data as any)?.valid) {
       setIsAuthenticated(true);
       sessionStorage.setItem(AUTH_KEY, "true");
+      sessionStorage.setItem(OWNER_TOKEN_KEY, ownerToken.trim());
       setLoginError("");
     } else {
-      setLoginError("Email atau password salah");
+      setLoginError("Token owner salah");
     }
   };
 
