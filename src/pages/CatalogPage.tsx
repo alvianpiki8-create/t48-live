@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Coins, LogOut, Eye, Calendar, Sparkles } from "lucide-react";
+import { Search, Coins, LogOut, Eye, Calendar, Sparkles, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { celebrateShowPurchase } from "@/lib/celebration";
 
@@ -24,6 +24,12 @@ interface Profile {
   coins: number;
 }
 
+interface CatalogSlide {
+  id: string;
+  title: string | null;
+  image_url: string;
+}
+
 const CatalogPage = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
@@ -36,6 +42,8 @@ const CatalogPage = () => {
   const [justBoughtId, setJustBoughtId] = useState<string | null>(null);
   const [bgUrl, setBgUrl] = useState<string>("");
   const [bgType, setBgType] = useState<string>("image");
+  const [slides, setSlides] = useState<CatalogSlide[]>([]);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
     const getUser = async () => {
@@ -66,10 +74,18 @@ const CatalogPage = () => {
     };
     fetchBg();
 
+    const fetchSlides = async () => {
+      const { data } = await (supabase as any).from("catalog_slides").select("id,title,image_url").eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: false });
+      setSlides((data || []) as CatalogSlide[]);
+      setActiveSlide(0);
+    };
+    fetchSlides();
+
     // Realtime — sync shows, profile coins, purchases, settings
     const ch = supabase.channel("catalog_rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "show_catalog" }, () => fetchShows())
       .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, () => fetchBg())
+      .on("postgres_changes", { event: "*", schema: "public", table: "catalog_slides" }, () => fetchSlides())
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, async () => {
         const { data: { user: u } } = await supabase.auth.getUser();
         if (u) {
@@ -88,6 +104,12 @@ const CatalogPage = () => {
 
     return () => { supabase.removeChannel(ch); };
   }, [navigate]);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const timer = setInterval(() => setActiveSlide((i) => (i + 1) % slides.length), 4500);
+    return () => clearInterval(timer);
+  }, [slides.length]);
 
   const handleBuy = async (show: ShowItem) => {
     if (!user || !profile) return;
@@ -163,15 +185,15 @@ const CatalogPage = () => {
                 tryPlay();
                 el.addEventListener("loadeddata", tryPlay, { once: true });
               }}
-              className="w-full h-full object-cover opacity-40"
+              className="w-full h-full object-cover opacity-70 saturate-125 brightness-110"
             >
               <source src={bgUrl} type="video/mp4" />
               <source src={bgUrl} type="video/webm" />
             </video>
           ) : (
-            <img src={bgUrl} alt="" className="w-full h-full object-cover opacity-30" />
+            <img src={bgUrl} alt="" className="w-full h-full object-cover opacity-50 saturate-125 brightness-110" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-sky-50/60 to-white/80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-sky-50/35 to-white/55" />
         </div>
       )}
 
@@ -206,6 +228,48 @@ const CatalogPage = () => {
             <button onClick={handleLogout} className="text-slate-400 hover:text-sky-600 p-1">
               <LogOut size={16} />
             </button>
+          </div>
+
+          {slides.length > 0 && (
+            <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm shadow-sky-100/70">
+              <div className="relative aspect-[16/8]">
+                {slides.map((slide, index) => (
+                  <img
+                    key={slide.id}
+                    src={slide.image_url}
+                    alt={slide.title || "Foto katalog"}
+                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out ${index === activeSlide ? "opacity-100" : "opacity-0"}`}
+                  />
+                ))}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/35 via-transparent to-transparent" />
+                {slides[activeSlide]?.title && <p className="absolute bottom-3 left-3 right-14 text-white text-sm font-semibold drop-shadow">{slides[activeSlide].title}</p>}
+                {slides.length > 1 && (
+                  <>
+                    <button onClick={() => setActiveSlide((activeSlide - 1 + slides.length) % slides.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/85 text-sky-700 p-1.5 rounded-full shadow">
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button onClick={() => setActiveSlide((activeSlide + 1) % slides.length)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/85 text-sky-700 p-1.5 rounded-full shadow">
+                      <ChevronRight size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white/95 border border-sky-100 rounded-2xl p-4 shadow-sm shadow-sky-100/70 space-y-3">
+            <div className="flex items-center gap-2 text-sky-700 font-bold text-sm">
+              <Coins size={16} /> Cara Membeli Koin
+            </div>
+            <ol className="grid gap-2 text-xs text-slate-600 list-decimal list-inside">
+              <li>Tekan tombol saldo koin atau Top Up Koin.</li>
+              <li>Pilih paket koin, lalu scan QRIS sesuai nominal.</li>
+              <li>Kirim kode top up dan bukti pembayaran ke admin.</li>
+              <li>Setelah admin menyetujui, koin otomatis masuk real-time.</li>
+            </ol>
+            <a href="https://wa.me/6282135963767" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 hover:text-blue-700 transition-colors">
+              <MessageCircle size={14} /> Bantuan admin
+            </a>
           </div>
 
           {/* Search */}
