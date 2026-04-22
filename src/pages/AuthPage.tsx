@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
@@ -13,6 +13,18 @@ const AuthPage = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) setTimeout(() => navigate("/catalog", { replace: true }), 0);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) navigate("/catalog", { replace: true });
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -24,16 +36,21 @@ const AuthPage = () => {
     } else {
       if (!nickname.trim()) { setError("Nickname wajib diisi"); setLoading(false); return; }
       if (nickname.trim().length < 2) { setError("Nickname minimal 2 karakter"); setLoading(false); return; }
-      const { error: err } = await supabase.auth.signUp({
+      const { data, error: err } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { nickname: nickname.trim() } },
+        options: { data: { nickname: nickname.trim() }, emailRedirectTo: window.location.origin + "/catalog" },
       });
       if (err) { setError(err.message); setLoading(false); return; }
+      if (!data.session) {
+        setError("Akun dibuat. Silakan cek email untuk verifikasi, lalu masuk kembali.");
+        setLoading(false);
+        return;
+      }
     }
 
     setLoading(false);
-    navigate("/catalog");
+    navigate("/catalog", { replace: true });
   };
 
   return (
