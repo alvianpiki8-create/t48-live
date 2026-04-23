@@ -60,7 +60,8 @@ Deno.serve(async (req) => {
 
     const currentCoins = Number(profile?.coins || 0);
     const price = Number(show.price_coins || 0);
-    if (currentCoins < price) {
+    const alreadyPurchased = Boolean(existing);
+    if (!alreadyPurchased && currentCoins < price) {
       return new Response(JSON.stringify({ error: "Koin tidak cukup" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -74,8 +75,10 @@ Deno.serve(async (req) => {
     const validUntil = new Date((show.show_date ? new Date(show.show_date).getTime() : Date.now()) + 24 * 60 * 60 * 1000).toISOString();
     const expiresDate = validUntil.slice(0, 10);
 
-    const { error: coinError } = await admin.from("profiles").update({ coins: currentCoins - price }).eq("user_id", userId);
-    if (coinError) throw coinError;
+    if (!alreadyPurchased) {
+      const { error: coinError } = await admin.from("profiles").update({ coins: currentCoins - price }).eq("user_id", userId);
+      if (coinError) throw coinError;
+    }
 
     const { error: tokenError } = await admin.from("access_tokens").insert({
       token_code: code,
@@ -89,15 +92,18 @@ Deno.serve(async (req) => {
     });
     if (tokenError) throw tokenError;
 
-    const { error: purchaseError } = await admin.from("show_purchases").insert({
-      user_id: userId,
-      show_id: show.id,
-      coins_spent: price,
-      token_code: code,
-    });
+    const purchaseWrite = alreadyPurchased
+      ? admin.from("show_purchases").update({ token_code: code }).eq("user_id", userId).eq("show_id", show.id)
+      : admin.from("show_purchases").insert({
+          user_id: userId,
+          show_id: show.id,
+          coins_spent: price,
+          token_code: code,
+        });
+    const { error: purchaseError } = await purchaseWrite;
     if (purchaseError) throw purchaseError;
 
-    return new Response(JSON.stringify({ ok: true, token: code, coins: currentCoins - price }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, token: code, coins: alreadyPurchased ? currentCoins : currentCoins - price, alreadyPurchased }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Gagal membeli show" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
