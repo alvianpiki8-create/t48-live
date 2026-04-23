@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Coins, LogOut, Eye, Calendar, Sparkles, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import { Search, Coins, LogOut, Eye, Calendar, Sparkles, ChevronLeft, ChevronRight, MessageCircle, Copy, ExternalLink } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { celebrateShowPurchase } from "@/lib/celebration";
 import CatalogMembershipSection from "@/components/CatalogMembershipSection";
@@ -39,6 +39,7 @@ const CatalogPage = () => {
   const [search, setSearch] = useState("");
   const [selectedShow, setSelectedShow] = useState<ShowItem | null>(null);
   const [purchases, setPurchases] = useState<string[]>([]);
+  const [purchaseTokens, setPurchaseTokens] = useState<Record<string, string>>({});
   const [buying, setBuying] = useState(false);
   const [justBoughtId, setJustBoughtId] = useState<string | null>(null);
   const [bgUrl, setBgUrl] = useState<string>("");
@@ -55,8 +56,11 @@ const CatalogPage = () => {
       const { data: p } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
       if (p) setProfile(p as any);
 
-      const { data: purch } = await supabase.from("show_purchases").select("show_id").eq("user_id", user.id);
-      if (purch) setPurchases(purch.map((x: any) => x.show_id));
+      const { data: purch } = await (supabase as any).from("show_purchases").select("show_id,token_code").eq("user_id", user.id);
+      if (purch) {
+        setPurchases(purch.map((x: any) => x.show_id));
+        setPurchaseTokens(Object.fromEntries(purch.map((x: any) => [x.show_id, x.token_code]).filter((x: any[]) => x[1])));
+      }
     };
     getUser();
 
@@ -97,8 +101,11 @@ const CatalogPage = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "show_purchases" }, async () => {
         const { data: { user: u } } = await supabase.auth.getUser();
         if (u) {
-          const { data: purch } = await supabase.from("show_purchases").select("show_id").eq("user_id", u.id);
-          if (purch) setPurchases(purch.map((x: any) => x.show_id));
+          const { data: purch } = await (supabase as any).from("show_purchases").select("show_id,token_code").eq("user_id", u.id);
+          if (purch) {
+            setPurchases(purch.map((x: any) => x.show_id));
+            setPurchaseTokens(Object.fromEntries(purch.map((x: any) => [x.show_id, x.token_code]).filter((x: any[]) => x[1])));
+          }
         }
       })
       .subscribe();
@@ -117,13 +124,12 @@ const CatalogPage = () => {
     if (profile.coins < show.price_coins) return;
     setBuying(true);
 
-    const { error: updateErr } = await supabase.from("profiles").update({ coins: profile.coins - show.price_coins } as any).eq("user_id", user.id);
-    if (updateErr) { setBuying(false); return; }
+    const { data, error } = await supabase.functions.invoke("purchase-show", { body: { showId: show.id } });
+    if (error || (data as any)?.error) { alert((data as any)?.error || error?.message || "Gagal membeli show"); setBuying(false); return; }
 
-    await supabase.from("show_purchases").insert({ user_id: user.id, show_id: show.id, coins_spent: show.price_coins } as any);
-
-    setProfile(prev => prev ? { ...prev, coins: prev.coins - show.price_coins } : prev);
+    setProfile(prev => prev ? { ...prev, coins: Number((data as any)?.coins ?? prev.coins - show.price_coins) } : prev);
     setPurchases(prev => [...prev, show.id]);
+    setPurchaseTokens(prev => ({ ...prev, [show.id]: (data as any)?.token || prev[show.id] }));
     setJustBoughtId(show.id);
     celebrateShowPurchase();
     setTimeout(() => setJustBoughtId(null), 2500);
@@ -165,6 +171,7 @@ const CatalogPage = () => {
   const detailBgType = selectedShow?.background_url ? "image" : bgType; // per-show always image for now
   const isShowStarted = (show: ShowItem) => !show.show_date || new Date(show.show_date).getTime() <= Date.now();
   const trialAvailable = shows.some((show) => show.is_active && isShowStarted(show));
+  const getWatchLink = (showId: string) => purchaseTokens[showId] ? `${window.location.origin}/watch/${purchaseTokens[showId]}` : "";
 
   return (
     <div className="min-h-screen relative bg-gradient-to-b from-sky-50 via-white to-blue-50">
@@ -449,17 +456,27 @@ const CatalogPage = () => {
                       <p className="text-blue-600/70 text-xs mt-1">
                         {selectedShow.show_date && getCountdown(selectedShow.show_date)
                           ? `Akses akan dibuka pada ${formatDate(selectedShow.show_date)}`
-                          : "Kamu sudah memiliki akses ke show ini"}
+                          : "Kamu sudah memiliki link akses khusus untuk show ini"}
                       </p>
                     </div>
+                    {getWatchLink(selectedShow.id) && (
+                      <div className="rounded-2xl border border-sky-100 bg-sky-50/80 p-3 space-y-2">
+                        <p className="text-xs font-bold text-sky-700">Link akses otomatis</p>
+                        <div className="flex gap-2">
+                          <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-3 py-2 text-[11px] text-slate-700">{getWatchLink(selectedShow.id)}</code>
+                          <button onClick={() => navigator.clipboard.writeText(getWatchLink(selectedShow.id))} className="rounded-lg bg-white px-3 text-sky-700 border border-sky-100"><Copy size={14} /></button>
+                        </div>
+                      </div>
+                    )}
                     <button
                       onClick={() => {
                         sessionStorage.setItem("teamlive_nickname", profile?.nickname || "User");
-                        navigate("/live");
+                        const link = getWatchLink(selectedShow.id);
+                        if (link) window.location.href = link;
                       }}
                       className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white py-3 rounded-2xl font-bold text-sm hover:shadow-lg hover:shadow-sky-300/50 transition-all"
                     >
-                      ▶️ Tonton Sekarang
+                      ▶️ Buka Link Akses <ExternalLink size={14} className="inline ml-1" />
                     </button>
                   </div>
                 ) : (

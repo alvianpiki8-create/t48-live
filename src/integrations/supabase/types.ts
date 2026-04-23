@@ -24,9 +24,11 @@ export type Database = {
           expires_at: string | null
           id: string
           is_blocked: boolean
+          show_id: string | null
           show_name: string | null
           token_code: string
           used_at: string | null
+          user_id: string | null
           valid_until: string | null
         }
         Insert: {
@@ -38,9 +40,11 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_blocked?: boolean
+          show_id?: string | null
           show_name?: string | null
           token_code: string
           used_at?: string | null
+          user_id?: string | null
           valid_until?: string | null
         }
         Update: {
@@ -52,9 +56,11 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_blocked?: boolean
+          show_id?: string | null
           show_name?: string | null
           token_code?: string
           used_at?: string | null
+          user_id?: string | null
           valid_until?: string | null
         }
         Relationships: []
@@ -350,6 +356,7 @@ export type Database = {
           created_at: string
           id: string
           show_id: string
+          token_code: string | null
           user_id: string
         }
         Insert: {
@@ -357,6 +364,7 @@ export type Database = {
           created_at?: string
           id?: string
           show_id: string
+          token_code?: string | null
           user_id: string
         }
         Update: {
@@ -364,6 +372,7 @@ export type Database = {
           created_at?: string
           id?: string
           show_id?: string
+          token_code?: string | null
           user_id?: string
         }
         Relationships: [
