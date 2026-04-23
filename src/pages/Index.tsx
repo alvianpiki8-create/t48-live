@@ -24,6 +24,7 @@ const Index = () => {
   const weeklyViewers = useWeeklyViewers();
   const { messages, sendMessage, isBanned, banReason } = useRealtimeChat();
   const [tokenCode, setTokenCode] = useState<string | null>(null);
+  const [tokenShowId, setTokenShowId] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
@@ -60,6 +61,7 @@ const Index = () => {
         sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
       }
       setTokenCode(data.token_code);
+      setTokenShowId((data as any).show_id || null);
     };
     validate();
 
@@ -71,21 +73,27 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    const applySettings = (data: any) => {
+    const applySettings = async (data: any) => {
       if (!data) return;
+      let tokenShow: any = null;
+      if (tokenShowId) {
+        const { data: show } = await supabase.from("show_catalog").select("title,show_date,background_url,lineup").eq("id", tokenShowId).maybeSingle();
+        tokenShow = show;
+      }
       setVideoId(data.video_id || "");
       setChannelName(data.channel_name || "TEAM Live");
-      setStreamTitle(data.stream_title || "Siaran Langsung");
+      setStreamTitle(tokenShow?.title || data.stream_title || "Siaran Langsung");
       setChannelAvatar(data.channel_avatar || "");
       setChannelAvatar2(data.channel_avatar_2 || "");
-      setCountdownBackground(data.countdown_background || "");
+      setCountdownBackground(tokenShow?.background_url || data.countdown_background || "");
       setStreamSourceUrl(data.stream_source_url || "");
       setStreamSourceUrl2(data.stream_source_url_2 || "");
       setLogoUrl(data.logo_url || "");
-      setLineup(data.lineup || []);
-      if (data.countdown_datetime) {
-        const target = new Date(data.countdown_datetime).getTime();
-        if (target > Date.now()) { setCountdownDatetime(data.countdown_datetime); setCountdownDone(false); }
+      setLineup(tokenShow?.lineup || data.lineup || []);
+      const countdownTarget = tokenShow?.show_date || data.countdown_datetime;
+      if (countdownTarget) {
+        const target = new Date(countdownTarget).getTime();
+        if (target > Date.now()) { setCountdownDatetime(countdownTarget); setCountdownDone(false); }
         else { setCountdownDatetime(null); setCountdownDone(true); }
       } else { setCountdownDatetime(null); setCountdownDone(true); }
     };
@@ -98,9 +106,10 @@ const Index = () => {
 
     const channel = supabase.channel("stream_settings_realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, (payload) => applySettings(payload.new))
+      .on("postgres_changes", { event: "*", schema: "public", table: "show_catalog" }, () => fetchSettings())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [tokenShowId]);
 
   const handleNickname = useCallback((name: string) => {
     sessionStorage.setItem("teamlive_nickname", name);
