@@ -172,6 +172,24 @@ const CatalogPage = () => {
   const isShowStarted = (show: ShowItem) => !show.show_date || new Date(show.show_date).getTime() <= Date.now();
   const trialAvailable = shows.some((show) => show.is_active && isShowStarted(show));
   const getWatchLink = (showId: string) => purchaseTokens[showId] ? `${window.location.origin}/watch/${purchaseTokens[showId]}` : "";
+  const openAccessLink = async (show: ShowItem) => {
+    sessionStorage.setItem("teamlive_nickname", profile?.nickname || "User");
+    let token = purchaseTokens[show.id];
+    if (!token) {
+      setBuying(true);
+      const { data, error } = await supabase.functions.invoke("purchase-show", { body: { showId: show.id } });
+      setBuying(false);
+      if (error || (data as any)?.error || !(data as any)?.token) {
+        alert((data as any)?.error || error?.message || "Gagal membuat link akses. Coba lagi.");
+        return;
+      }
+      token = (data as any).token;
+      setPurchaseTokens(prev => ({ ...prev, [show.id]: token }));
+      setPurchases(prev => prev.includes(show.id) ? prev : [...prev, show.id]);
+      setProfile(prev => prev ? { ...prev, coins: Number((data as any)?.coins ?? prev.coins) } : prev);
+    }
+    window.location.href = `${window.location.origin}/watch/${token}`;
+  };
 
   return (
     <div className="min-h-screen relative bg-gradient-to-b from-sky-50 via-white to-blue-50">
@@ -469,14 +487,11 @@ const CatalogPage = () => {
                       </div>
                     )}
                     <button
-                      onClick={() => {
-                        sessionStorage.setItem("teamlive_nickname", profile?.nickname || "User");
-                        const link = getWatchLink(selectedShow.id);
-                        if (link) window.location.href = link;
-                      }}
-                      className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white py-3 rounded-2xl font-bold text-sm hover:shadow-lg hover:shadow-sky-300/50 transition-all"
+                      onClick={() => openAccessLink(selectedShow)}
+                      disabled={buying}
+                      className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white py-3 rounded-2xl font-bold text-sm hover:shadow-lg hover:shadow-sky-300/50 transition-all disabled:opacity-60"
                     >
-                      ▶️ Buka Link Akses <ExternalLink size={14} className="inline ml-1" />
+                      {buying ? "Menyiapkan Link..." : "▶️ Buka Link Akses"} <ExternalLink size={14} className="inline ml-1" />
                     </button>
                   </div>
                 ) : (
