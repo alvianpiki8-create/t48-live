@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Maximize2, Minimize2, Settings2, Volume2, VolumeX, Play } from "lucide-react";
 import Hls from "hls.js";
+import { extractYouTubeVideoId } from "@/lib/youtube";
 
 interface LivePlayerProps {
   videoId: string;
@@ -33,7 +34,7 @@ const detectSource = (url: string, videoId: string): { type: "youtube" | "m3u8";
   const target = (url || "").trim();
   if (target && (/\.m3u8(\?|$)/i.test(target) || /m3u8/i.test(target))) return { type: "m3u8", src: target };
   if (target && /^https?:\/\//i.test(target) && !/youtube|youtu\.be/i.test(target)) return { type: "m3u8", src: target };
-  return { type: "youtube", src: videoId };
+  return { type: "youtube", src: extractYouTubeVideoId(target) || videoId };
 };
 
 const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceUrl2 = "" }: LivePlayerProps) => {
@@ -73,6 +74,15 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   const detected = useMemo(() => detectSource(activeSource, videoId.trim()), [activeSource, videoId]);
   const hasVideo = Boolean(detected.src);
+  const serverOptions = useMemo(() => {
+    const primary = (sourceUrl || "").trim();
+    const fallback = (sourceUrl2 || "").trim();
+    const options = [
+      primary && { label: detectSource(primary, videoId.trim()).type === "youtube" ? "Server 1 · YouTube" : "Server 1 · M3U8", fallback: false },
+      fallback && { label: detectSource(fallback, videoId.trim()).type === "youtube" ? "Server 2 · YouTube" : "Server 2 · M3U8", fallback: true },
+    ].filter(Boolean) as { label: string; fallback: boolean }[];
+    return options.length > 1 ? options : [];
+  }, [sourceUrl, sourceUrl2, videoId]);
 
   // Watermark mover
   useEffect(() => {
@@ -178,13 +188,14 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const VolIcon = muted || volume === 0 ? VolumeX : Volume2;
 
   return (
-    <div
-      id="live-player-container"
-      className="relative w-full bg-primary-foreground rounded-lg overflow-hidden group"
-      style={{ aspectRatio: "16/9" }}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      {hasVideo ? (
+    <div className="space-y-2">
+      <div
+        id="live-player-container"
+        className="relative w-full bg-primary-foreground rounded-lg overflow-hidden group"
+        style={{ aspectRatio: "16/9" }}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {hasVideo ? (
         <>
           {!hasStarted && (
             <button
@@ -297,12 +308,27 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
             {watermarkText}
           </div>
         </>
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-muted-foreground text-lg">Stream Offline</div>
-            <div className="text-muted-foreground/50 text-sm mt-1">Menunggu siaran dimulai...</div>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-muted-foreground text-lg">Stream Offline</div>
+              <div className="text-muted-foreground/50 text-sm mt-1">Menunggu siaran dimulai...</div>
+            </div>
           </div>
+        )}
+      </div>
+      {serverOptions.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {serverOptions.map((server) => (
+            <button
+              key={server.label}
+              type="button"
+              onClick={() => { setUseFallback(server.fallback); setHasStarted(false); }}
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${useFallback === server.fallback ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground hover:bg-secondary"}`}
+            >
+              {server.label}
+            </button>
+          ))}
         </div>
       )}
     </div>
