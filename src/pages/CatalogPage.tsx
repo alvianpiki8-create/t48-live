@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Coins, LogOut, Eye, Calendar, Sparkles, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import { Search, Coins, LogOut, Eye, Calendar, Sparkles, ChevronLeft, ChevronRight, MessageCircle, Copy, ExternalLink } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { celebrateShowPurchase } from "@/lib/celebration";
 import CatalogMembershipSection from "@/components/CatalogMembershipSection";
@@ -39,6 +39,7 @@ const CatalogPage = () => {
   const [search, setSearch] = useState("");
   const [selectedShow, setSelectedShow] = useState<ShowItem | null>(null);
   const [purchases, setPurchases] = useState<string[]>([]);
+  const [purchaseTokens, setPurchaseTokens] = useState<Record<string, string>>({});
   const [buying, setBuying] = useState(false);
   const [justBoughtId, setJustBoughtId] = useState<string | null>(null);
   const [bgUrl, setBgUrl] = useState<string>("");
@@ -55,8 +56,11 @@ const CatalogPage = () => {
       const { data: p } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
       if (p) setProfile(p as any);
 
-      const { data: purch } = await supabase.from("show_purchases").select("show_id").eq("user_id", user.id);
-      if (purch) setPurchases(purch.map((x: any) => x.show_id));
+      const { data: purch } = await (supabase as any).from("show_purchases").select("show_id,token_code").eq("user_id", user.id);
+      if (purch) {
+        setPurchases(purch.map((x: any) => x.show_id));
+        setPurchaseTokens(Object.fromEntries(purch.map((x: any) => [x.show_id, x.token_code]).filter((x: any[]) => x[1])));
+      }
     };
     getUser();
 
@@ -97,8 +101,11 @@ const CatalogPage = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "show_purchases" }, async () => {
         const { data: { user: u } } = await supabase.auth.getUser();
         if (u) {
-          const { data: purch } = await supabase.from("show_purchases").select("show_id").eq("user_id", u.id);
-          if (purch) setPurchases(purch.map((x: any) => x.show_id));
+          const { data: purch } = await (supabase as any).from("show_purchases").select("show_id,token_code").eq("user_id", u.id);
+          if (purch) {
+            setPurchases(purch.map((x: any) => x.show_id));
+            setPurchaseTokens(Object.fromEntries(purch.map((x: any) => [x.show_id, x.token_code]).filter((x: any[]) => x[1])));
+          }
         }
       })
       .subscribe();
@@ -117,13 +124,12 @@ const CatalogPage = () => {
     if (profile.coins < show.price_coins) return;
     setBuying(true);
 
-    const { error: updateErr } = await supabase.from("profiles").update({ coins: profile.coins - show.price_coins } as any).eq("user_id", user.id);
-    if (updateErr) { setBuying(false); return; }
+    const { data, error } = await supabase.functions.invoke("purchase-show", { body: { showId: show.id } });
+    if (error || (data as any)?.error) { alert((data as any)?.error || error?.message || "Gagal membeli show"); setBuying(false); return; }
 
-    await supabase.from("show_purchases").insert({ user_id: user.id, show_id: show.id, coins_spent: show.price_coins } as any);
-
-    setProfile(prev => prev ? { ...prev, coins: prev.coins - show.price_coins } : prev);
+    setProfile(prev => prev ? { ...prev, coins: Number((data as any)?.coins ?? prev.coins - show.price_coins) } : prev);
     setPurchases(prev => [...prev, show.id]);
+    setPurchaseTokens(prev => ({ ...prev, [show.id]: (data as any)?.token || prev[show.id] }));
     setJustBoughtId(show.id);
     celebrateShowPurchase();
     setTimeout(() => setJustBoughtId(null), 2500);
@@ -165,6 +171,7 @@ const CatalogPage = () => {
   const detailBgType = selectedShow?.background_url ? "image" : bgType; // per-show always image for now
   const isShowStarted = (show: ShowItem) => !show.show_date || new Date(show.show_date).getTime() <= Date.now();
   const trialAvailable = shows.some((show) => show.is_active && isShowStarted(show));
+  const getWatchLink = (showId: string) => purchaseTokens[showId] ? `${window.location.origin}/watch/${purchaseTokens[showId]}` : "";
 
   return (
     <div className="min-h-screen relative bg-gradient-to-b from-sky-50 via-white to-blue-50">
