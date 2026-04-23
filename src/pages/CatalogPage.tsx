@@ -5,6 +5,7 @@ import { Search, Coins, LogOut, Eye, Calendar, Sparkles, ChevronLeft, ChevronRig
 import type { User } from "@supabase/supabase-js";
 import { celebrateShowPurchase } from "@/lib/celebration";
 import CatalogMembershipSection from "@/components/CatalogMembershipSection";
+import { JKT48_MEMBERS } from "@/lib/jkt48Members";
 
 interface ShowItem {
   id: string;
@@ -171,6 +172,7 @@ const CatalogPage = () => {
   const detailBgType = selectedShow?.background_url ? "image" : bgType; // per-show always image for now
   const isShowStarted = (show: ShowItem) => !show.show_date || new Date(show.show_date).getTime() <= Date.now();
   const trialAvailable = shows.some((show) => show.is_active && isShowStarted(show));
+  const selectedLineup = (selectedShow?.lineup || []).map((name) => JKT48_MEMBERS.find((m) => m.name === name) || { name, gen: "Member", photo: "" });
   const getWatchLink = (showId: string) => purchaseTokens[showId] ? `${window.location.origin}/watch/${purchaseTokens[showId]}` : "";
   const openAccessLink = async (show: ShowItem) => {
     sessionStorage.setItem("teamlive_nickname", profile?.nickname || "User");
@@ -433,10 +435,13 @@ const CatalogPage = () => {
                 {selectedShow.show_date && (() => {
                   const cd = getCountdown(selectedShow.show_date);
                   if (!cd) return null;
+                  const timerBg = selectedShow.background_url || selectedShow.image_url;
                   return (
-                    <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 rounded-2xl p-4">
-                      <p className="text-center text-xs text-sky-600 font-semibold uppercase tracking-wider mb-2">Show dimulai dalam</p>
-                      <div className="flex justify-center gap-4 text-center">
+                    <div className="relative overflow-hidden border border-sky-100 rounded-2xl p-4 bg-gradient-to-r from-sky-50 to-blue-50">
+                      {timerBg && <img src={timerBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />}
+                      <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px]" />
+                      <p className="relative text-center text-xs text-sky-600 font-semibold uppercase tracking-wider mb-2">Show dimulai dalam</p>
+                      <div className="relative flex justify-center gap-4 text-center">
                         {[
                           { val: cd.days, label: "HARI" },
                           { val: cd.hrs, label: "JAM" },
@@ -460,10 +465,20 @@ const CatalogPage = () => {
                   </div>
                 )}
 
-                {selectedShow.lineup && selectedShow.lineup.length > 0 && (
+                {selectedLineup.length > 0 && (
                   <div>
-                    <h3 className="font-bold text-slate-700 text-sm mb-1">👥 LINE UP</h3>
-                    <p className="text-sm text-slate-600">{selectedShow.lineup.join(", ")}</p>
+                    <h3 className="font-bold text-slate-700 text-sm mb-2">👥 LINE UP</h3>
+                    <div className="grid grid-cols-4 gap-2">
+                      {selectedLineup.map((member) => (
+                        <div key={member.name} className="text-center">
+                          <div className="mx-auto h-16 w-16 overflow-hidden rounded-full border-2 border-sky-100 bg-sky-50 shadow-sm">
+                            {member.photo ? <img src={member.photo} alt={member.name} className="h-full w-full object-cover" loading="lazy" /> : <div className="h-full w-full bg-sky-100" />}
+                          </div>
+                          <p className="mt-1 truncate text-[11px] font-semibold text-slate-700">{member.name}</p>
+                          <p className="truncate text-[9px] text-slate-400">{member.gen}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

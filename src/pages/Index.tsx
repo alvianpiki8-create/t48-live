@@ -13,9 +13,18 @@ import OrderShowBanner from "@/components/OrderShowBanner";
 import LineupDisplay from "@/components/LineupDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
+import { JKT48_MEMBERS } from "@/lib/jkt48Members";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
 import { useWeeklyViewers } from "@/hooks/useWeeklyViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
+
+const resolveLineup = (value: any) => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    if (typeof item === "string") return JKT48_MEMBERS.find((m) => m.name === item) || { name: item, gen: "Member", photo: "" };
+    return item;
+  }).filter((item) => item?.name);
+};
 
 const Index = () => {
   const navigate = useNavigate();
@@ -77,7 +86,7 @@ const Index = () => {
       if (!data) return;
       let tokenShow: any = null;
       if (tokenShowId) {
-        const { data: show } = await supabase.from("show_catalog").select("title,show_date,background_url,lineup").eq("id", tokenShowId).maybeSingle();
+        const { data: show } = await supabase.from("show_catalog").select("title,show_date,image_url,background_url,lineup").eq("id", tokenShowId).maybeSingle();
         tokenShow = show;
       }
       setVideoId(data.video_id || "");
@@ -85,11 +94,11 @@ const Index = () => {
       setStreamTitle(tokenShow?.title || data.stream_title || "Siaran Langsung");
       setChannelAvatar(data.channel_avatar || "");
       setChannelAvatar2(data.channel_avatar_2 || "");
-      setCountdownBackground(tokenShow?.background_url || data.countdown_background || "");
+      setCountdownBackground(tokenShow?.background_url || tokenShow?.image_url || data.countdown_background || "");
       setStreamSourceUrl(data.stream_source_url || "");
       setStreamSourceUrl2(data.stream_source_url_2 || "");
       setLogoUrl(data.logo_url || "");
-      setLineup(tokenShow?.lineup || data.lineup || []);
+      setLineup(resolveLineup(tokenShow?.lineup || data.lineup || []));
       const countdownTarget = tokenShow?.show_date || data.countdown_datetime;
       if (countdownTarget) {
         const target = new Date(countdownTarget).getTime();
