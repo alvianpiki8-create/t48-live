@@ -456,17 +456,27 @@ const CatalogPage = () => {
                       <p className="text-blue-600/70 text-xs mt-1">
                         {selectedShow.show_date && getCountdown(selectedShow.show_date)
                           ? `Akses akan dibuka pada ${formatDate(selectedShow.show_date)}`
-                          : "Kamu sudah memiliki akses ke show ini"}
+                          : "Kamu sudah memiliki link akses khusus untuk show ini"}
                       </p>
                     </div>
+                    {getWatchLink(selectedShow.id) && (
+                      <div className="rounded-2xl border border-sky-100 bg-sky-50/80 p-3 space-y-2">
+                        <p className="text-xs font-bold text-sky-700">Link akses otomatis</p>
+                        <div className="flex gap-2">
+                          <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-3 py-2 text-[11px] text-slate-700">{getWatchLink(selectedShow.id)}</code>
+                          <button onClick={() => navigator.clipboard.writeText(getWatchLink(selectedShow.id))} className="rounded-lg bg-white px-3 text-sky-700 border border-sky-100"><Copy size={14} /></button>
+                        </div>
+                      </div>
+                    )}
                     <button
                       onClick={() => {
                         sessionStorage.setItem("teamlive_nickname", profile?.nickname || "User");
-                        navigate("/live");
+                        const link = getWatchLink(selectedShow.id);
+                        if (link) window.location.href = link;
                       }}
                       className="w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white py-3 rounded-2xl font-bold text-sm hover:shadow-lg hover:shadow-sky-300/50 transition-all"
                     >
-                      ▶️ Tonton Sekarang
+                      ▶️ Buka Link Akses <ExternalLink size={14} className="inline ml-1" />
                     </button>
                   </div>
                 ) : (
