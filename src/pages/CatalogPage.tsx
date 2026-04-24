@@ -72,7 +72,7 @@ const CatalogPage = () => {
     fetchShows();
 
     const fetchBg = async () => {
-      const { data } = await supabase.from("stream_settings").select("catalog_background_url, catalog_background_type" as any).limit(1).maybeSingle();
+      const { data } = await supabase.from("stream_settings").select("catalog_background_url, catalog_background_type" as any).order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (data) {
         setBgUrl((data as any).catalog_background_url || "");
         setBgType((data as any).catalog_background_type || "image");

@@ -27,7 +27,7 @@ const RainEffect = () => {
       const e = (data?.background_effect as EffectType) || "rain";
       setEffect(e);
     };
-    supabase.from("stream_settings").select("background_effect").limit(1).maybeSingle().then(({ data }) => apply(data));
+    supabase.from("stream_settings").select("background_effect").order("updated_at", { ascending: false }).limit(1).maybeSingle().then(({ data }) => apply(data));
     const ch = supabase.channel("bg_effect_rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, (p) => apply(p.new))
       .subscribe();
