@@ -153,12 +153,6 @@ const OwnerPanel = () => {
     fetchStreamSettings();
   };
 
-    setVideoId(normalizedVideoId);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    fetchStreamSettings();
-  };
-
   const handleLogout = () => {
     sessionStorage.removeItem(AUTH_KEY);
     sessionStorage.removeItem(OWNER_TOKEN_KEY);
