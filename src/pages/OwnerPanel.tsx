@@ -42,24 +42,16 @@ const OwnerPanel = () => {
   const [shows, setShows] = useState<Show[]>([]);
   const [streamSettings, setStreamSettings] = useState<any>(null);
 
-  // Load settings from DB
+  // Realtime subscription for stream settings
   useEffect(() => {
     if (!isAuthenticated) return;
-    const loadFromDb = async () => {
-      const { data } = await supabase.from("stream_settings").select("*").limit(1).maybeSingle();
-      if (data) {
-        setChannelName((data as any).channel_name || "TEAM Live");
-        setChannelAvatar((data as any).channel_avatar || "");
-        setChannelAvatar2((data as any).channel_avatar_2 || "");
-        setVideoId((data as any).video_id || "");
-        setStreamTitle((data as any).stream_title || "Siaran Langsung");
-        setM3u8Url1((data as any).stream_source_url || "");
-        setM3u8Url2((data as any).stream_source_url_2 || "");
-        setBgEffect((data as any).background_effect || "rain");
-        setStreamSettings(data);
-      }
-    };
-    loadFromDb();
+    const ch = supabase.channel("owner_stream_settings_rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, () => {
+        fetchStreamSettings();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const fetchTokens = useCallback(async () => {
@@ -78,7 +70,12 @@ const OwnerPanel = () => {
   }, []);
 
   const fetchStreamSettings = useCallback(async () => {
-    const { data } = await supabase.from("stream_settings").select("*").limit(1).maybeSingle();
+    const { data } = await supabase
+      .from("stream_settings")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     setStreamSettings(data);
     if (data) {
       setChannelName((data as any).channel_name || "TEAM Live");
@@ -137,10 +134,17 @@ const OwnerPanel = () => {
       updated_at: new Date().toISOString(),
     };
 
+    let error: any = null;
     if (streamSettings?.id) {
-      await supabase.from("stream_settings").update(updateData).eq("id", streamSettings.id);
+      const res = await supabase.from("stream_settings").update(updateData).eq("id", streamSettings.id);
+      error = res.error;
     } else {
-      await supabase.from("stream_settings").insert(updateData);
+      const res = await supabase.from("stream_settings").insert({ ...updateData, is_singleton: true } as any);
+      error = res.error;
+    }
+    if (error) {
+      setVideoError("Gagal menyimpan: " + error.message);
+      return;
     }
 
     setVideoId(normalizedVideoId);

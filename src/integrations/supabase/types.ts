@@ -417,6 +417,7 @@ export type Database = {
           countdown_datetime: string | null
           id: string
           idn_live_url: string | null
+          is_singleton: boolean
           lineup: Json | null
           logo_url: string | null
           membership_link: string | null
@@ -443,6 +444,7 @@ export type Database = {
           countdown_datetime?: string | null
           id?: string
           idn_live_url?: string | null
+          is_singleton?: boolean
           lineup?: Json | null
           logo_url?: string | null
           membership_link?: string | null
@@ -469,6 +471,7 @@ export type Database = {
           countdown_datetime?: string | null
           id?: string
           idn_live_url?: string | null
+          is_singleton?: boolean
           lineup?: Json | null
           logo_url?: string | null
           membership_link?: string | null

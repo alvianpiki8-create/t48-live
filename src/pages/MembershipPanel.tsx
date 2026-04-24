@@ -46,7 +46,7 @@ const MembershipPanel = () => {
   }, []);
 
   const fetchSettings = useCallback(async () => {
-    const { data } = await supabase.from("stream_settings").select("*").limit(1).maybeSingle();
+    const { data } = await supabase.from("stream_settings").select("*").order("updated_at", { ascending: false }).limit(1).maybeSingle();
     if (data) {
       setSettingsId(data.id);
       setPublicLinkEnabled((data as any).public_link_enabled ?? false);
