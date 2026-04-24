@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Maximize2, Minimize2, Settings2, Volume2, VolumeX, Play } from "lucide-react";
+import { Maximize2, Minimize2, Settings2, Volume2, VolumeX, Play, Youtube, Radio } from "lucide-react";
 import Hls from "hls.js";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
@@ -22,7 +22,7 @@ const POSITIONS = [
   { top: "50%", right: "8px", left: "auto", bottom: "auto", transform: "translateY(-50%)" },
 ];
 
-const QUALITY_OPTIONS = [
+const YT_QUALITY = [
   { label: "Auto", value: "" },
   { label: "1080p", value: "hd1080" },
   { label: "720p", value: "hd720" },
@@ -30,26 +30,105 @@ const QUALITY_OPTIONS = [
   { label: "360p", value: "medium" },
 ];
 
-const detectSource = (url: string, videoId: string): { type: "youtube" | "m3u8"; src: string } => {
-  const target = (url || "").trim();
-  if (target && (/\.m3u8(\?|$)/i.test(target) || /m3u8/i.test(target))) return { type: "m3u8", src: target };
-  if (target && /^https?:\/\//i.test(target) && !/youtube|youtu\.be/i.test(target)) return { type: "m3u8", src: target };
-  return { type: "youtube", src: extractYouTubeVideoId(target) || videoId };
+type ServerKind = "youtube" | "m3u8";
+interface ServerOption {
+  id: string;
+  kind: ServerKind;
+  src: string; // youtube id or m3u8 url
+  label: string;
+}
+
+const isM3u8 = (url: string) => {
+  const t = (url || "").trim();
+  if (!t) return false;
+  if (/\.m3u8(\?|$)/i.test(t)) return true;
+  if (/m3u8/i.test(t)) return true;
+  if (/^https?:\/\//i.test(t) && !/youtube\.com|youtu\.be/i.test(t)) return true;
+  return false;
+};
+
+const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): ServerOption[] => {
+  const list: ServerOption[] = [];
+  let ytCount = 0;
+  let m3uCount = 0;
+
+  const addUrl = (raw: string) => {
+    const url = (raw || "").trim();
+    if (!url) return;
+    if (isM3u8(url)) {
+      m3uCount += 1;
+      list.push({
+        id: `m3u8-${list.length}`,
+        kind: "m3u8",
+        src: url,
+        label: m3uCount > 1 ? `M3U8 ${m3uCount}` : "M3U8",
+      });
+    } else {
+      const id = extractYouTubeVideoId(url);
+      if (id) {
+        ytCount += 1;
+        list.push({
+          id: `yt-${list.length}`,
+          kind: "youtube",
+          src: id,
+          label: ytCount > 1 ? `YouTube ${ytCount}` : "YouTube",
+        });
+      }
+    }
+  };
+
+  // Built-in YouTube videoId first (canonical Server YouTube)
+  const ytId = extractYouTubeVideoId((videoId || "").trim());
+  if (ytId) {
+    ytCount += 1;
+    list.push({ id: `yt-main`, kind: "youtube", src: ytId, label: "YouTube" });
+  }
+
+  addUrl(sourceUrl);
+  addUrl(sourceUrl2);
+
+  // Deduplicate by src
+  const seen = new Set<string>();
+  return list.filter((s) => {
+    const key = `${s.kind}:${s.src}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceUrl2 = "" }: LivePlayerProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [wmIndex, setWmIndex] = useState(0);
   const [showQuality, setShowQuality] = useState(false);
-  const [quality, setQuality] = useState("");
-  const [useFallback, setUseFallback] = useState(false);
+  const [ytQuality, setYtQuality] = useState("");
+  const [hlsLevel, setHlsLevel] = useState<number>(-1); // -1 auto
+  const [hlsLevels, setHlsLevels] = useState<{ index: number; height: number }[]>([]);
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(0.7);
   const [controlsVisible, setControlsVisible] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [activeServerId, setActiveServerId] = useState<string>("");
   const hideTimerRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  const servers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
+
+  // Pick default server (prefer YouTube if exists, else first)
+  useEffect(() => {
+    if (!servers.length) {
+      setActiveServerId("");
+      return;
+    }
+    if (!servers.some((s) => s.id === activeServerId)) {
+      const yt = servers.find((s) => s.kind === "youtube");
+      setActiveServerId((yt || servers[0]).id);
+    }
+  }, [servers, activeServerId]);
+
+  const activeServer = useMemo(() => servers.find((s) => s.id === activeServerId) || null, [servers, activeServerId]);
 
   const showControls = useCallback(() => {
     setControlsVisible(true);
@@ -61,28 +140,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   }, []);
 
   useEffect(() => () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); }, []);
-
-  const activeSource = useMemo(() => {
-    const primary = (sourceUrl || "").trim();
-    const fallback = (sourceUrl2 || "").trim();
-    if (useFallback && fallback) return fallback;
-    if (primary) return primary;
-    return fallback;
-  }, [sourceUrl, sourceUrl2, useFallback]);
-
-  useEffect(() => { setUseFallback(false); }, [sourceUrl, sourceUrl2]);
-
-  const detected = useMemo(() => detectSource(activeSource, videoId.trim()), [activeSource, videoId]);
-  const hasVideo = Boolean(detected.src);
-  const serverOptions = useMemo(() => {
-    const primary = (sourceUrl || "").trim();
-    const fallback = (sourceUrl2 || "").trim();
-    const options = [
-      primary && { label: detectSource(primary, videoId.trim()).type === "youtube" ? "Server 1 · YouTube" : "Server 1 · M3U8", fallback: false },
-      fallback && { label: detectSource(fallback, videoId.trim()).type === "youtube" ? "Server 2 · YouTube" : "Server 2 · M3U8", fallback: true },
-    ].filter(Boolean) as { label: string; fallback: boolean }[];
-    return options.length > 1 ? options : [];
-  }, [sourceUrl, sourceUrl2, videoId]);
 
   // Watermark mover
   useEffect(() => {
@@ -103,27 +160,43 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
-  // HLS setup with fallback
+  // HLS setup for active m3u8 server
   useEffect(() => {
-    if (detected.type !== "m3u8" || !videoRef.current || !detected.src) return;
+    if (!activeServer || activeServer.kind !== "m3u8" || !videoRef.current) {
+      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+      setHlsLevels([]);
+      setHlsLevel(-1);
+      return;
+    }
     const video = videoRef.current;
-    const fallback = (sourceUrl2 || "").trim();
-
-    const tryFallback = () => {
-      if (!useFallback && fallback && fallback !== detected.src) setUseFallback(true);
-    };
+    if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
     if (Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true });
-      hls.loadSource(detected.src);
+      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+      hlsRef.current = hls;
+      hls.loadSource(activeServer.src);
       hls.attachMedia(video);
-      hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) tryFallback(); });
-      return () => { hls.destroy(); };
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
+          .filter((l) => l.height > 0)
+          .sort((a, b) => b.height - a.height);
+        setHlsLevels(levels);
+        setHlsLevel(-1);
+        hls.currentLevel = -1;
+      });
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        if (data.fatal) {
+          // try recover
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+          else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+        }
+      });
+      return () => { hls.destroy(); hlsRef.current = null; };
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = detected.src;
-      video.onerror = tryFallback;
+      video.src = activeServer.src;
+      setHlsLevels([]);
     }
-  }, [detected, sourceUrl2, useFallback]);
+  }, [activeServer]);
 
   // Sync volume/mute to video element
   useEffect(() => {
@@ -131,9 +204,8 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
       videoRef.current.muted = muted;
       videoRef.current.volume = volume;
     }
-  }, [muted, volume, detected.type]);
+  }, [muted, volume, activeServer?.kind]);
 
-  // Send YouTube postMessage commands for volume/mute
   const sendYT = useCallback((func: string, args: any[] = []) => {
     iframeRef.current?.contentWindow?.postMessage(
       JSON.stringify({ event: "command", func, args }),
@@ -142,28 +214,27 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   }, []);
 
   useEffect(() => {
-    if (detected.type !== "youtube") return;
+    if (!activeServer || activeServer.kind !== "youtube") return;
     const t = setTimeout(() => {
       if (muted) sendYT("mute");
       else { sendYT("unMute"); sendYT("setVolume", [Math.round(volume * 100)]); }
     }, 800);
     return () => clearTimeout(t);
-  }, [muted, volume, detected, sendYT]);
+  }, [muted, volume, activeServer, sendYT]);
 
-  // Keep playing when tab hidden / page blur (so audio continues in background)
+  // Keep playing when tab hidden / page blur
   useEffect(() => {
     const keepAlive = () => {
       if (videoRef.current && videoRef.current.paused) videoRef.current.play().catch(() => {});
-      if (detected.type === "youtube") sendYT("playVideo");
+      if (activeServer?.kind === "youtube") sendYT("playVideo");
     };
-    const onVis = () => keepAlive();
-    document.addEventListener("visibilitychange", onVis);
+    document.addEventListener("visibilitychange", keepAlive);
     window.addEventListener("blur", keepAlive);
     return () => {
-      document.removeEventListener("visibilitychange", onVis);
+      document.removeEventListener("visibilitychange", keepAlive);
       window.removeEventListener("blur", keepAlive);
     };
-  }, [detected, sendYT]);
+  }, [activeServer, sendYT]);
 
   const toggleFullscreen = useCallback(() => {
     const container = document.getElementById("live-player-container");
@@ -173,19 +244,34 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   }, []);
 
   const embedUrl = useMemo(() => {
-    if (detected.type !== "youtube" || !detected.src) return "";
+    if (!activeServer || activeServer.kind !== "youtube") return "";
     const params = new URLSearchParams({
       autoplay: "1", mute: "1", rel: "0", modestbranding: "1", playsinline: "1",
       controls: "0", disablekb: "1", fs: "0", iv_load_policy: "3",
       showinfo: "0", cc_load_policy: "0", enablejsapi: "1",
       origin: window.location.origin,
     });
-    if (quality) params.set("vq", quality);
-    return `https://www.youtube-nocookie.com/embed/${detected.src}?${params.toString()}`;
-  }, [detected, quality]);
+    if (ytQuality) params.set("vq", ytQuality);
+    return `https://www.youtube-nocookie.com/embed/${activeServer.src}?${params.toString()}`;
+  }, [activeServer, ytQuality]);
+
+  const switchServer = (id: string) => {
+    if (id === activeServerId) return;
+    setActiveServerId(id);
+    setShowQuality(false);
+    // smooth: keep started state — auto play after switch
+  };
+
+  const setHlsQuality = (level: number) => {
+    setHlsLevel(level);
+    if (hlsRef.current) hlsRef.current.currentLevel = level;
+    setShowQuality(false);
+    showControls();
+  };
 
   const wmPos = POSITIONS[wmIndex];
   const VolIcon = muted || volume === 0 ? VolumeX : Volume2;
+  const hasVideo = Boolean(activeServer);
 
   return (
     <div className="space-y-2">
@@ -208,7 +294,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                   videoRef.current.muted = false;
                   videoRef.current.play().catch(() => {});
                 }
-                if (detected.type === "youtube") {
+                if (activeServer?.kind === "youtube") {
                   sendYT("playVideo");
                   sendYT("unMute");
                   sendYT("setVolume", [Math.round(volume * 100)]);
@@ -224,7 +310,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               <span className="absolute bottom-6 text-foreground/80 text-sm font-medium">Tap untuk memulai</span>
             </button>
           )}
-          {detected.type === "youtube" ? (
+          {activeServer?.kind === "youtube" ? (
             <iframe
               ref={iframeRef}
               key={embedUrl}
@@ -247,7 +333,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
             />
           )}
 
-          {/* FULL CLICK BLOCKER + tap-to-show-controls */}
           <div
             className="absolute inset-0 z-20"
             onContextMenu={(e) => e.preventDefault()}
@@ -256,7 +341,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
             style={{ cursor: "pointer" }}
           />
 
-          {/* Top bar: Volume + LIVE badge — only when controls visible */}
           {controlsVisible && (
           <div
             className="absolute top-0 left-0 right-0 z-30 flex items-center gap-2 p-3 bg-gradient-to-b from-background/70 to-transparent transition-opacity duration-300 animate-fade-in"
@@ -280,17 +364,31 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           </div>
           )}
           <div className={`absolute bottom-3 right-3 z-30 flex gap-2 transition-opacity duration-300 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-            {detected.type === "youtube" && (
+            {(activeServer?.kind === "youtube" || (activeServer?.kind === "m3u8" && hlsLevels.length > 0)) && (
               <div className="relative">
                 <button onClick={(e) => { e.stopPropagation(); setShowQuality((v) => !v); showControls(); }} className="p-2 rounded-md bg-secondary/80 hover:bg-secondary text-foreground transition-colors" type="button">
                   <Settings2 size={18} />
                 </button>
-                {showQuality && (
+                {showQuality && activeServer?.kind === "youtube" && (
                   <div className="absolute bottom-full right-0 mb-2 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[120px]">
-                    {QUALITY_OPTIONS.map((q) => (
-                      <button key={q.value} onClick={(e) => { e.stopPropagation(); setQuality(q.value); setShowQuality(false); showControls(); }}
-                        className={`w-full px-3 py-2 text-xs text-left transition-colors ${quality === q.value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
+                    {YT_QUALITY.map((q) => (
+                      <button key={q.value} onClick={(e) => { e.stopPropagation(); setYtQuality(q.value); setShowQuality(false); showControls(); }}
+                        className={`w-full px-3 py-2 text-xs text-left transition-colors ${ytQuality === q.value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
                         {q.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showQuality && activeServer?.kind === "m3u8" && hlsLevels.length > 0 && (
+                  <div className="absolute bottom-full right-0 mb-2 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[120px]">
+                    <button onClick={(e) => { e.stopPropagation(); setHlsQuality(-1); }}
+                      className={`w-full px-3 py-2 text-xs text-left transition-colors ${hlsLevel === -1 ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
+                      Auto
+                    </button>
+                    {hlsLevels.map((lv) => (
+                      <button key={lv.index} onClick={(e) => { e.stopPropagation(); setHlsQuality(lv.index); }}
+                        className={`w-full px-3 py-2 text-xs text-left transition-colors ${hlsLevel === lv.index ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
+                        {lv.height}p
                       </button>
                     ))}
                   </div>
@@ -302,7 +400,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
             </button>
           </div>
 
-          {/* Watermark — always visible (anti-restream) */}
           <div className="absolute z-30 text-foreground/30 text-xs font-mono pointer-events-none transition-all duration-700 ease-in-out select-none"
             style={{ top: wmPos.top, left: wmPos.left, right: wmPos.right, bottom: wmPos.bottom, transform: wmPos.transform || "none" }}>
             {watermarkText}
@@ -317,31 +414,29 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           </div>
         )}
       </div>
-      {serverOptions.length > 0 && (
-        <div className="rounded-xl border border-primary/30 bg-card/60 backdrop-blur-sm p-3 space-y-2 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs font-semibold text-foreground">Pilih Server</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground">Lag? Ganti server di sini</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {serverOptions.map((server) => {
-              const active = useFallback === server.fallback;
-              return (
-                <button
-                  key={server.label}
-                  type="button"
-                  onClick={() => { setUseFallback(server.fallback); setHasStarted(false); }}
-                  className={`relative rounded-lg border px-3 py-2.5 text-xs font-bold transition-all ${active ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-border bg-secondary/40 text-foreground hover:bg-secondary hover:border-primary/50"}`}
-                >
-                  {active && <span className="absolute top-1 right-1 text-[9px] bg-primary-foreground/20 px-1 rounded">AKTIF</span>}
-                  {server.label}
-                </button>
-              );
-            })}
-          </div>
+
+      {servers.length > 1 && (
+        <div className="flex items-center gap-2 flex-wrap px-1">
+          <span className="text-[11px] font-bold tracking-widest text-muted-foreground">SERVER:</span>
+          {servers.map((s) => {
+            const active = s.id === activeServerId;
+            const Icon = s.kind === "youtube" ? Youtube : Radio;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => switchServer(s.id)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all border ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                    : "bg-card/60 text-foreground border-border hover:border-primary/60 hover:bg-card"
+                }`}
+              >
+                <Icon size={14} />
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
