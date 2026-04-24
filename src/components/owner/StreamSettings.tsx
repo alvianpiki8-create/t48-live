@@ -107,23 +107,29 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
     if (countdownDate && countdownTime) {
       countdown_datetime = new Date(`${countdownDate}T${countdownTime}:00`).toISOString();
     }
+    const payload: any = {
+      countdown_datetime,
+      backup_video_url: backupUrl,
+      replay_url: replayUrl,
+      replay_password: replayPassword,
+      countdown_background: countdownBackground,
+      stream_source_url: streamSourceUrl,
+      stream_source_url_2: streamSourceUrl2,
+      stream_source_type: detectedType,
+      logo_url: logoUrl,
+      catalog_background_url: catalogBgUrl,
+      catalog_background_type: catalogBgType,
+      updated_at: new Date().toISOString(),
+    };
+    let error: any = null;
     if (settings?.id) {
-      const { error } = await supabase.from("stream_settings").update({
-        countdown_datetime,
-        backup_video_url: backupUrl,
-        replay_url: replayUrl,
-        replay_password: replayPassword,
-        countdown_background: countdownBackground,
-        stream_source_url: streamSourceUrl,
-        stream_source_url_2: streamSourceUrl2,
-        stream_source_type: detectedType,
-        logo_url: logoUrl,
-        catalog_background_url: catalogBgUrl,
-        catalog_background_type: catalogBgType,
-        updated_at: new Date().toISOString(),
-      } as any).eq("id", settings.id);
-      if (error) { alert("Gagal simpan: " + error.message); return; }
+      const res = await supabase.from("stream_settings").update(payload).eq("id", settings.id);
+      error = res.error;
+    } else {
+      const res = await supabase.from("stream_settings").insert({ ...payload, is_singleton: true });
+      error = res.error;
     }
+    if (error) { alert("Gagal simpan: " + error.message); return; }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     onRefresh();
