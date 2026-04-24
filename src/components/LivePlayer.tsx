@@ -318,17 +318,30 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
         )}
       </div>
       {serverOptions.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          {serverOptions.map((server) => (
-            <button
-              key={server.label}
-              type="button"
-              onClick={() => { setUseFallback(server.fallback); setHasStarted(false); }}
-              className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${useFallback === server.fallback ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground hover:bg-secondary"}`}
-            >
-              {server.label}
-            </button>
-          ))}
+        <div className="rounded-xl border border-primary/30 bg-card/60 backdrop-blur-sm p-3 space-y-2 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-xs font-semibold text-foreground">Pilih Server</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">Lag? Ganti server di sini</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {serverOptions.map((server) => {
+              const active = useFallback === server.fallback;
+              return (
+                <button
+                  key={server.label}
+                  type="button"
+                  onClick={() => { setUseFallback(server.fallback); setHasStarted(false); }}
+                  className={`relative rounded-lg border px-3 py-2.5 text-xs font-bold transition-all ${active ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-border bg-secondary/40 text-foreground hover:bg-secondary hover:border-primary/50"}`}
+                >
+                  {active && <span className="absolute top-1 right-1 text-[9px] bg-primary-foreground/20 px-1 rounded">AKTIF</span>}
+                  {server.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
