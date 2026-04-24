@@ -70,7 +70,12 @@ const OwnerPanel = () => {
   }, []);
 
   const fetchStreamSettings = useCallback(async () => {
-    const { data } = await supabase.from("stream_settings").select("*").limit(1).maybeSingle();
+    const { data } = await supabase
+      .from("stream_settings")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     setStreamSettings(data);
     if (data) {
       setChannelName((data as any).channel_name || "TEAM Live");
@@ -129,11 +134,24 @@ const OwnerPanel = () => {
       updated_at: new Date().toISOString(),
     };
 
+    let error: any = null;
     if (streamSettings?.id) {
-      await supabase.from("stream_settings").update(updateData).eq("id", streamSettings.id);
+      const res = await supabase.from("stream_settings").update(updateData).eq("id", streamSettings.id);
+      error = res.error;
     } else {
-      await supabase.from("stream_settings").insert(updateData);
+      const res = await supabase.from("stream_settings").insert({ ...updateData, is_singleton: true } as any);
+      error = res.error;
     }
+    if (error) {
+      setVideoError("Gagal menyimpan: " + error.message);
+      return;
+    }
+
+    setVideoId(normalizedVideoId);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    fetchStreamSettings();
+  };
 
     setVideoId(normalizedVideoId);
     setSaved(true);
