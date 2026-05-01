@@ -12,6 +12,7 @@ import OwnerWatch from "./pages/OwnerWatch.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import CatalogPage from "./pages/CatalogPage.tsx";
 import TopUpPage from "./pages/TopUpPage.tsx";
+import AdminPanel from "./pages/AdminPanel.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/topup" element={<TopUpPage />} />
+          <Route path="/admin" element={<AdminPanel />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Maximize2, Minimize2, Settings2, Volume2, VolumeX, Play, Youtube, Radio } from "lucide-react";
+import { Maximize2, Minimize2, Settings2, Volume2, VolumeX, Play, Youtube, Tv } from "lucide-react";
 import Hls from "hls.js";
 import { extractYouTubeVideoId } from "@/lib/youtube";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LivePlayerProps {
   videoId: string;
@@ -58,10 +59,10 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): S
     if (isM3u8(url)) {
       m3uCount += 1;
       list.push({
-        id: `m3u8-${list.length}`,
+        id: `idn-${list.length}`,
         kind: "m3u8",
         src: url,
-        label: m3uCount > 1 ? `M3U8 ${m3uCount}` : "M3U8",
+        label: m3uCount > 1 ? `IDN ${m3uCount}` : "IDN",
       });
     } else {
       const id = extractYouTubeVideoId(url);
@@ -160,7 +161,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
-  // HLS setup for active m3u8 server
+  // HLS setup for active m3u8 server (routed via signed proxy to hide real URL)
   useEffect(() => {
     if (!activeServer || activeServer.kind !== "m3u8" || !videoRef.current) {
       if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
@@ -171,31 +172,46 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     const video = videoRef.current;
     if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
-    if (Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-      hlsRef.current = hls;
-      hls.loadSource(activeServer.src);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
-          .filter((l) => l.height > 0)
-          .sort((a, b) => b.height - a.height);
-        setHlsLevels(levels);
-        setHlsLevel(-1);
-        hls.currentLevel = -1;
-      });
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (data.fatal) {
-          // try recover
-          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-          else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-        }
-      });
-      return () => { hls.destroy(); hlsRef.current = null; };
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = activeServer.src;
-      setHlsLevels([]);
-    }
+    let cancelled = false;
+
+    (async () => {
+      // Get signed proxy URL — original .m3u8 is never exposed to the client
+      let playUrl = activeServer.src;
+      try {
+        const { data, error } = await supabase.functions.invoke("m3u8-proxy", {
+          body: { url: activeServer.src },
+        });
+        if (!error && (data as any)?.url) playUrl = (data as any).url;
+      } catch {/* fallback to direct */}
+
+      if (cancelled) return;
+
+      if (Hls.isSupported()) {
+        const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hlsRef.current = hls;
+        hls.loadSource(playUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
+            .filter((l) => l.height > 0)
+            .sort((a, b) => b.height - a.height);
+          setHlsLevels(levels);
+          setHlsLevel(-1);
+          hls.currentLevel = -1;
+        });
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          }
+        });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = playUrl;
+        setHlsLevels([]);
+      }
+    })();
+
+    return () => { cancelled = true; if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; } };
   }, [activeServer]);
 
   // Sync volume/mute to video element
@@ -420,7 +436,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           <span className="text-[11px] font-bold tracking-widest text-muted-foreground">SERVER:</span>
           {servers.map((s) => {
             const active = s.id === activeServerId;
-            const Icon = s.kind === "youtube" ? Youtube : Radio;
+            const Icon = s.kind === "youtube" ? Youtube : Tv;
             return (
               <button
                 key={s.id}
