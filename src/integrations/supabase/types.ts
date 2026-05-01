@@ -65,6 +65,83 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_link_logs: {
+        Row: {
+          access_hour: string | null
+          admin_id: string
+          admin_name: string
+          created_at: string
+          duration_days: number | null
+          id: string
+          link_type: string
+          show_name: string | null
+          token_code: string
+        }
+        Insert: {
+          access_hour?: string | null
+          admin_id: string
+          admin_name: string
+          created_at?: string
+          duration_days?: number | null
+          id?: string
+          link_type: string
+          show_name?: string | null
+          token_code: string
+        }
+        Update: {
+          access_hour?: string | null
+          admin_id?: string
+          admin_name?: string
+          created_at?: string
+          duration_days?: number | null
+          id?: string
+          link_type?: string
+          show_name?: string | null
+          token_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_link_logs_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "admins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admins: {
+        Row: {
+          blocked_at: string | null
+          blocked_reason: string | null
+          code: string
+          created_at: string
+          id: string
+          is_blocked: boolean
+          last_login_at: string | null
+          name: string
+        }
+        Insert: {
+          blocked_at?: string | null
+          blocked_reason?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_blocked?: boolean
+          last_login_at?: string | null
+          name: string
+        }
+        Update: {
+          blocked_at?: string | null
+          blocked_reason?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_blocked?: boolean
+          last_login_at?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
       catalog_slides: {
         Row: {
           created_at: string
