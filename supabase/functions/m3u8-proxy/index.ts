@@ -90,7 +90,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const url = new URL(req.url);
-  const proxyOrigin = `${url.origin}${url.pathname}`;
+  const publicBase = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  const proxyOrigin = publicBase ? `${publicBase}/functions/v1/m3u8-proxy` : `${url.origin}${url.pathname}`;
 
   try {
     if (req.method === "POST") {
