@@ -59,10 +59,10 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): S
     if (isM3u8(url)) {
       m3uCount += 1;
       list.push({
-        id: `m3u8-${list.length}`,
+        id: `idn-${list.length}`,
         kind: "m3u8",
         src: url,
-        label: m3uCount > 1 ? `M3U8 ${m3uCount}` : "M3U8",
+        label: m3uCount > 1 ? `IDN ${m3uCount}` : "IDN",
       });
     } else {
       const id = extractYouTubeVideoId(url);
