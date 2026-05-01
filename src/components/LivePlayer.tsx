@@ -421,7 +421,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           <span className="text-[11px] font-bold tracking-widest text-muted-foreground">SERVER:</span>
           {servers.map((s) => {
             const active = s.id === activeServerId;
-            const Icon = s.kind === "youtube" ? Youtube : Radio;
+            const Icon = s.kind === "youtube" ? Youtube : Tv;
             return (
               <button
                 key={s.id}
