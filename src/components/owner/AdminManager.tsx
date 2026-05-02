@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity } from "lucide-react";
+import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity, ChevronDown, ChevronRight } from "lucide-react";
 
 interface Admin {
   id: string;
@@ -145,6 +145,13 @@ const AdminManager = () => {
                 {a.blocked_reason && <div className="text-[10px] text-destructive mt-1">⚠ {a.blocked_reason}</div>}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => setExpandedAdmin(expandedAdmin === a.id ? null : a.id)}
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary"
+                  title="Lihat link yang diambil"
+                >
+                  {expandedAdmin === a.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
                 {a.is_blocked ? (
                   <button onClick={() => handleUnblock(a.id)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-green-500" title="Buka blokir">
                     <Check size={14} />
@@ -168,6 +175,29 @@ const AdminManager = () => {
                 </button>
               </div>
             )}
+            {expandedAdmin === a.id && (() => {
+              const own = logs.filter((l) => l.admin_id === a.id);
+              return (
+                <div className="border-t border-border/50 pt-2 mt-1 space-y-1 max-h-56 overflow-y-auto">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                    Link diambil ({own.length}) — auto reset tiap 3 hari
+                  </p>
+                  {own.length === 0 && <p className="text-[11px] text-muted-foreground italic">Belum ambil link.</p>}
+                  {own.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 bg-secondary/20 rounded">
+                      <div className="min-w-0 flex-1 truncate">
+                        <span className="font-mono font-bold text-primary">T4-{l.token_code}</span>
+                        <span className="text-muted-foreground"> · {l.link_type === "membership" ? "🎫" : "🎬"} {l.show_name || "—"}</span>
+                        {l.duration_days && <span className="text-muted-foreground"> · {l.duration_days}h</span>}
+                      </div>
+                      <span className="text-[9px] text-muted-foreground flex-shrink-0">
+                        {new Date(l.created_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
