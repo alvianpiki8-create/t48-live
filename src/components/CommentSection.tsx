@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Trash2, MoreVertical } from "lucide-react";
+import { Send, Trash2, MoreVertical, Flag } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useRealtimeChat";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
@@ -125,6 +125,30 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
   const handleClearAll = async () => {
     if (!confirm("Hapus SEMUA komentar? Aksi ini tidak bisa dibatalkan.")) return;
     await supabase.from("chat_messages").delete().not("id", "is", null);
+  };
+
+  const handleReport = async (msg: ChatMessage) => {
+    if (msg.nickname === nickname) {
+      alert("Anda tidak bisa melaporkan komentar sendiri.");
+      setOpenMenu(null);
+      return;
+    }
+    const reason = prompt("Alasan laporan (opsional):", "Komentar tidak pantas") || "";
+    const { error } = await supabase.from("chat_reports").insert({
+      message_id: msg.id,
+      message_text: msg.text,
+      message_nickname: msg.nickname,
+      message_device_id: (msg as any).device_id || null,
+      reporter_nickname: nickname,
+      reporter_device_id: getDeviceId(),
+      reason: reason || null,
+    } as any);
+    setOpenMenu(null);
+    if (error) {
+      alert("Gagal mengirim laporan: " + error.message);
+    } else {
+      alert("Laporan terkirim. Owner akan menindaklanjuti.");
+    }
   };
 
 
