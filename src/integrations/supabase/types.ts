@@ -223,6 +223,45 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_reports: {
+        Row: {
+          created_at: string
+          id: string
+          message_device_id: string | null
+          message_id: string
+          message_nickname: string
+          message_text: string
+          reason: string | null
+          reporter_device_id: string | null
+          reporter_nickname: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_device_id?: string | null
+          message_id: string
+          message_nickname: string
+          message_text: string
+          reason?: string | null
+          reporter_device_id?: string | null
+          reporter_nickname: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_device_id?: string | null
+          message_id?: string
+          message_nickname?: string
+          message_text?: string
+          reason?: string | null
+          reporter_device_id?: string | null
+          reporter_nickname?: string
+          status?: string
+        }
+        Relationships: []
+      }
       coin_topup_requests: {
         Row: {
           amount: number
@@ -638,6 +677,7 @@ export type Database = {
     }
     Functions: {
       generate_user_code: { Args: never; Returns: string }
+      reset_admin_link_logs: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
