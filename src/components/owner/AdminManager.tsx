@@ -34,6 +34,7 @@ const AdminManager = () => {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [logs, setLogs] = useState<LinkLog[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [expandedAdmin, setExpandedAdmin] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
   const [newCode, setNewCode] = useState(generateCode());
@@ -106,6 +107,9 @@ const AdminManager = () => {
       <p className="text-xs text-muted-foreground">
         Admin login di <code className="bg-secondary px-1 rounded">/admin</code> dengan nama + kode.
         Mereka HANYA bisa membuat link akses (biasa & membership). Tidak bisa akses pengaturan lain.
+      </p>
+      <p className="text-[11px] text-amber-500/90 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
+        ⏱ Pantauan jumlah link admin akan otomatis di-reset menjadi 0 setiap 3 hari sekali.
       </p>
 
       <div className="space-y-2 bg-secondary/20 p-3 rounded-lg">
