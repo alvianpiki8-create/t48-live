@@ -202,18 +202,27 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
                 </div>
                 <p className="text-sm text-foreground/90 break-words leading-snug">{msg.text}</p>
               </div>
-              {canModerate && (
+              {(canModerate || msg.nickname !== nickname) && (
                 <div className="relative">
                   <button onClick={() => setOpenMenu(openMenu === msg.id ? null : msg.id)}
-                    className="opacity-0 group-hover/msg:opacity-100 p-1 rounded hover:bg-secondary text-muted-foreground transition-opacity">
+                    className="opacity-0 group-hover/msg:opacity-100 p-1 rounded hover:bg-secondary text-muted-foreground transition-opacity"
+                    aria-label="Opsi komentar">
                     <MoreVertical size={12} />
                   </button>
                   {openMenu === msg.id && (
-                    <div className="absolute right-0 top-full mt-1 z-10 bg-card border border-border rounded-md shadow-lg overflow-hidden">
-                      <button onClick={() => handleDeleteMsg(msg.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 whitespace-nowrap">
-                        <Trash2 size={10} /> Hapus
-                      </button>
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-md shadow-lg overflow-hidden min-w-[140px]">
+                      {msg.nickname !== nickname && (
+                        <button onClick={() => handleReport(msg)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground hover:bg-destructive/10 hover:text-destructive whitespace-nowrap w-full">
+                          <Flag size={10} /> Laporkan
+                        </button>
+                      )}
+                      {canModerate && (
+                        <button onClick={() => handleDeleteMsg(msg.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 whitespace-nowrap w-full border-t border-border">
+                          <Trash2 size={10} /> Hapus
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
