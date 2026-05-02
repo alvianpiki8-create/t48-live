@@ -64,7 +64,7 @@ export const JKT48_MEMBERS: JKT48Member[] = [
   { name: "Fera", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/fera_jj8swk.jpg" },
   { name: "Heidi", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/heidi_ltllch.jpg" },
   { name: "Jazzy", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/jazzy_w6xbp0.jpg" },
-  { name: "Maxine", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/jazzy_w6xbp0.jpg" },
+  { name: "Maxine", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/v1775671853/maxine_wnwhqp.jpg" },
   { name: "Ralyne", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/ralyne_l6vtcc.jpg" },
   { name: "Rara", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/rara_dxomqh.jpg" },
   { name: "Sona", gen: "Gen 14", photo: "https://res.cloudinary.com/dak2dhea9/image/upload/sona_sdepst.jpg" },
