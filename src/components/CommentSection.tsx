@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Trash2, MoreVertical } from "lucide-react";
+import { Send, Trash2, MoreVertical, Flag } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useRealtimeChat";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
@@ -127,6 +127,30 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
     await supabase.from("chat_messages").delete().not("id", "is", null);
   };
 
+  const handleReport = async (msg: ChatMessage) => {
+    if (msg.nickname === nickname) {
+      alert("Anda tidak bisa melaporkan komentar sendiri.");
+      setOpenMenu(null);
+      return;
+    }
+    const reason = prompt("Alasan laporan (opsional):", "Komentar tidak pantas") || "";
+    const { error } = await supabase.from("chat_reports").insert({
+      message_id: msg.id,
+      message_text: msg.text,
+      message_nickname: msg.nickname,
+      message_device_id: (msg as any).device_id || null,
+      reporter_nickname: nickname,
+      reporter_device_id: getDeviceId(),
+      reason: reason || null,
+    } as any);
+    setOpenMenu(null);
+    if (error) {
+      alert("Gagal mengirim laporan: " + error.message);
+    } else {
+      alert("Laporan terkirim. Owner akan menindaklanjuti.");
+    }
+  };
+
 
   const getUserCode = (nick: string) => {
     if (nick === OWNER_NICKNAME) return OWNER_CODE;
@@ -178,18 +202,27 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
                 </div>
                 <p className="text-sm text-foreground/90 break-words leading-snug">{msg.text}</p>
               </div>
-              {canModerate && (
+              {(canModerate || msg.nickname !== nickname) && (
                 <div className="relative">
                   <button onClick={() => setOpenMenu(openMenu === msg.id ? null : msg.id)}
-                    className="opacity-0 group-hover/msg:opacity-100 p-1 rounded hover:bg-secondary text-muted-foreground transition-opacity">
+                    className="opacity-0 group-hover/msg:opacity-100 p-1 rounded hover:bg-secondary text-muted-foreground transition-opacity"
+                    aria-label="Opsi komentar">
                     <MoreVertical size={12} />
                   </button>
                   {openMenu === msg.id && (
-                    <div className="absolute right-0 top-full mt-1 z-10 bg-card border border-border rounded-md shadow-lg overflow-hidden">
-                      <button onClick={() => handleDeleteMsg(msg.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 whitespace-nowrap">
-                        <Trash2 size={10} /> Hapus
-                      </button>
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-md shadow-lg overflow-hidden min-w-[140px]">
+                      {msg.nickname !== nickname && (
+                        <button onClick={() => handleReport(msg)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground hover:bg-destructive/10 hover:text-destructive whitespace-nowrap w-full">
+                          <Flag size={10} /> Laporkan
+                        </button>
+                      )}
+                      {canModerate && (
+                        <button onClick={() => handleDeleteMsg(msg.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 whitespace-nowrap w-full border-t border-border">
+                          <Trash2 size={10} /> Hapus
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

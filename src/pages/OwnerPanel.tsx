@@ -13,6 +13,7 @@ import ReplayScheduleManager from "@/components/owner/ReplayScheduleManager";
 import ModeratorManager from "@/components/owner/ModeratorManager";
 import CatalogSlideManager from "@/components/owner/CatalogSlideManager";
 import AdminManager from "@/components/owner/AdminManager";
+import ChatReportsManager from "@/components/owner/ChatReportsManager";
 
 const AUTH_KEY = "teamlive_owner_auth";
 const OWNER_TOKEN_KEY = "teamlive_owner_token";
@@ -459,6 +460,9 @@ const OwnerPanel = () => {
 
         {/* Admin Manager (login by name + code) */}
         <AdminManager />
+
+        {/* Chat Reports (real-time) */}
+        <ChatReportsManager />
 
         {/* Token Manager */}
         <TokenManager
