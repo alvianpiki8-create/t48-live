@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Maximize2, Minimize2, Settings2, Volume2, VolumeX, Play, Youtube, Tv } from "lucide-react";
 import Hls from "hls.js";
+import Artplayer from "artplayer";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,15 +13,16 @@ interface LivePlayerProps {
   sourceUrl2?: string;
 }
 
-const POSITIONS = [
-  { top: "8px", left: "8px", right: "auto", bottom: "auto" },
-  { top: "8px", right: "8px", left: "auto", bottom: "auto" },
-  { bottom: "60px", left: "8px", top: "auto", right: "auto" },
-  { bottom: "60px", right: "8px", top: "auto", left: "auto" },
-  { top: "50%", left: "50%", right: "auto", bottom: "auto", transform: "translate(-50%, -50%)" },
-  { top: "8px", left: "50%", right: "auto", bottom: "auto", transform: "translateX(-50%)" },
-  { top: "50%", left: "8px", right: "auto", bottom: "auto", transform: "translateY(-50%)" },
-  { top: "50%", right: "8px", left: "auto", bottom: "auto", transform: "translateY(-50%)" },
+// Random watermark positions (kecil, di tepi-tepi player)
+const WM_POSITIONS = [
+  { top: "6%", left: "4%" },
+  { top: "6%", right: "4%" },
+  { top: "50%", left: "4%" },
+  { top: "50%", right: "4%" },
+  { bottom: "12%", left: "4%" },
+  { bottom: "12%", right: "4%" },
+  { top: "30%", left: "40%" },
+  { bottom: "30%", right: "30%" },
 ];
 
 const YT_QUALITY = [
@@ -35,7 +37,7 @@ type ServerKind = "youtube" | "m3u8";
 interface ServerOption {
   id: string;
   kind: ServerKind;
-  src: string; // youtube id or m3u8 url
+  src: string;
   label: string;
 }
 
@@ -58,27 +60,16 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): S
     if (!url) return;
     if (isM3u8(url)) {
       m3uCount += 1;
-      list.push({
-        id: `idn-${list.length}`,
-        kind: "m3u8",
-        src: url,
-        label: m3uCount > 1 ? `IDN ${m3uCount}` : "IDN",
-      });
+      list.push({ id: `idn-${list.length}`, kind: "m3u8", src: url, label: m3uCount > 1 ? `IDN ${m3uCount}` : "IDN" });
     } else {
       const id = extractYouTubeVideoId(url);
       if (id) {
         ytCount += 1;
-        list.push({
-          id: `yt-${list.length}`,
-          kind: "youtube",
-          src: id,
-          label: ytCount > 1 ? `YouTube ${ytCount}` : "YouTube",
-        });
+        list.push({ id: `yt-${list.length}`, kind: "youtube", src: id, label: ytCount > 1 ? `YouTube ${ytCount}` : "YouTube" });
       }
     }
   };
 
-  // Built-in YouTube videoId first (canonical Server YouTube)
   const ytId = extractYouTubeVideoId((videoId || "").trim());
   if (ytId) {
     ytCount += 1;
@@ -88,7 +79,6 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): S
   addUrl(sourceUrl);
   addUrl(sourceUrl2);
 
-  // Deduplicate by src
   const seen = new Set<string>();
   return list.filter((s) => {
     const key = `${s.kind}:${s.src}`;
@@ -100,10 +90,11 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): S
 
 const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceUrl2 = "" }: LivePlayerProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [wmIndex, setWmIndex] = useState(0);
+  const [wmPos, setWmPos] = useState(WM_POSITIONS[0]);
+  const [wmVisible, setWmVisible] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [ytQuality, setYtQuality] = useState("");
-  const [hlsLevel, setHlsLevel] = useState<number>(-1); // -1 auto
+  const [hlsLevel, setHlsLevel] = useState<number>(-1);
   const [hlsLevels, setHlsLevels] = useState<{ index: number; height: number }[]>([]);
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(0.7);
@@ -111,18 +102,15 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [hasStarted, setHasStarted] = useState(false);
   const [activeServerId, setActiveServerId] = useState<string>("");
   const hideTimerRef = useRef<number | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const artContainerRef = useRef<HTMLDivElement>(null);
+  const artRef = useRef<Artplayer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
   const servers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
 
-  // Pick default server (prefer YouTube if exists, else first)
   useEffect(() => {
-    if (!servers.length) {
-      setActiveServerId("");
-      return;
-    }
+    if (!servers.length) { setActiveServerId(""); return; }
     if (!servers.some((s) => s.id === activeServerId)) {
       const yt = servers.find((s) => s.kind === "youtube");
       setActiveServerId((yt || servers[0]).id);
@@ -142,91 +130,131 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); }, []);
 
-  // Watermark mover
+  // Watermark blink: muncul 3x per menit, masing-masing 2 detik, posisi acak.
+  // Pola: tampil pada detik 0, 20, 40 dalam tiap siklus 60 detik.
   useEffect(() => {
-    const interval = setInterval(() => {
-      setWmIndex((prev) => {
-        let next: number;
-        do { next = Math.floor(Math.random() * POSITIONS.length); } while (next === prev);
-        return next;
-      });
-    }, 5000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const showOnce = () => {
+      if (cancelled) return;
+      const next = WM_POSITIONS[Math.floor(Math.random() * WM_POSITIONS.length)];
+      setWmPos(next);
+      setWmVisible(true);
+      window.setTimeout(() => { if (!cancelled) setWmVisible(false); }, 2000);
+    };
+    showOnce();
+    const interval = window.setInterval(showOnce, 20000);
+    return () => { cancelled = true; window.clearInterval(interval); };
   }, []);
 
-  // Fullscreen tracking
   useEffect(() => {
     const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
-  // HLS setup for active m3u8 server (routed via signed proxy to hide real URL)
+  // ArtPlayer + HLS for M3U8 (dengan resolusi)
   useEffect(() => {
-    if (!activeServer || activeServer.kind !== "m3u8" || !videoRef.current) {
+    if (!activeServer || activeServer.kind !== "m3u8" || !artContainerRef.current) {
+      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
       if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
       setHlsLevels([]);
       setHlsLevel(-1);
       return;
     }
-    const video = videoRef.current;
-    if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
-
     let cancelled = false;
+    const container = artContainerRef.current;
 
     (async () => {
-      // Get signed proxy URL — original .m3u8 is never exposed to the client
       let playUrl = activeServer.src;
       try {
-        const { data, error } = await supabase.functions.invoke("m3u8-proxy", {
-          body: { url: activeServer.src },
-        });
+        const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: activeServer.src } });
         if (!error && (data as any)?.url) playUrl = (data as any).url;
-      } catch {/* fallback to direct */}
-
+      } catch { /* fallback */ }
       if (cancelled) return;
 
-      if (Hls.isSupported()) {
-        const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-        hlsRef.current = hls;
-        hls.loadSource(playUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
-            .filter((l) => l.height > 0)
-            .sort((a, b) => b.height - a.height);
-          setHlsLevels(levels);
-          setHlsLevel(-1);
-          hls.currentLevel = -1;
-        });
-        hls.on(Hls.Events.ERROR, (_e, data) => {
-          if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-          }
-        });
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = playUrl;
-        setHlsLevels([]);
+      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
+      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+
+      const art = new Artplayer({
+        container,
+        url: playUrl,
+        type: "m3u8",
+        autoplay: true,
+        muted,
+        volume,
+        playsInline: true,
+        autoSize: false,
+        autoOrientation: false,
+        setting: false,
+        fullscreen: false,
+        fullscreenWeb: false,
+        pip: false,
+        airplay: false,
+        playbackRate: false,
+        aspectRatio: false,
+        hotkey: false,
+        mutex: true,
+        backdrop: false,
+        theme: "#ffffff",
+        moreVideoAttr: { playsInline: true, "webkit-playsinline": true, controlsList: "nodownload noremoteplayback", disablePictureInPicture: true } as any,
+        controls: [],
+        layers: [],
+        contextmenu: [],
+        customType: {
+          m3u8: function (video: HTMLVideoElement, url: string) {
+            if (Hls.isSupported()) {
+              const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+              hlsRef.current = hls;
+              hls.loadSource(url);
+              hls.attachMedia(video);
+              hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
+                  .filter((l) => l.height > 0)
+                  .sort((a, b) => b.height - a.height);
+                setHlsLevels(levels);
+                setHlsLevel(-1);
+                hls.currentLevel = -1;
+              });
+              hls.on(Hls.Events.ERROR, (_e, data) => {
+                if (data.fatal) {
+                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+                  else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+                }
+              });
+            } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+              video.src = url;
+              setHlsLevels([]);
+            }
+          },
+        },
+      });
+
+      artRef.current = art;
+      // Disable native controls + context menu on the video tag
+      const v = (art.template as any)?.$video as HTMLVideoElement | undefined;
+      if (v) {
+        v.removeAttribute("controls");
+        v.style.pointerEvents = "none";
+        v.addEventListener("contextmenu", (e) => e.preventDefault());
       }
     })();
 
-    return () => { cancelled = true; if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; } };
+    return () => {
+      cancelled = true;
+      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
+      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+    };
   }, [activeServer]);
 
-  // Sync volume/mute to video element
+  // Sync mute/volume to ArtPlayer
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = muted;
-      videoRef.current.volume = volume;
+    if (artRef.current) {
+      try { artRef.current.muted = muted; artRef.current.volume = volume; } catch {}
     }
   }, [muted, volume, activeServer?.kind]);
 
   const sendYT = useCallback((func: string, args: any[] = []) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: "command", func, args }),
-      "*"
-    );
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
   }, []);
 
   useEffect(() => {
@@ -238,10 +266,9 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     return () => clearTimeout(t);
   }, [muted, volume, activeServer, sendYT]);
 
-  // Keep playing when tab hidden / page blur
   useEffect(() => {
     const keepAlive = () => {
-      if (videoRef.current && videoRef.current.paused) videoRef.current.play().catch(() => {});
+      if (artRef.current) { try { if ((artRef.current as any).playing === false) artRef.current.play(); } catch {} }
       if (activeServer?.kind === "youtube") sendYT("playVideo");
     };
     document.addEventListener("visibilitychange", keepAlive);
@@ -275,7 +302,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     if (id === activeServerId) return;
     setActiveServerId(id);
     setShowQuality(false);
-    // smooth: keep started state — auto play after switch
   };
 
   const setHlsQuality = (level: number) => {
@@ -285,7 +311,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     showControls();
   };
 
-  const wmPos = POSITIONS[wmIndex];
   const VolIcon = muted || volume === 0 ? VolumeX : Volume2;
   const hasVideo = Boolean(activeServer);
 
@@ -306,10 +331,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 e.stopPropagation();
                 setHasStarted(true);
                 setMuted(false);
-                if (videoRef.current) {
-                  videoRef.current.muted = false;
-                  videoRef.current.play().catch(() => {});
-                }
+                if (artRef.current) { try { artRef.current.muted = false; artRef.current.play(); } catch {} }
                 if (activeServer?.kind === "youtube") {
                   sendYT("playVideo");
                   sendYT("unMute");
@@ -338,15 +360,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               sandbox="allow-scripts allow-same-origin allow-presentation"
             />
           ) : (
-            <video
-              ref={videoRef}
-              className="absolute inset-0 h-full w-full bg-black pointer-events-none"
-              autoPlay
-              playsInline
-              muted={muted}
-              controlsList="nodownload noremoteplayback"
-              disablePictureInPicture
-            />
+            <div ref={artContainerRef} className="absolute inset-0 h-full w-full bg-black [&_.art-video-player]:!bg-black" />
           )}
 
           <div
@@ -416,8 +430,21 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
             </button>
           </div>
 
-          <div className="absolute z-30 text-foreground/30 text-xs font-mono pointer-events-none transition-all duration-700 ease-in-out select-none"
-            style={{ top: wmPos.top, left: wmPos.left, right: wmPos.right, bottom: wmPos.bottom, transform: wmPos.transform || "none" }}>
+          <div
+            className="absolute z-30 pointer-events-none select-none transition-opacity duration-500"
+            style={{
+              top: wmPos.top,
+              left: wmPos.left,
+              right: wmPos.right,
+              bottom: wmPos.bottom,
+              opacity: wmVisible ? 0.45 : 0,
+              fontSize: "9px",
+              fontFamily: "JetBrains Mono, monospace",
+              color: "hsl(var(--foreground))",
+              textShadow: "0 0 4px rgba(0,0,0,0.8)",
+              letterSpacing: "0.05em",
+            }}
+          >
             {watermarkText}
           </div>
         </>
