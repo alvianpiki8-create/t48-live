@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity, ChevronDown, ChevronRight } from "lucide-react";
+import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity, ChevronDown, ChevronRight, Eraser, X } from "lucide-react";
 
 interface Admin {
   id: string;
@@ -89,7 +89,22 @@ const AdminManager = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus admin ini? Semua log juga ikut terhapus.")) return;
+    await supabase.from("admin_link_logs").delete().eq("admin_id", id);
     await supabase.from("admins").delete().eq("id", id);
+  };
+
+  const handleClearAdminLogs = async (id: string, name: string) => {
+    if (!confirm(`Hapus semua history pengambilan link admin "${name}"?`)) return;
+    await supabase.from("admin_link_logs").delete().eq("admin_id", id);
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+    await supabase.from("admin_link_logs").delete().eq("id", logId);
+  };
+
+  const handleClearAllLogs = async () => {
+    if (!confirm("Hapus SEMUA history pengambilan link dari semua admin?")) return;
+    await supabase.from("admin_link_logs").delete().gte("created_at", "1900-01-01");
   };
 
   return (
