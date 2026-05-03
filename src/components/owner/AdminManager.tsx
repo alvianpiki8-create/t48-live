@@ -167,6 +167,9 @@ const AdminManager = () => {
                 >
                   {expandedAdmin === a.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
+                <button onClick={() => handleClearAdminLogs(a.id, a.name)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-amber-500" title="Hapus history link admin ini">
+                  <Eraser size={14} />
+                </button>
                 {a.is_blocked ? (
                   <button onClick={() => handleUnblock(a.id)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-green-500" title="Buka blokir">
                     <Check size={14} />
@@ -199,7 +202,7 @@ const AdminManager = () => {
                   </p>
                   {own.length === 0 && <p className="text-[11px] text-muted-foreground italic">Belum ambil link.</p>}
                   {own.map((l) => (
-                    <div key={l.id} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 bg-secondary/20 rounded">
+                    <div key={l.id} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 bg-secondary/20 rounded group/log">
                       <div className="min-w-0 flex-1 truncate">
                         <span className="font-mono font-bold text-primary">T4-{l.token_code}</span>
                         <span className="text-muted-foreground"> · {l.link_type === "membership" ? "🎫" : "🎬"} {l.show_name || "—"}</span>
@@ -208,6 +211,9 @@ const AdminManager = () => {
                       <span className="text-[9px] text-muted-foreground flex-shrink-0">
                         {new Date(l.created_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
                       </span>
+                      <button onClick={() => handleDeleteLog(l.id)} className="opacity-0 group-hover/log:opacity-100 p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-opacity" title="Hapus log">
+                        <X size={10} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -219,14 +225,21 @@ const AdminManager = () => {
 
       {/* Live activity feed */}
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-          <h3 className="text-sm font-semibold text-foreground">Aktivitas Real-time ({logs.length})</h3>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+            <h3 className="text-sm font-semibold text-foreground">Aktivitas Real-time ({logs.length})</h3>
+          </div>
+          {logs.length > 0 && (
+            <button onClick={handleClearAllLogs} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
+              <Eraser size={10} /> Hapus semua history
+            </button>
+          )}
         </div>
         <div className="space-y-1 max-h-72 overflow-y-auto bg-secondary/10 rounded-lg p-2">
           {logs.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Belum ada aktivitas.</p>}
           {logs.map((l) => (
-            <div key={l.id} className="flex items-center justify-between gap-2 text-[11px] py-1.5 px-2 hover:bg-secondary/30 rounded">
+            <div key={l.id} className="flex items-center justify-between gap-2 text-[11px] py-1.5 px-2 hover:bg-secondary/30 rounded group/feed">
               <div className="min-w-0 flex-1">
                 <span className="font-semibold text-foreground">{l.admin_name}</span>
                 <span className="text-muted-foreground"> membuat </span>
@@ -236,6 +249,9 @@ const AdminManager = () => {
               <span className="text-[9px] text-muted-foreground flex-shrink-0">
                 {new Date(l.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </span>
+              <button onClick={() => handleDeleteLog(l.id)} className="opacity-0 group-hover/feed:opacity-100 p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-opacity" title="Hapus">
+                <X size={10} />
+              </button>
             </div>
           ))}
         </div>
