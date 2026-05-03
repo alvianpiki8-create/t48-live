@@ -147,9 +147,16 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   }, []);
 
   useEffect(() => {
-    const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    const handler = () => {
+      const fs = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(Boolean(fs));
+    };
     document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    document.addEventListener("webkitfullscreenchange", handler as any);
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      document.removeEventListener("webkitfullscreenchange", handler as any);
+    };
   }, []);
 
   // ArtPlayer + HLS for M3U8 (dengan resolusi)
@@ -203,7 +210,14 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
         customType: {
           m3u8: function (video: HTMLVideoElement, url: string) {
             if (Hls.isSupported()) {
-              const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+              const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+                liveSyncDurationCount: 2,
+                liveMaxLatencyDurationCount: 5,
+                backBufferLength: 30,
+                maxBufferLength: 20,
+              });
               hlsRef.current = hls;
               hls.loadSource(url);
               hls.attachMedia(video);
@@ -282,8 +296,21 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const toggleFullscreen = useCallback(() => {
     const container = document.getElementById("live-player-container");
     if (!container) return;
-    if (!document.fullscreenElement) container.requestFullscreen();
-    else document.exitFullscreen();
+    const anyDoc = document as any;
+    const anyEl = container as any;
+    const isFs = document.fullscreenElement || anyDoc.webkitFullscreenElement;
+    if (!isFs) {
+      const req = container.requestFullscreen || anyEl.webkitRequestFullscreen || anyEl.webkitEnterFullscreen;
+      if (req) req.call(container);
+      else {
+        // iOS Safari fallback: fullscreen the video element
+        const v = container.querySelector("video") as any;
+        if (v?.webkitEnterFullscreen) v.webkitEnterFullscreen();
+      }
+    } else {
+      const exit = document.exitFullscreen || anyDoc.webkitExitFullscreen;
+      if (exit) exit.call(document);
+    }
   }, []);
 
   const embedUrl = useMemo(() => {
@@ -396,11 +423,21 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           <div className={`absolute bottom-3 right-3 z-30 flex gap-2 transition-opacity duration-300 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
             {(activeServer?.kind === "youtube" || (activeServer?.kind === "m3u8" && hlsLevels.length > 0)) && (
               <div className="relative">
-                <button onClick={(e) => { e.stopPropagation(); setShowQuality((v) => !v); showControls(); }} className="p-2 rounded-md bg-secondary/80 hover:bg-secondary text-foreground transition-colors" type="button">
-                  <Settings2 size={18} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowQuality((v) => !v); showControls(); }}
+                  className="px-3 h-10 min-w-[44px] rounded-lg bg-background/70 hover:bg-background/90 backdrop-blur-md border border-foreground/20 text-foreground transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shadow-lg"
+                  type="button"
+                  title="Resolusi"
+                >
+                  <Settings2 size={16} />
+                  <span className="text-[11px] font-bold tracking-wide">
+                    {activeServer?.kind === "m3u8"
+                      ? (hlsLevel === -1 ? "AUTO" : `${hlsLevels.find((l) => l.index === hlsLevel)?.height || ""}p`)
+                      : (YT_QUALITY.find((q) => q.value === ytQuality)?.label || "AUTO").toUpperCase()}
+                  </span>
                 </button>
                 {showQuality && activeServer?.kind === "youtube" && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[120px]">
+                  <div className="absolute bottom-full right-0 mb-2 bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-xl overflow-hidden min-w-[120px]">
                     {YT_QUALITY.map((q) => (
                       <button key={q.value} onClick={(e) => { e.stopPropagation(); setYtQuality(q.value); setShowQuality(false); showControls(); }}
                         className={`w-full px-3 py-2 text-xs text-left transition-colors ${ytQuality === q.value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
@@ -410,7 +447,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                   </div>
                 )}
                 {showQuality && activeServer?.kind === "m3u8" && hlsLevels.length > 0 && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[120px]">
+                  <div className="absolute bottom-full right-0 mb-2 bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-xl overflow-hidden min-w-[120px]">
                     <button onClick={(e) => { e.stopPropagation(); setHlsQuality(-1); }}
                       className={`w-full px-3 py-2 text-xs text-left transition-colors ${hlsLevel === -1 ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
                       Auto
@@ -425,7 +462,12 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 )}
               </div>
             )}
-            <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); showControls(); }} className="p-2 rounded-md bg-secondary/80 hover:bg-secondary text-foreground transition-colors" type="button">
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleFullscreen(); showControls(); }}
+              className="h-10 w-10 rounded-lg bg-background/70 hover:bg-background/90 backdrop-blur-md border border-foreground/20 text-foreground transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg"
+              type="button"
+              title={isFullscreen ? "Keluar layar penuh" : "Layar penuh"}
+            >
               {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
             </button>
           </div>

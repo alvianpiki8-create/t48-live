@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw } from "lucide-react";
+import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = "teamlive_admin_session";
@@ -17,6 +17,67 @@ const generateTokenCode = () => {
 
 interface Show { id: string; name: string; }
 interface Membership { id: string; name: string; type: string; }
+interface StreamSettings { backup_video_url?: string; replay_url?: string; replay_password?: string; }
+
+const buildShareText = (opts: {
+  origin: string;
+  tokenCode: string;
+  showName?: string | null;
+  accessHour?: string | null;
+  showDate?: string | null;
+  settings: StreamSettings | null;
+}) => {
+  const link = `${opts.origin}/watch/${opts.tokenCode}`;
+  const backupUrl = opts.settings?.backup_video_url || "";
+  const replayUrl = opts.settings?.replay_url || "t48.lovable.app/replay";
+  const replayPassword = opts.settings?.replay_password || "(admin yang atur)";
+  const showName = opts.showName || "(pilih show)";
+  const accessHour = opts.accessHour || "(atur jam)";
+  const showDate = opts.showDate || "(tanggal show)";
+  return `*🚨Terimakasih telah membeli livestreaming dari kita.*
+
+> selamat menonton show ${showName}
+
+> ⏳akses jam: ${accessHour}
+
+
+
+📢 *AKSES LIVE STREAMING pada LINK UTAMA,LINK CADANGAN Dan REPLAY* :
+
+
+
+* 1️⃣ *Link Utama*: 🔗 ${link}
+
+                
+
+* 2⃣ *Link Cadangan* : 🔗 ${backupUrl || "(kalo ada)"}
+
+
+
+🔗Replay ${showDate} 2026 :
+
+1. ${replayUrl}
+
+
+
+🗝️ Sandi : ${replayPassword}
+
+
+
+⚠️ *PENTING UNTUK DIPERHATIKAN*:
+
+1 Akun = 1 Device/browser : Jangan login di dua perangkat bersamaan.
+
+Waktu Akses: Disarankan masuk website saat live sudah dimulai (Cek info terbaru di saluran).
+
+Browser: Gunakan Chrome atau Opera untuk pengalaman terbaik.
+
+Kendala Akses: Jika tombol masuk tidak berfungsi, mohon matikan AdBlock/DNS AdGuard.
+
+
+
+Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
+};
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -32,20 +93,22 @@ const AdminPanel = () => {
   const [shows, setShows] = useState<Show[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [myLogs, setMyLogs] = useState<any[]>([]);
+  const [streamSettings, setStreamSettings] = useState<StreamSettings | null>(null);
 
-  // Normal token form
   const [tabKind, setTabKind] = useState<"normal" | "membership">("normal");
   const [selectedShow, setSelectedShow] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
   const [duration, setDuration] = useState(1);
-  const [generated, setGenerated] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [generated, setGenerated] = useState<{ link: string; text: string } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // Membership form
   const [selMembership, setSelMembership] = useState("");
 
-  // Periodic re-validation: detect block in real-time
+  // Per-row copy feedback
+  const [rowCopy, setRowCopy] = useState<{ id: string; kind: "link" | "text" } | null>(null);
+
   useEffect(() => {
     if (!session) return;
     const check = async () => {
@@ -70,23 +133,25 @@ const AdminPanel = () => {
 
   const fetchData = useCallback(async () => {
     if (!session) return;
-    const [s, m, l] = await Promise.all([
+    const [s, m, l, ss] = await Promise.all([
       supabase.from("shows").select("id,name").order("created_at", { ascending: true }),
       supabase.from("memberships").select("id,name,type").eq("is_active", true).order("created_at", { ascending: true }),
       supabase.from("admin_link_logs").select("*").eq("admin_id", session.id).order("created_at", { ascending: false }).limit(50),
+      supabase.from("stream_settings").select("backup_video_url, replay_url, replay_password").maybeSingle(),
     ]);
     setShows((s.data as any) || []);
     setMemberships((m.data as any) || []);
     setMyLogs((l.data as any) || []);
+    setStreamSettings((ss.data as any) || null);
   }, [session]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Realtime own logs
   useEffect(() => {
     if (!session) return;
     const ch = supabase.channel(`admin_logs_${session.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "admin_link_logs", filter: `admin_id=eq.${session.id}` }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, fetchData)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, fetchData]);
@@ -109,9 +174,21 @@ const AdminPanel = () => {
 
   const handleLogout = () => { sessionStorage.removeItem(STORAGE_KEY); setSession(null); };
 
+  const finalizeGenerated = (token_code: string, showName: string | null, accessHour: string | null) => {
+    const link = `${window.location.origin}/watch/${token_code}`;
+    const text = buildShareText({
+      origin: window.location.origin,
+      tokenCode: token_code,
+      showName, accessHour, showDate: null,
+      settings: streamSettings,
+    });
+    setGenerated({ link, text });
+    setCopiedLink(false); setCopiedText(false);
+  };
+
   const createNormal = async () => {
     if (!session) return;
-    setCreating(true); setGenerated(null); setCopied(false);
+    setCreating(true); setGenerated(null);
     const token_code = generateTokenCode();
     const { error } = await supabase.from("access_tokens").insert({
       token_code,
@@ -124,7 +201,7 @@ const AdminPanel = () => {
       admin_id: session.id, admin_name: session.name, link_type: "normal",
       token_code, show_name: selectedShow || null, duration_days: duration, access_hour: selectedHour || null,
     } as any);
-    setGenerated(`${window.location.origin}/watch/${token_code}`);
+    finalizeGenerated(token_code, selectedShow || null, selectedHour || null);
     setCreating(false);
   };
 
@@ -132,26 +209,38 @@ const AdminPanel = () => {
     if (!session || !selMembership) { alert("Pilih paket membership dulu"); return; }
     const m = memberships.find((x) => x.id === selMembership);
     if (!m) return;
-    setCreating(true); setGenerated(null); setCopied(false);
+    setCreating(true); setGenerated(null);
     const days = m.type === "weekly" ? 7 : 30;
     const token_code = generateTokenCode();
+    const showName = `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`;
+    // Membership uses TOKEN-BASED link (not public membership link)
     const { error } = await supabase.from("access_tokens").insert({
-      token_code, duration_days: days,
-      show_name: `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`,
+      token_code, duration_days: days, show_name: showName,
     } as any);
     if (error) { alert("Gagal: " + error.message); setCreating(false); return; }
     await supabase.from("admin_link_logs").insert({
       admin_id: session.id, admin_name: session.name, link_type: "membership",
       token_code, show_name: m.name, duration_days: days,
     } as any);
-    setGenerated(`${window.location.origin}/watch/${token_code}`);
+    finalizeGenerated(token_code, m.name, null);
     setCreating(false);
   };
 
-  const copyGenerated = () => {
-    if (!generated) return;
-    navigator.clipboard.writeText(generated);
-    setCopied(true); setTimeout(() => setCopied(false), 1500);
+  const copyText = async (val: string) => {
+    try { await navigator.clipboard.writeText(val); } catch {}
+  };
+
+  const copyRow = (log: any, kind: "link" | "text") => {
+    const link = `${window.location.origin}/watch/${log.token_code}`;
+    if (kind === "link") copyText(link);
+    else copyText(buildShareText({
+      origin: window.location.origin,
+      tokenCode: log.token_code,
+      showName: log.show_name, accessHour: log.access_hour, showDate: null,
+      settings: streamSettings,
+    }));
+    setRowCopy({ id: log.id, kind });
+    setTimeout(() => setRowCopy(null), 1500);
   };
 
   const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, "0")}:00`);
@@ -262,6 +351,7 @@ const AdminPanel = () => {
                   <option value="">-- Pilih Paket --</option>
                   {memberships.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.type === "weekly" ? "7 hari" : "30 hari"})</option>)}
                 </select>
+                <p className="text-[10px] text-muted-foreground mt-1">Membership memakai link bertoken (bukan link publik).</p>
               </div>
               <button onClick={createMembership} disabled={creating || !selMembership}
                 className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
@@ -273,10 +363,17 @@ const AdminPanel = () => {
           {generated && (
             <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/30 space-y-2">
               <div className="text-xs text-muted-foreground flex items-center gap-1.5"><LinkIcon size={12} /> Link berhasil dibuat:</div>
-              <div className="font-mono text-xs break-all text-foreground bg-background/50 rounded p-2">{generated}</div>
-              <button onClick={copyGenerated} className="w-full bg-primary text-primary-foreground py-2 rounded-lg text-sm font-semibold hover:opacity-90 flex items-center justify-center gap-2">
-                {copied ? <><Check size={14} /> Tersalin</> : <><Copy size={14} /> Salin Link</>}
-              </button>
+              <div className="font-mono text-xs break-all text-foreground bg-background/50 rounded p-2">{generated.link}</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => { copyText(generated.link); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 1500); }}
+                  className="bg-secondary text-foreground py-2 rounded-lg text-xs font-semibold hover:bg-secondary/80 flex items-center justify-center gap-1.5">
+                  {copiedLink ? <><Check size={14} /> Tersalin</> : <><LinkIcon size={14} /> Salin Link</>}
+                </button>
+                <button onClick={() => { copyText(generated.text); setCopiedText(true); setTimeout(() => setCopiedText(false), 1500); }}
+                  className="bg-primary text-primary-foreground py-2 rounded-lg text-xs font-semibold hover:opacity-90 flex items-center justify-center gap-1.5">
+                  {copiedText ? <><Check size={14} /> Tersalin</> : <><FileText size={14} /> Salin Teks</>}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -286,18 +383,28 @@ const AdminPanel = () => {
             <h2 className="text-sm font-semibold text-foreground">Link saya ({myLogs.length})</h2>
             <button onClick={fetchData} className="p-1 rounded hover:bg-secondary text-muted-foreground"><RefreshCw size={12} /></button>
           </div>
-          <div className="space-y-1.5 max-h-64 overflow-y-auto">
+          <div className="space-y-1.5 max-h-80 overflow-y-auto">
             {myLogs.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Belum ada link dibuat.</p>}
             {myLogs.map((l) => (
-              <div key={l.id} className="text-[11px] flex items-center justify-between gap-2 bg-secondary/20 rounded px-2 py-1.5">
-                <div className="min-w-0 flex-1">
-                  <div className="font-mono font-bold text-foreground">T4-{l.token_code}</div>
-                  <div className="text-muted-foreground truncate">
-                    {l.link_type === "membership" ? "🎫 " : "🎬 "}
-                    {l.show_name || "—"} · {l.duration_days}hr {l.access_hour ? `· ${l.access_hour}` : ""}
+              <div key={l.id} className="text-[11px] bg-secondary/20 rounded px-2 py-1.5 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-mono font-bold text-foreground">T4-{l.token_code}</div>
+                    <div className="text-muted-foreground truncate">
+                      {l.link_type === "membership" ? "🎫 " : "🎬 "}
+                      {l.show_name || "—"} · {l.duration_days}hr {l.access_hour ? `· ${l.access_hour}` : ""}
+                    </div>
                   </div>
+                  <div className="text-[9px] text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</div>
                 </div>
-                <div className="text-[9px] text-muted-foreground">{new Date(l.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button onClick={() => copyRow(l, "link")} className="bg-secondary hover:bg-secondary/70 text-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
+                    {rowCopy?.id === l.id && rowCopy.kind === "link" ? <><Check size={10} /> Tersalin</> : <><LinkIcon size={10} /> Link</>}
+                  </button>
+                  <button onClick={() => copyRow(l, "text")} className="bg-primary/80 hover:bg-primary text-primary-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
+                    {rowCopy?.id === l.id && rowCopy.kind === "text" ? <><Check size={10} /> Tersalin</> : <><FileText size={10} /> Teks</>}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
