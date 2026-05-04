@@ -351,7 +351,16 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               sandbox="allow-scripts allow-same-origin allow-presentation"
             />
           ) : (
-            <div ref={artContainerRef} className="absolute inset-0 h-full w-full bg-black [&_.art-video-player]:!bg-black" />
+            <video
+              ref={videoRef}
+              className="absolute inset-0 h-full w-full bg-black object-contain"
+              playsInline
+              autoPlay
+              muted={muted}
+              controlsList="nodownload noremoteplayback"
+              disablePictureInPicture
+              onContextMenu={(e) => e.preventDefault()}
+            />
           )}
 
           <div
