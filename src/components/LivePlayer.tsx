@@ -157,17 +157,16 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     };
   }, []);
 
-  // ArtPlayer + HLS for M3U8 (dengan resolusi)
+  // HLS for M3U8 (native <video> + hls.js, dengan resolusi)
   useEffect(() => {
-    if (!activeServer || activeServer.kind !== "m3u8" || !artContainerRef.current) {
-      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
+    if (!activeServer || activeServer.kind !== "m3u8" || !videoRef.current) {
       if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
       setHlsLevels([]);
       setHlsLevel(-1);
       return;
     }
     let cancelled = false;
-    const container = artContainerRef.current;
+    const video = videoRef.current;
 
     (async () => {
       let playUrl = activeServer.src;
@@ -177,91 +176,57 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
       } catch { /* fallback */ }
       if (cancelled) return;
 
-      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
       if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
-      const art = new Artplayer({
-        container,
-        url: playUrl,
-        type: "m3u8",
-        autoplay: true,
-        muted,
-        volume,
-        playsInline: true,
-        autoSize: false,
-        autoOrientation: false,
-        setting: false,
-        fullscreen: false,
-        fullscreenWeb: false,
-        pip: false,
-        airplay: false,
-        playbackRate: false,
-        aspectRatio: false,
-        hotkey: false,
-        mutex: true,
-        backdrop: false,
-        theme: "#ffffff",
-        moreVideoAttr: { playsInline: true, "webkit-playsinline": true, controlsList: "nodownload noremoteplayback", disablePictureInPicture: true } as any,
-        controls: [],
-        layers: [],
-        contextmenu: [],
-        customType: {
-          m3u8: function (video: HTMLVideoElement, url: string) {
-            if (Hls.isSupported()) {
-              const hls = new Hls({
-                enableWorker: true,
-                lowLatencyMode: true,
-                liveSyncDurationCount: 2,
-                liveMaxLatencyDurationCount: 5,
-                backBufferLength: 30,
-                maxBufferLength: 20,
-              });
-              hlsRef.current = hls;
-              hls.loadSource(url);
-              hls.attachMedia(video);
-              hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
-                  .filter((l) => l.height > 0)
-                  .sort((a, b) => b.height - a.height);
-                setHlsLevels(levels);
-                setHlsLevel(-1);
-                hls.currentLevel = -1;
-              });
-              hls.on(Hls.Events.ERROR, (_e, data) => {
-                if (data.fatal) {
-                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-                  else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-                }
-              });
-            } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-              video.src = url;
-              setHlsLevels([]);
-            }
-          },
-        },
-      });
-
-      artRef.current = art;
-      // Disable native controls + context menu on the video tag
-      const v = (art.template as any)?.$video as HTMLVideoElement | undefined;
-      if (v) {
-        v.removeAttribute("controls");
-        v.style.pointerEvents = "none";
-        v.addEventListener("contextmenu", (e) => e.preventDefault());
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          liveSyncDurationCount: 2,
+          liveMaxLatencyDurationCount: 5,
+          backBufferLength: 30,
+          maxBufferLength: 20,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(playUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
+            .filter((l) => l.height > 0)
+            .sort((a, b) => b.height - a.height);
+          setHlsLevels(levels);
+          setHlsLevel(-1);
+          hls.currentLevel = -1;
+          video.muted = muted;
+          video.volume = volume;
+          video.play().catch(() => {});
+        });
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          }
+        });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = playUrl;
+        video.muted = muted;
+        video.volume = volume;
+        video.play().catch(() => {});
+        setHlsLevels([]);
       }
     })();
 
     return () => {
       cancelled = true;
-      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
       if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
     };
   }, [activeServer]);
 
-  // Sync mute/volume to ArtPlayer
+  // Sync mute/volume to <video>
   useEffect(() => {
-    if (artRef.current) {
-      try { artRef.current.muted = muted; artRef.current.volume = volume; } catch {}
+    const v = videoRef.current;
+    if (v && activeServer?.kind === "m3u8") {
+      try { v.muted = muted; v.volume = volume; } catch {}
     }
   }, [muted, volume, activeServer?.kind]);
 
