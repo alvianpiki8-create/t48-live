@@ -245,7 +245,8 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => {
     const keepAlive = () => {
-      if (artRef.current) { try { if ((artRef.current as any).playing === false) artRef.current.play(); } catch {} }
+      const v = videoRef.current;
+      if (v && activeServer?.kind === "m3u8") { try { if (v.paused) v.play(); } catch {} }
       if (activeServer?.kind === "youtube") sendYT("playVideo");
     };
     document.addEventListener("visibilitychange", keepAlive);
