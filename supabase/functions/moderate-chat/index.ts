@@ -31,10 +31,30 @@ const containsHardBan = (text: string): string | null => {
   return null;
 };
 
+// Simple per-IP rate limiter: max 20 requests per 10 seconds
+const RATE_WINDOW_MS = 10_000;
+const RATE_MAX = 20;
+const rateMap = new Map<string, number[]>();
+const isRateLimited = (ip: string) => {
+  const now = Date.now();
+  const arr = (rateMap.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  arr.push(now);
+  rateMap.set(ip, arr);
+  return arr.length > RATE_MAX;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+    if (isRateLimited(ip)) {
+      return new Response(JSON.stringify({ allow: true, rateLimited: true }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { text } = await req.json();
     if (typeof text !== "string" || !text.trim()) {
       return new Response(JSON.stringify({ allow: true }), {
