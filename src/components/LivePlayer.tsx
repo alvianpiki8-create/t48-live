@@ -322,7 +322,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 e.stopPropagation();
                 setHasStarted(true);
                 setMuted(false);
-                if (artRef.current) { try { artRef.current.muted = false; artRef.current.play(); } catch {} }
+                if (videoRef.current && activeServer?.kind === "m3u8") { try { videoRef.current.muted = false; videoRef.current.play(); } catch {} }
                 if (activeServer?.kind === "youtube") {
                   sendYT("playVideo");
                   sendYT("unMute");
