@@ -235,6 +235,19 @@ const OwnerPanel = () => {
           <h2 className="font-semibold text-foreground">Pengaturan Channel</h2>
 
           <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Nama Website</label>
+            <input
+              type="text"
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+              maxLength={40}
+              placeholder="contoh: TEAM Live"
+              className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Tampil di header & judul tab browser seluruh website.</p>
+          </div>
+
+          <div>
             <label className="text-sm text-muted-foreground mb-1 block">Nama Channel</label>
             <input
               type="text"
