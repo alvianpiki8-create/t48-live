@@ -31,6 +31,7 @@ const OwnerPanel = () => {
   const [videoError, setVideoError] = useState("");
 
   const [channelName, setChannelName] = useState("TEAM Live");
+  const [siteName, setSiteName] = useState("TEAM Live");
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelAvatar2, setChannelAvatar2] = useState("");
   const [videoId, setVideoId] = useState("");
