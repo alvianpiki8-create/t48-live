@@ -83,6 +83,7 @@ const OwnerPanel = () => {
     setStreamSettings(data);
     if (data) {
       setChannelName((data as any).channel_name || "TEAM Live");
+      setSiteName((data as any).site_name || (data as any).channel_name || "TEAM Live");
       setChannelAvatar((data as any).channel_avatar || "");
       setChannelAvatar2((data as any).channel_avatar_2 || "");
       setVideoId((data as any).video_id || "");
