@@ -86,6 +86,12 @@ const Index = () => {
   useEffect(() => {
     const applySettings = async (data: any) => {
       if (!data) return;
+      // Enforce viewer filter for token (single) viewers
+      if (data.allow_token_viewers === false) {
+        setAccessDenied(true);
+        setAccessDeniedReason("Akses untuk penonton satuan sedang dimatikan oleh owner.");
+        return;
+      }
       let tokenShow: any = null;
       if (tokenShowId) {
         const { data: show } = await supabase.from("show_catalog").select("title,show_date,image_url,background_url,lineup").eq("id", tokenShowId).maybeSingle();
@@ -93,6 +99,7 @@ const Index = () => {
       }
       setVideoId(data.video_id || "");
       setChannelName(data.channel_name || "TEAM Live");
+      setSiteName(data.site_name || data.channel_name || "TEAM Live");
       setStreamTitle(tokenShow?.title || data.stream_title || "Siaran Langsung");
       setChannelAvatar(data.channel_avatar || "");
       setChannelAvatar2(data.channel_avatar_2 || "");
