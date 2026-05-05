@@ -201,7 +201,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
         <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />}
-            <h1 className="text-lg font-bold text-foreground tracking-tight">TEAM Live</h1>
+            <h1 className="text-lg font-bold text-foreground tracking-tight">{siteName}</h1>
             <span className="text-xs text-muted-foreground font-mono">@t48id</span>
           </div>
           <span className="text-sm text-muted-foreground">Hai, <span className="text-foreground font-medium">{nickname}</span></span>
