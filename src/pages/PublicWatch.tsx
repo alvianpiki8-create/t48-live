@@ -90,21 +90,31 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
       if (!user) { navigate("/auth", { replace: true }); return; }
       const { data } = await (supabase as any)
         .from("user_memberships")
-        .select("id,membership_name,expires_at,replay_url,replay_password")
+        .select("id,membership_name,membership_type,expires_at,replay_url,replay_password")
         .eq("user_id", user.id)
         .gt("expires_at", new Date().toISOString())
         .order("expires_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      setMembershipAllowed(Boolean(data));
+
+      if (data) {
+        const t = (data as any).membership_type;
+        const blocked = (t === "weekly" && !allowWeekly) || (t === "monthly" && !allowMonthly);
+        setMembershipBlockedByOwner(blocked);
+        setMembershipAllowed(!blocked);
+      } else {
+        setMembershipBlockedByOwner(false);
+        setMembershipAllowed(false);
+      }
       setMembershipInfo(data || null);
     };
     checkMembership();
     const ch = supabase.channel("membership_watch_rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "user_memberships" }, () => checkMembership())
+      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, () => checkMembership())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [mode, navigate]);
+  }, [mode, navigate, allowWeekly, allowMonthly]);
 
   useEffect(() => {
     if (mode !== "trial") return;
