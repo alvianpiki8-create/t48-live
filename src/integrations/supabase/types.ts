@@ -522,6 +522,9 @@ export type Database = {
       stream_settings: {
         Row: {
           access_days: number | null
+          allow_monthly_members: boolean
+          allow_token_viewers: boolean
+          allow_weekly_members: boolean
           background_effect: string | null
           backup_video_url: string | null
           catalog_background_type: string | null
@@ -540,6 +543,7 @@ export type Database = {
           public_link_enabled: boolean
           replay_password: string | null
           replay_url: string | null
+          site_name: string | null
           stream_source_type: string | null
           stream_source_url: string | null
           stream_source_url_2: string | null
@@ -549,6 +553,9 @@ export type Database = {
         }
         Insert: {
           access_days?: number | null
+          allow_monthly_members?: boolean
+          allow_token_viewers?: boolean
+          allow_weekly_members?: boolean
           background_effect?: string | null
           backup_video_url?: string | null
           catalog_background_type?: string | null
@@ -567,6 +574,7 @@ export type Database = {
           public_link_enabled?: boolean
           replay_password?: string | null
           replay_url?: string | null
+          site_name?: string | null
           stream_source_type?: string | null
           stream_source_url?: string | null
           stream_source_url_2?: string | null
@@ -576,6 +584,9 @@ export type Database = {
         }
         Update: {
           access_days?: number | null
+          allow_monthly_members?: boolean
+          allow_token_viewers?: boolean
+          allow_weekly_members?: boolean
           background_effect?: string | null
           backup_video_url?: string | null
           catalog_background_type?: string | null
@@ -594,6 +605,7 @@ export type Database = {
           public_link_enabled?: boolean
           replay_password?: string | null
           replay_url?: string | null
+          site_name?: string | null
           stream_source_type?: string | null
           stream_source_url?: string | null
           stream_source_url_2?: string | null
