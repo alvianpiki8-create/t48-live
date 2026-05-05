@@ -26,9 +26,12 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
   const [publicEnabled, setPublicEnabled] = useState<boolean | null>(null);
+  const [allowWeekly, setAllowWeekly] = useState(true);
+  const [allowMonthly, setAllowMonthly] = useState(true);
 
   const [videoId, setVideoId] = useState("");
   const [channelName, setChannelName] = useState("TEAM Live");
+  const [siteName, setSiteName] = useState("TEAM Live");
   const [streamTitle, setStreamTitle] = useState("Siaran Langsung");
   const [channelAvatar, setChannelAvatar] = useState("");
   const [lineup, setLineup] = useState<any[]>([]);
@@ -38,6 +41,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [membershipAllowed, setMembershipAllowed] = useState(mode !== "membership");
+  const [membershipBlockedByOwner, setMembershipBlockedByOwner] = useState(false);
   const [membershipInfo, setMembershipInfo] = useState<any>(null);
   const [replayCopied, setReplayCopied] = useState(false);
   const [trialAllowed, setTrialAllowed] = useState(mode !== "trial");
@@ -47,8 +51,11 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
     const applySettings = (data: any) => {
       if (!data) return;
       setPublicEnabled(data.public_link_enabled ?? false);
+      setAllowWeekly(data.allow_weekly_members ?? true);
+      setAllowMonthly(data.allow_monthly_members ?? true);
       setVideoId(data.video_id || "");
       setChannelName(data.channel_name || "TEAM Live");
+      setSiteName(data.site_name || data.channel_name || "TEAM Live");
       setStreamTitle(data.stream_title || "Siaran Langsung");
       setChannelAvatar(data.channel_avatar || "");
       setChannelAvatar2(data.channel_avatar_2 || "");
@@ -83,21 +90,31 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
       if (!user) { navigate("/auth", { replace: true }); return; }
       const { data } = await (supabase as any)
         .from("user_memberships")
-        .select("id,membership_name,expires_at,replay_url,replay_password")
+        .select("id,membership_name,membership_type,expires_at,replay_url,replay_password")
         .eq("user_id", user.id)
         .gt("expires_at", new Date().toISOString())
         .order("expires_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      setMembershipAllowed(Boolean(data));
+
+      if (data) {
+        const t = (data as any).membership_type;
+        const blocked = (t === "weekly" && !allowWeekly) || (t === "monthly" && !allowMonthly);
+        setMembershipBlockedByOwner(blocked);
+        setMembershipAllowed(!blocked);
+      } else {
+        setMembershipBlockedByOwner(false);
+        setMembershipAllowed(false);
+      }
       setMembershipInfo(data || null);
     };
     checkMembership();
     const ch = supabase.channel("membership_watch_rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "user_memberships" }, () => checkMembership())
+      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, () => checkMembership())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [mode, navigate]);
+  }, [mode, navigate, allowWeekly, allowMonthly]);
 
   useEffect(() => {
     if (mode !== "trial") return;
@@ -155,11 +172,18 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
     sendMessage(nickname, text);
   }, [nickname, sendMessage]);
 
+  // Apply site name to document title
+  useEffect(() => { if (siteName) document.title = siteName; }, [siteName]);
+
   if (publicEnabled === null) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
   if (mode === "public" && !publicEnabled) {
     return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">🔒</div><h2 className="text-foreground font-semibold text-lg">Link Publik Tidak Aktif</h2><p className="text-muted-foreground text-sm mt-2">Admin belum mengaktifkan akses publik.</p></div></div></>);
+  }
+  if (mode === "membership" && membershipBlockedByOwner) {
+    const label = (membershipInfo as any)?.membership_type === "monthly" ? "Bulanan" : "Mingguan";
+    return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">⏸️</div><h2 className="text-foreground font-semibold text-lg">Membership {label} Sedang Dimatikan</h2><p className="text-muted-foreground text-sm mt-2">Owner sementara menonaktifkan akses live untuk member {label.toLowerCase()}. Silakan coba lagi nanti — akses akan otomatis kembali begitu owner menyalakannya.</p></div></div></>);
   }
   if (mode === "membership" && !membershipAllowed) {
     return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">💎</div><h2 className="text-foreground font-semibold text-lg">Membership Belum Aktif</h2><p className="text-muted-foreground text-sm mt-2">Beli membership dulu untuk membuka livestreaming dan akses replay.</p><button onClick={() => navigate("/catalog")} className="mt-5 w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold">Beli Membership</button></div></div></>);
@@ -177,7 +201,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
         <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />}
-            <h1 className="text-lg font-bold text-foreground tracking-tight">TEAM Live</h1>
+            <h1 className="text-lg font-bold text-foreground tracking-tight">{siteName}</h1>
             <span className="text-xs text-muted-foreground font-mono">@t48id</span>
           </div>
           <span className="text-sm text-muted-foreground">Hai, <span className="text-foreground font-medium">{nickname}</span></span>

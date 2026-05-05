@@ -14,6 +14,7 @@ import ModeratorManager from "@/components/owner/ModeratorManager";
 import CatalogSlideManager from "@/components/owner/CatalogSlideManager";
 import AdminManager from "@/components/owner/AdminManager";
 import ChatReportsManager from "@/components/owner/ChatReportsManager";
+import ViewerFilter from "@/components/owner/ViewerFilter";
 
 const AUTH_KEY = "teamlive_owner_auth";
 const OWNER_TOKEN_KEY = "teamlive_owner_token";
@@ -30,6 +31,7 @@ const OwnerPanel = () => {
   const [videoError, setVideoError] = useState("");
 
   const [channelName, setChannelName] = useState("TEAM Live");
+  const [siteName, setSiteName] = useState("TEAM Live");
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelAvatar2, setChannelAvatar2] = useState("");
   const [videoId, setVideoId] = useState("");
@@ -81,6 +83,7 @@ const OwnerPanel = () => {
     setStreamSettings(data);
     if (data) {
       setChannelName((data as any).channel_name || "TEAM Live");
+      setSiteName((data as any).site_name || (data as any).channel_name || "TEAM Live");
       setChannelAvatar((data as any).channel_avatar || "");
       setChannelAvatar2((data as any).channel_avatar_2 || "");
       setVideoId((data as any).video_id || "");
@@ -126,6 +129,7 @@ const OwnerPanel = () => {
     const updateData: any = {
       video_id: normalizedVideoId,
       channel_name: channelName,
+      site_name: siteName,
       stream_title: streamTitle,
       channel_avatar: channelAvatar,
       channel_avatar_2: channelAvatar2,
@@ -229,6 +233,19 @@ const OwnerPanel = () => {
         {/* Channel Settings */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-5">
           <h2 className="font-semibold text-foreground">Pengaturan Channel</h2>
+
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Nama Website</label>
+            <input
+              type="text"
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+              maxLength={40}
+              placeholder="contoh: TEAM Live"
+              className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Tampil di header & judul tab browser seluruh website.</p>
+          </div>
 
           <div>
             <label className="text-sm text-muted-foreground mb-1 block">Nama Channel</label>
@@ -463,6 +480,9 @@ const OwnerPanel = () => {
 
         {/* Chat Reports (real-time) */}
         <ChatReportsManager />
+
+        {/* Viewer Filter */}
+        <ViewerFilter settings={streamSettings} onRefresh={fetchStreamSettings} />
 
         {/* Token Manager */}
         <TokenManager

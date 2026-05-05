@@ -148,7 +148,7 @@ export const useRealtimeChat = () => {
     const color = getColorForNickname(nickname);
     const deviceId = getDeviceId();
 
-    // Optimistic insert — appears instantly
+    // Optimistic local insert — appears instantly for sender
     const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic: ChatMessage = {
       id: tempId,
@@ -160,45 +160,49 @@ export const useRealtimeChat = () => {
     };
     setMessages((prev) => [...prev, optimistic]);
 
-    // Moderate in parallel — don't block UI
-    try {
-      const { data: modData } = await supabase.functions.invoke("moderate-chat", {
-        body: { text },
-      });
+    // Insert + moderate in parallel for instant fan-out to other viewers
+    const insertPromise = supabase
+      .from("chat_messages")
+      .insert({ nickname, text, color, device_id: deviceId } as any)
+      .select("id")
+      .maybeSingle();
 
-      if (modData && modData.allow === false) {
-        // Remove optimistic message
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    const modPromise = supabase.functions
+      .invoke("moderate-chat", { body: { text } })
+      .catch(() => ({ data: null, error: null } as any));
 
-        // Ban this device
-        await supabase.from("chat_banned_devices" as any).insert({
-          device_id: deviceId,
-          reason: modData.reason || "Mengandung kata tidak pantas",
-          banned_word: modData.word || null,
-        } as any);
+    const [{ data: inserted, error: insertError }, { data: modData }] = await Promise.all([
+      insertPromise,
+      modPromise,
+    ]) as any;
 
-        setIsBanned(true);
-        setBanReason(modData.reason || "Mengandung kata tidak pantas");
-
-        toast({
-          title: "🚫 Pesan diblokir",
-          description: `${modData.reason || "Kata tidak pantas terdeteksi"}. Anda tidak bisa chat lagi.`,
-          variant: "destructive",
-        });
-        return;
-      }
-    } catch (e) {
-      // Moderation failed → fall through to insert (don't block legitimate users)
-      console.warn("Moderation skipped:", e);
+    if (insertError) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      toast({ title: "Gagal mengirim", description: insertError.message, variant: "destructive" });
+      return;
     }
 
-    const { error } = await supabase.from("chat_messages").insert({
-      nickname, text, color, device_id: deviceId,
-    } as any);
+    if (modData && modData.allow === false) {
+      // Remove from local state and DB
+      setMessages((prev) => prev.filter((m) => m.id !== tempId && m.id !== inserted?.id));
+      if (inserted?.id) {
+        await supabase.from("chat_messages").delete().eq("id", inserted.id);
+      }
 
-    if (error) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      toast({ title: "Gagal mengirim", description: error.message, variant: "destructive" });
+      await supabase.from("chat_banned_devices" as any).insert({
+        device_id: deviceId,
+        reason: modData.reason || "Mengandung kata tidak pantas",
+        banned_word: modData.word || null,
+      } as any);
+
+      setIsBanned(true);
+      setBanReason(modData.reason || "Mengandung kata tidak pantas");
+
+      toast({
+        title: "🚫 Pesan diblokir",
+        description: `${modData.reason || "Kata tidak pantas terdeteksi"}. Anda tidak bisa chat lagi.`,
+        variant: "destructive",
+      });
     }
   }, [isBanned, banReason]);
 

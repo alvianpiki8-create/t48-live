@@ -35,8 +35,10 @@ const Index = () => {
   const [tokenCode, setTokenCode] = useState<string | null>(null);
   const [tokenShowId, setTokenShowId] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [accessDeniedReason, setAccessDeniedReason] = useState<string>("");
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
+  const [siteName, setSiteName] = useState("TEAM Live");
 
   const [videoId, setVideoId] = useState("");
   const [channelName, setChannelName] = useState("TEAM Live");
@@ -84,6 +86,12 @@ const Index = () => {
   useEffect(() => {
     const applySettings = async (data: any) => {
       if (!data) return;
+      // Enforce viewer filter for token (single) viewers
+      if (data.allow_token_viewers === false) {
+        setAccessDenied(true);
+        setAccessDeniedReason("Akses untuk penonton satuan sedang dimatikan oleh owner.");
+        return;
+      }
       let tokenShow: any = null;
       if (tokenShowId) {
         const { data: show } = await supabase.from("show_catalog").select("title,show_date,image_url,background_url,lineup").eq("id", tokenShowId).maybeSingle();
@@ -91,6 +99,7 @@ const Index = () => {
       }
       setVideoId(data.video_id || "");
       setChannelName(data.channel_name || "TEAM Live");
+      setSiteName(data.site_name || data.channel_name || "TEAM Live");
       setStreamTitle(tokenShow?.title || data.stream_title || "Siaran Langsung");
       setChannelAvatar(data.channel_avatar || "");
       setChannelAvatar2(data.channel_avatar_2 || "");
@@ -130,6 +139,11 @@ const Index = () => {
     sendMessage(nickname, text);
   }, [nickname, sendMessage]);
 
+  // Apply site name to document title
+  useEffect(() => {
+    if (siteName) document.title = siteName;
+  }, [siteName]);
+
   if (accessDenied) {
     return (
       <><AntiInspect /><RainEffect />
@@ -137,7 +151,7 @@ const Index = () => {
           <div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center" style={{ animation: "fade-in 0.3s ease-out" }}>
             <div className="text-4xl mb-4">🔒</div>
             <h2 className="text-foreground font-semibold text-lg">Akses Terbatas</h2>
-            <p className="text-muted-foreground text-sm mt-2">Anda memerlukan link akses khusus untuk menonton siaran ini.</p>
+            <p className="text-muted-foreground text-sm mt-2">{accessDeniedReason || "Anda memerlukan link akses khusus untuk menonton siaran ini."}</p>
             <p className="text-muted-foreground/30 text-xs font-mono mt-6">@t48id</p>
           </div>
         </div>
@@ -160,7 +174,7 @@ const Index = () => {
         <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />}
-            <h1 className="text-lg font-bold text-foreground tracking-tight">TEAM Live</h1>
+            <h1 className="text-lg font-bold text-foreground tracking-tight">{siteName}</h1>
             <span className="text-xs text-muted-foreground font-mono">@t48id</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
