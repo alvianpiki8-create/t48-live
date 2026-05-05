@@ -139,6 +139,11 @@ const Index = () => {
     sendMessage(nickname, text);
   }, [nickname, sendMessage]);
 
+  // Apply site name to document title
+  useEffect(() => {
+    if (siteName) document.title = siteName;
+  }, [siteName]);
+
   if (accessDenied) {
     return (
       <><AntiInspect /><RainEffect />
@@ -146,7 +151,7 @@ const Index = () => {
           <div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center" style={{ animation: "fade-in 0.3s ease-out" }}>
             <div className="text-4xl mb-4">🔒</div>
             <h2 className="text-foreground font-semibold text-lg">Akses Terbatas</h2>
-            <p className="text-muted-foreground text-sm mt-2">Anda memerlukan link akses khusus untuk menonton siaran ini.</p>
+            <p className="text-muted-foreground text-sm mt-2">{accessDeniedReason || "Anda memerlukan link akses khusus untuk menonton siaran ini."}</p>
             <p className="text-muted-foreground/30 text-xs font-mono mt-6">@t48id</p>
           </div>
         </div>
