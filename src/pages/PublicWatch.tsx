@@ -172,11 +172,18 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
     sendMessage(nickname, text);
   }, [nickname, sendMessage]);
 
+  // Apply site name to document title
+  useEffect(() => { if (siteName) document.title = siteName; }, [siteName]);
+
   if (publicEnabled === null) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
   if (mode === "public" && !publicEnabled) {
     return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">🔒</div><h2 className="text-foreground font-semibold text-lg">Link Publik Tidak Aktif</h2><p className="text-muted-foreground text-sm mt-2">Admin belum mengaktifkan akses publik.</p></div></div></>);
+  }
+  if (mode === "membership" && membershipBlockedByOwner) {
+    const label = (membershipInfo as any)?.membership_type === "monthly" ? "Bulanan" : "Mingguan";
+    return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">⏸️</div><h2 className="text-foreground font-semibold text-lg">Membership {label} Sedang Dimatikan</h2><p className="text-muted-foreground text-sm mt-2">Owner sementara menonaktifkan akses live untuk member {label.toLowerCase()}. Silakan coba lagi nanti — akses akan otomatis kembali begitu owner menyalakannya.</p></div></div></>);
   }
   if (mode === "membership" && !membershipAllowed) {
     return (<><RainEffect /><div className="min-h-screen flex items-center justify-center px-4 relative z-10"><div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center"><div className="text-4xl mb-4">💎</div><h2 className="text-foreground font-semibold text-lg">Membership Belum Aktif</h2><p className="text-muted-foreground text-sm mt-2">Beli membership dulu untuk membuka livestreaming dan akses replay.</p><button onClick={() => navigate("/catalog")} className="mt-5 w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold">Beli Membership</button></div></div></>);
