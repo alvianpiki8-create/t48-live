@@ -129,6 +129,7 @@ const OwnerPanel = () => {
     const updateData: any = {
       video_id: normalizedVideoId,
       channel_name: channelName,
+      site_name: siteName,
       stream_title: streamTitle,
       channel_avatar: channelAvatar,
       channel_avatar_2: channelAvatar2,
