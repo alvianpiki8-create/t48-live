@@ -26,9 +26,12 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
   const [publicEnabled, setPublicEnabled] = useState<boolean | null>(null);
+  const [allowWeekly, setAllowWeekly] = useState(true);
+  const [allowMonthly, setAllowMonthly] = useState(true);
 
   const [videoId, setVideoId] = useState("");
   const [channelName, setChannelName] = useState("TEAM Live");
+  const [siteName, setSiteName] = useState("TEAM Live");
   const [streamTitle, setStreamTitle] = useState("Siaran Langsung");
   const [channelAvatar, setChannelAvatar] = useState("");
   const [lineup, setLineup] = useState<any[]>([]);
@@ -38,6 +41,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [membershipAllowed, setMembershipAllowed] = useState(mode !== "membership");
+  const [membershipBlockedByOwner, setMembershipBlockedByOwner] = useState(false);
   const [membershipInfo, setMembershipInfo] = useState<any>(null);
   const [replayCopied, setReplayCopied] = useState(false);
   const [trialAllowed, setTrialAllowed] = useState(mode !== "trial");
