@@ -35,8 +35,10 @@ const Index = () => {
   const [tokenCode, setTokenCode] = useState<string | null>(null);
   const [tokenShowId, setTokenShowId] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [accessDeniedReason, setAccessDeniedReason] = useState<string>("");
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
+  const [siteName, setSiteName] = useState("TEAM Live");
 
   const [videoId, setVideoId] = useState("");
   const [channelName, setChannelName] = useState("TEAM Live");
