@@ -51,8 +51,11 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
     const applySettings = (data: any) => {
       if (!data) return;
       setPublicEnabled(data.public_link_enabled ?? false);
+      setAllowWeekly(data.allow_weekly_members ?? true);
+      setAllowMonthly(data.allow_monthly_members ?? true);
       setVideoId(data.video_id || "");
       setChannelName(data.channel_name || "TEAM Live");
+      setSiteName(data.site_name || data.channel_name || "TEAM Live");
       setStreamTitle(data.stream_title || "Siaran Langsung");
       setChannelAvatar(data.channel_avatar || "");
       setChannelAvatar2(data.channel_avatar_2 || "");
