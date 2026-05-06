@@ -95,9 +95,15 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [wmVisible, setWmVisible] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [ytQuality, setYtQuality] = useState("");
-  const [hlsLevel, setHlsLevel] = useState<number>(-1);
-  const [hlsLevels, setHlsLevels] = useState<{ index: number; height: number }[]>([]);
   const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(0.7);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [activeServerId, setActiveServerId] = useState<string>("");
+  const hideTimerRef = useRef<number | null>(null);
+  const artContainerRef = useRef<HTMLDivElement>(null);
+  const artRef = useRef<Artplayer | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [volume, setVolume] = useState(0.7);
   const [controlsVisible, setControlsVisible] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
