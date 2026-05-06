@@ -14,7 +14,6 @@ interface LivePlayerProps {
   sourceUrl2?: string;
 }
 
-// Random watermark positions (kecil, di tepi-tepi player)
 const WM_POSITIONS = [
   { top: "6%", left: "4%" },
   { top: "6%", right: "4%" },
@@ -104,14 +103,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const artContainerRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<Artplayer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [volume, setVolume] = useState(0.7);
-  const [controlsVisible, setControlsVisible] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
-  const [activeServerId, setActiveServerId] = useState<string>("");
-  const hideTimerRef = useRef<number | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
 
   const servers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
 
@@ -136,8 +127,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); }, []);
 
-  // Watermark blink: muncul 3x per menit, masing-masing 2 detik, posisi acak.
-  // Pola: tampil pada detik 0, 20, 40 dalam tiap siklus 60 detik.
   useEffect(() => {
     let cancelled = false;
     const showOnce = () => {
@@ -165,16 +154,14 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     };
   }, []);
 
-  // HLS for M3U8 (native <video> + hls.js, dengan resolusi)
+  // ArtPlayer for m3u8 server
   useEffect(() => {
-    if (!activeServer || activeServer.kind !== "m3u8" || !videoRef.current) {
-      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
-      setHlsLevels([]);
-      setHlsLevel(-1);
+    if (!activeServer || activeServer.kind !== "m3u8" || !artContainerRef.current) {
+      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
       return;
     }
     let cancelled = false;
-    const video = videoRef.current;
+    const container = artContainerRef.current;
 
     (async () => {
       let playUrl = activeServer.src;
@@ -184,57 +171,89 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
       } catch { /* fallback */ }
       if (cancelled) return;
 
-      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
 
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-          liveSyncDurationCount: 2,
-          liveMaxLatencyDurationCount: 5,
-          backBufferLength: 30,
-          maxBufferLength: 20,
-        });
-        hlsRef.current = hls;
-        hls.loadSource(playUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          const levels = hls.levels.map((l, i) => ({ index: i, height: l.height || 0 }))
-            .filter((l) => l.height > 0)
-            .sort((a, b) => b.height - a.height);
-          setHlsLevels(levels);
-          setHlsLevel(-1);
-          hls.currentLevel = -1;
-          video.muted = muted;
-          video.volume = volume;
-          video.play().catch(() => {});
-        });
-        hls.on(Hls.Events.ERROR, (_e, data) => {
-          if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-          }
-        });
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = playUrl;
-        video.muted = muted;
-        video.volume = volume;
-        video.play().catch(() => {});
-        setHlsLevels([]);
-      }
+      const art = new Artplayer({
+        container,
+        url: playUrl,
+        type: "m3u8",
+        volume,
+        muted,
+        autoplay: true,
+        playsInline: true,
+        autoSize: false,
+        autoMini: false,
+        setting: true,
+        pip: true,
+        fullscreen: true,
+        fullscreenWeb: true,
+        miniProgressBar: true,
+        mutex: true,
+        backdrop: true,
+        playbackRate: false,
+        aspectRatio: false,
+        screenshot: false,
+        airplay: false,
+        theme: "hsl(var(--primary))",
+        moreVideoAttr: {
+          crossOrigin: "anonymous",
+          playsInline: true,
+          controlsList: "nodownload noremoteplayback",
+          disablePictureInPicture: false,
+        } as any,
+        customType: {
+          m3u8: (video: HTMLVideoElement, url: string) => {
+            if (Hls.isSupported()) {
+              const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+                liveSyncDurationCount: 2,
+                liveMaxLatencyDurationCount: 5,
+                backBufferLength: 30,
+                maxBufferLength: 20,
+              });
+              hls.loadSource(url);
+              hls.attachMedia(video);
+              (art as any).hls = hls;
+              art.on("destroy", () => hls.destroy());
+              hls.on(Hls.Events.ERROR, (_e, data) => {
+                if (data.fatal) {
+                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+                  else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+                }
+              });
+            } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+              video.src = url;
+            }
+          },
+        },
+        plugins: [
+          artplayerPluginHlsQuality({
+            control: true,
+            setting: true,
+            getResolution: (level: any) => (level.height ? level.height + "P" : "Auto"),
+            title: "Kualitas",
+            auto: "Auto",
+          }),
+        ],
+        lang: "id",
+      });
+
+      artRef.current = art;
+      art.on("ready", () => { try { art.play(); } catch {} });
     })();
 
     return () => {
       cancelled = true;
-      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+      if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
     };
   }, [activeServer]);
 
-  // Sync mute/volume to <video>
+  // Sync mute/volume to artplayer
   useEffect(() => {
-    const v = videoRef.current;
-    if (v && activeServer?.kind === "m3u8") {
-      try { v.muted = muted; v.volume = volume; } catch {}
+    const a = artRef.current;
+    if (a && activeServer?.kind === "m3u8") {
+      try { a.muted = muted; a.volume = volume; } catch {}
     }
   }, [muted, volume, activeServer?.kind]);
 
@@ -253,8 +272,8 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => {
     const keepAlive = () => {
-      const v = videoRef.current;
-      if (v && activeServer?.kind === "m3u8") { try { if (v.paused) v.play(); } catch {} }
+      const a = artRef.current;
+      if (a && activeServer?.kind === "m3u8") { try { if (a.paused) a.play(); } catch {} }
       if (activeServer?.kind === "youtube") sendYT("playVideo");
     };
     document.addEventListener("visibilitychange", keepAlive);
@@ -275,7 +294,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
       const req = container.requestFullscreen || anyEl.webkitRequestFullscreen || anyEl.webkitEnterFullscreen;
       if (req) req.call(container);
       else {
-        // iOS Safari fallback: fullscreen the video element
         const v = container.querySelector("video") as any;
         if (v?.webkitEnterFullscreen) v.webkitEnterFullscreen();
       }
@@ -303,15 +321,9 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     setShowQuality(false);
   };
 
-  const setHlsQuality = (level: number) => {
-    setHlsLevel(level);
-    if (hlsRef.current) hlsRef.current.currentLevel = level;
-    setShowQuality(false);
-    showControls();
-  };
-
   const VolIcon = muted || volume === 0 ? VolumeX : Volume2;
   const hasVideo = Boolean(activeServer);
+  const isYT = activeServer?.kind === "youtube";
 
   return (
     <div className="space-y-2">
@@ -330,7 +342,9 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 e.stopPropagation();
                 setHasStarted(true);
                 setMuted(false);
-                if (videoRef.current && activeServer?.kind === "m3u8") { try { videoRef.current.muted = false; videoRef.current.play(); } catch {} }
+                if (artRef.current && activeServer?.kind === "m3u8") {
+                  try { artRef.current.muted = false; artRef.current.play(); } catch {}
+                }
                 if (activeServer?.kind === "youtube") {
                   sendYT("playVideo");
                   sendYT("unMute");
@@ -347,7 +361,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               <span className="absolute bottom-6 text-foreground/80 text-sm font-medium">Tap untuk memulai</span>
             </button>
           )}
-          {activeServer?.kind === "youtube" ? (
+          {isYT ? (
             <iframe
               ref={iframeRef}
               key={embedUrl}
@@ -359,27 +373,21 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               sandbox="allow-scripts allow-same-origin allow-presentation"
             />
           ) : (
-            <video
-              ref={videoRef}
-              className="absolute inset-0 h-full w-full bg-black object-contain"
-              playsInline
-              autoPlay
-              muted={muted}
-              controlsList="nodownload noremoteplayback"
-              disablePictureInPicture
+            <div ref={artContainerRef} className="absolute inset-0 h-full w-full bg-black" />
+          )}
+
+          {/* Overlay only on YouTube — ArtPlayer has its own controls */}
+          {isYT && (
+            <div
+              className="absolute inset-0 z-20"
               onContextMenu={(e) => e.preventDefault()}
+              onClick={(e) => { e.preventDefault(); showControls(); }}
+              onDoubleClick={(e) => e.preventDefault()}
+              style={{ cursor: "pointer" }}
             />
           )}
 
-          <div
-            className="absolute inset-0 z-20"
-            onContextMenu={(e) => e.preventDefault()}
-            onClick={(e) => { e.preventDefault(); showControls(); }}
-            onDoubleClick={(e) => e.preventDefault()}
-            style={{ cursor: "pointer" }}
-          />
-
-          {controlsVisible && (
+          {isYT && controlsVisible && (
           <div
             className="absolute top-0 left-0 right-0 z-30 flex items-center gap-2 p-3 bg-gradient-to-b from-background/70 to-transparent transition-opacity duration-300 animate-fade-in"
             onClick={showControls}
@@ -401,48 +409,31 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
             </div>
           </div>
           )}
+          {isYT && (
           <div className={`absolute bottom-3 right-3 z-30 flex gap-2 transition-opacity duration-300 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-            {(activeServer?.kind === "youtube" || (activeServer?.kind === "m3u8" && hlsLevels.length > 0)) && (
-              <div className="relative">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowQuality((v) => !v); showControls(); }}
-                  className="px-3 h-10 min-w-[44px] rounded-lg bg-background/70 hover:bg-background/90 backdrop-blur-md border border-foreground/20 text-foreground transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shadow-lg"
-                  type="button"
-                  title="Resolusi"
-                >
-                  <Settings2 size={16} />
-                  <span className="text-[11px] font-bold tracking-wide">
-                    {activeServer?.kind === "m3u8"
-                      ? (hlsLevel === -1 ? "AUTO" : `${hlsLevels.find((l) => l.index === hlsLevel)?.height || ""}p`)
-                      : (YT_QUALITY.find((q) => q.value === ytQuality)?.label || "AUTO").toUpperCase()}
-                  </span>
-                </button>
-                {showQuality && activeServer?.kind === "youtube" && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-xl overflow-hidden min-w-[120px]">
-                    {YT_QUALITY.map((q) => (
-                      <button key={q.value} onClick={(e) => { e.stopPropagation(); setYtQuality(q.value); setShowQuality(false); showControls(); }}
-                        className={`w-full px-3 py-2 text-xs text-left transition-colors ${ytQuality === q.value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
-                        {q.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {showQuality && activeServer?.kind === "m3u8" && hlsLevels.length > 0 && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-xl overflow-hidden min-w-[120px]">
-                    <button onClick={(e) => { e.stopPropagation(); setHlsQuality(-1); }}
-                      className={`w-full px-3 py-2 text-xs text-left transition-colors ${hlsLevel === -1 ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
-                      Auto
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowQuality((v) => !v); showControls(); }}
+                className="px-3 h-10 min-w-[44px] rounded-lg bg-background/70 hover:bg-background/90 backdrop-blur-md border border-foreground/20 text-foreground transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shadow-lg"
+                type="button"
+                title="Resolusi"
+              >
+                <Settings2 size={16} />
+                <span className="text-[11px] font-bold tracking-wide">
+                  {(YT_QUALITY.find((q) => q.value === ytQuality)?.label || "AUTO").toUpperCase()}
+                </span>
+              </button>
+              {showQuality && (
+                <div className="absolute bottom-full right-0 mb-2 bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-xl overflow-hidden min-w-[120px]">
+                  {YT_QUALITY.map((q) => (
+                    <button key={q.value} onClick={(e) => { e.stopPropagation(); setYtQuality(q.value); setShowQuality(false); showControls(); }}
+                      className={`w-full px-3 py-2 text-xs text-left transition-colors ${ytQuality === q.value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
+                      {q.label}
                     </button>
-                    {hlsLevels.map((lv) => (
-                      <button key={lv.index} onClick={(e) => { e.stopPropagation(); setHlsQuality(lv.index); }}
-                        className={`w-full px-3 py-2 text-xs text-left transition-colors ${hlsLevel === lv.index ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"}`}>
-                        {lv.height}p
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={(e) => { e.stopPropagation(); toggleFullscreen(); showControls(); }}
               className="h-10 w-10 rounded-lg bg-background/70 hover:bg-background/90 backdrop-blur-md border border-foreground/20 text-foreground transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg"
@@ -452,6 +443,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
             </button>
           </div>
+          )}
 
           <div
             className="absolute z-30 pointer-events-none select-none transition-opacity duration-500"
