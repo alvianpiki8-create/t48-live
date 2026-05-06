@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Maximize2, Minimize2, Settings2, Volume2, VolumeX, Play, Youtube, Tv } from "lucide-react";
 import Hls from "hls.js";
+import Artplayer from "artplayer";
+import artplayerPluginHlsQuality from "artplayer-plugin-hls-quality";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
 
