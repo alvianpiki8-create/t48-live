@@ -15,6 +15,7 @@ import CatalogSlideManager from "@/components/owner/CatalogSlideManager";
 import AdminManager from "@/components/owner/AdminManager";
 import ChatReportsManager from "@/components/owner/ChatReportsManager";
 import ViewerFilter from "@/components/owner/ViewerFilter";
+import ChatEventManager from "@/components/owner/ChatEventManager";
 
 const AUTH_KEY = "teamlive_owner_auth";
 const OWNER_TOKEN_KEY = "teamlive_owner_token";
@@ -480,6 +481,9 @@ const OwnerPanel = () => {
 
         {/* Chat Reports (real-time) */}
         <ChatReportsManager />
+
+        {/* Voting & Quiz */}
+        <ChatEventManager />
 
         {/* Viewer Filter */}
         <ViewerFilter settings={streamSettings} onRefresh={fetchStreamSettings} />

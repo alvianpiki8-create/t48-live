@@ -9,6 +9,7 @@ import badgeKuncen from "@/assets/badge-kuncen.png";
 import badgeTuanMuda from "@/assets/badge-tuan-muda.png";
 import badgeBosBesar from "@/assets/badge-bos-besar.png";
 import badgeOwner from "@/assets/badge-owner.png";
+import ChatEventList from "@/components/ChatEventList";
 
 const OWNER_NICKNAME = "TEAM Live";
 const OWNER_CODE = "123323";
@@ -178,6 +179,7 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
       </div>
 
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+        <ChatEventList nickname={nickname} />
         {messages.map((msg) => {
           const badge = getBadge(msg.nickname);
           const isMsgOwner = msg.nickname === OWNER_NICKNAME;
