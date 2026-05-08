@@ -482,6 +482,9 @@ const OwnerPanel = () => {
         {/* Chat Reports (real-time) */}
         <ChatReportsManager />
 
+        {/* Voting & Quiz */}
+        <ChatEventManager />
+
         {/* Viewer Filter */}
         <ViewerFilter settings={streamSettings} onRefresh={fetchStreamSettings} />
 
