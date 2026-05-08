@@ -179,6 +179,7 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
       </div>
 
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+        <ChatEventList nickname={nickname} />
         {messages.map((msg) => {
           const badge = getBadge(msg.nickname);
           const isMsgOwner = msg.nickname === OWNER_NICKNAME;
