@@ -207,21 +207,83 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
-                liveSyncDurationCount: 2,
-                liveMaxLatencyDurationCount: 5,
-                backBufferLength: 30,
-                maxBufferLength: 20,
+                backBufferLength: 10,
+                maxBufferLength: 12,
+                maxMaxBufferLength: 20,
+                maxBufferSize: 30 * 1000 * 1000,
+                liveSyncDurationCount: 3,
+                liveMaxLatencyDurationCount: 8,
+                liveDurationInfinity: true,
+                highBufferWatchdogPeriod: 1,
+                nudgeMaxRetry: 10,
+                nudgeOffset: 0.2,
+                manifestLoadingTimeOut: 8000,
+                manifestLoadingMaxRetry: 6,
+                manifestLoadingRetryDelay: 500,
+                levelLoadingTimeOut: 8000,
+                levelLoadingMaxRetry: 6,
+                levelLoadingRetryDelay: 500,
+                fragLoadingTimeOut: 12000,
+                fragLoadingMaxRetry: 8,
+                fragLoadingRetryDelay: 400,
+                startFragPrefetch: true,
+                progressive: true,
+                testBandwidth: true,
+                abrEwmaDefaultEstimate: 1_500_000,
+                abrBandWidthFactor: 0.9,
+                abrBandWidthUpFactor: 0.75,
               });
               hls.loadSource(url);
               hls.attachMedia(video);
               (art as any).hls = hls;
               art.on("destroy", () => hls.destroy());
+
+              const seekToLive = () => {
+                try {
+                  if (hls.liveSyncPosition && Number.isFinite(hls.liveSyncPosition)) {
+                    if (Math.abs(video.currentTime - hls.liveSyncPosition) > 4) {
+                      video.currentTime = hls.liveSyncPosition;
+                    }
+                  } else if (video.seekable.length) {
+                    video.currentTime = video.seekable.end(video.seekable.length - 1);
+                  }
+                } catch {}
+              };
+
+              // Stall watchdog: jika tertinggal jauh dari live edge, lompat ke live
+              const stallTimer = window.setInterval(() => {
+                if (video.paused || !video.duration) return;
+                const live = hls.liveSyncPosition;
+                if (live && Number.isFinite(live) && live - video.currentTime > 8) seekToLive();
+              }, 3000);
+              video.addEventListener("waiting", seekToLive);
+              video.addEventListener("stalled", seekToLive);
+              art.on("destroy", () => {
+                window.clearInterval(stallTimer);
+                video.removeEventListener("waiting", seekToLive);
+                video.removeEventListener("stalled", seekToLive);
+              });
+
+              let recoverAttempts = 0;
               hls.on(Hls.Events.ERROR, (_e, data) => {
-                if (data.fatal) {
-                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-                  else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+                if (!data.fatal) return;
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                  hls.startLoad();
+                  setTimeout(seekToLive, 800);
+                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                  recoverAttempts += 1;
+                  if (recoverAttempts <= 2) {
+                    hls.recoverMediaError();
+                  } else {
+                    hls.destroy();
+                    const fresh = new Hls({ enableWorker: true, lowLatencyMode: true });
+                    fresh.loadSource(url);
+                    fresh.attachMedia(video);
+                    (art as any).hls = fresh;
+                  }
                 }
               });
+              hls.on(Hls.Events.MANIFEST_PARSED, () => { try { video.play().catch(() => {}); } catch {} });
             } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
               video.src = url;
             }
