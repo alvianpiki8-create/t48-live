@@ -9,6 +9,7 @@ import badgeKuncen from "@/assets/badge-kuncen.png";
 import badgeTuanMuda from "@/assets/badge-tuan-muda.png";
 import badgeBosBesar from "@/assets/badge-bos-besar.png";
 import badgeOwner from "@/assets/badge-owner.png";
+import ChatEventList from "@/components/ChatEventList";
 
 const OWNER_NICKNAME = "TEAM Live";
 const OWNER_CODE = "123323";
