@@ -196,6 +196,83 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_event_responses: {
+        Row: {
+          answer: string
+          created_at: string
+          device_id: string
+          event_id: string
+          id: string
+          is_correct: boolean | null
+          nickname: string | null
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          device_id: string
+          event_id: string
+          id?: string
+          is_correct?: boolean | null
+          nickname?: string | null
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          device_id?: string
+          event_id?: string
+          id?: string
+          is_correct?: boolean | null
+          nickname?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_event_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "chat_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_events: {
+        Row: {
+          correct_answer: string | null
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          options: Json
+          question: string
+          reveal_answer: boolean
+          type: string
+        }
+        Insert: {
+          correct_answer?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          options?: Json
+          question: string
+          reveal_answer?: boolean
+          type: string
+        }
+        Update: {
+          correct_answer?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          options?: Json
+          question?: string
+          reveal_answer?: boolean
+          type?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           color: string
