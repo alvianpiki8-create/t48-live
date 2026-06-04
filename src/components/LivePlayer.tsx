@@ -164,11 +164,8 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     const container = artContainerRef.current;
 
     (async () => {
-      let playUrl = activeServer.src;
-      try {
-        const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: activeServer.src } });
-        if (!error && (data as any)?.url) playUrl = (data as any).url;
-      } catch { /* fallback */ }
+      // Direct stream — no proxy. IDN server accepts M3U8 / HLS links as-is.
+      const playUrl = activeServer.src;
       if (cancelled) return;
 
       if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
