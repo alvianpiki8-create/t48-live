@@ -241,27 +241,24 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               const seekToLive = () => {
                 try {
                   if (hls.liveSyncPosition && Number.isFinite(hls.liveSyncPosition)) {
-                    if (Math.abs(video.currentTime - hls.liveSyncPosition) > 4) {
+                    if (Math.abs(video.currentTime - hls.liveSyncPosition) > 10) {
                       video.currentTime = hls.liveSyncPosition;
                     }
                   } else if (video.seekable.length) {
-                    video.currentTime = video.seekable.end(video.seekable.length - 1);
+                    const end = video.seekable.end(video.seekable.length - 1);
+                    if (end - video.currentTime > 10) video.currentTime = Math.max(0, end - 4);
                   }
                 } catch {}
               };
 
-              // Stall watchdog: jika tertinggal jauh dari live edge, lompat ke live
+              // Stall watchdog: hanya lompat ke live jika jauh tertinggal (>20s)
               const stallTimer = window.setInterval(() => {
                 if (video.paused || !video.duration) return;
                 const live = hls.liveSyncPosition;
-                if (live && Number.isFinite(live) && live - video.currentTime > 8) seekToLive();
-              }, 3000);
-              video.addEventListener("waiting", seekToLive);
-              video.addEventListener("stalled", seekToLive);
+                if (live && Number.isFinite(live) && live - video.currentTime > 20) seekToLive();
+              }, 5000);
               art.on("destroy", () => {
                 window.clearInterval(stallTimer);
-                video.removeEventListener("waiting", seekToLive);
-                video.removeEventListener("stalled", seekToLive);
               });
 
               let recoverAttempts = 0;
