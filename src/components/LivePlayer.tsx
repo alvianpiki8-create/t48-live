@@ -203,32 +203,35 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
             if (Hls.isSupported()) {
               const hls = new Hls({
                 enableWorker: true,
-                lowLatencyMode: true,
-                backBufferLength: 10,
-                maxBufferLength: 12,
-                maxMaxBufferLength: 20,
-                maxBufferSize: 30 * 1000 * 1000,
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 8,
+                lowLatencyMode: false,
+                backBufferLength: 30,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                maxBufferSize: 60 * 1000 * 1000,
+                maxBufferHole: 0.5,
+                liveSyncDurationCount: 4,
+                liveMaxLatencyDurationCount: 10,
                 liveDurationInfinity: true,
-                highBufferWatchdogPeriod: 1,
+                highBufferWatchdogPeriod: 2,
                 nudgeMaxRetry: 10,
                 nudgeOffset: 0.2,
-                manifestLoadingTimeOut: 8000,
+                manifestLoadingTimeOut: 10000,
                 manifestLoadingMaxRetry: 6,
                 manifestLoadingRetryDelay: 500,
-                levelLoadingTimeOut: 8000,
+                levelLoadingTimeOut: 10000,
                 levelLoadingMaxRetry: 6,
                 levelLoadingRetryDelay: 500,
-                fragLoadingTimeOut: 12000,
+                fragLoadingTimeOut: 20000,
                 fragLoadingMaxRetry: 8,
-                fragLoadingRetryDelay: 400,
+                fragLoadingRetryDelay: 500,
                 startFragPrefetch: true,
-                progressive: true,
+                progressive: false,
                 testBandwidth: true,
-                abrEwmaDefaultEstimate: 1_500_000,
-                abrBandWidthFactor: 0.9,
-                abrBandWidthUpFactor: 0.75,
+                startLevel: -1,
+                abrEwmaDefaultEstimate: 1_000_000,
+                abrBandWidthFactor: 0.8,
+                abrBandWidthUpFactor: 0.7,
+                abrMaxWithRealBitrate: true,
               });
               hls.loadSource(url);
               hls.attachMedia(video);
@@ -238,27 +241,24 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               const seekToLive = () => {
                 try {
                   if (hls.liveSyncPosition && Number.isFinite(hls.liveSyncPosition)) {
-                    if (Math.abs(video.currentTime - hls.liveSyncPosition) > 4) {
+                    if (Math.abs(video.currentTime - hls.liveSyncPosition) > 10) {
                       video.currentTime = hls.liveSyncPosition;
                     }
                   } else if (video.seekable.length) {
-                    video.currentTime = video.seekable.end(video.seekable.length - 1);
+                    const end = video.seekable.end(video.seekable.length - 1);
+                    if (end - video.currentTime > 10) video.currentTime = Math.max(0, end - 4);
                   }
                 } catch {}
               };
 
-              // Stall watchdog: jika tertinggal jauh dari live edge, lompat ke live
+              // Stall watchdog: hanya lompat ke live jika jauh tertinggal (>20s)
               const stallTimer = window.setInterval(() => {
                 if (video.paused || !video.duration) return;
                 const live = hls.liveSyncPosition;
-                if (live && Number.isFinite(live) && live - video.currentTime > 8) seekToLive();
-              }, 3000);
-              video.addEventListener("waiting", seekToLive);
-              video.addEventListener("stalled", seekToLive);
+                if (live && Number.isFinite(live) && live - video.currentTime > 20) seekToLive();
+              }, 5000);
               art.on("destroy", () => {
                 window.clearInterval(stallTimer);
-                video.removeEventListener("waiting", seekToLive);
-                video.removeEventListener("stalled", seekToLive);
               });
 
               let recoverAttempts = 0;
