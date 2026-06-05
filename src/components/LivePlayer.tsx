@@ -164,8 +164,25 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     const container = artContainerRef.current;
 
     (async () => {
-      // Direct stream — no proxy. IDN server accepts M3U8 / HLS links as-is.
-      const playUrl = activeServer.src;
+      // IDN server: coba langsung. Kalau upstream tidak punya CORS header,
+      // browser akan menolak. Untuk URL yang dikenal butuh proxy
+      // (mis. Supabase edge functions tanpa CORS), fallback otomatis lewat m3u8-proxy.
+      const rawUrl = activeServer.src;
+      let playUrl = rawUrl;
+
+      // Probe CORS dengan fetch ringan; kalau gagal → pakai proxy.
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3500);
+        const probe = await fetch(rawUrl, { method: "GET", mode: "cors", signal: ctrl.signal, cache: "no-store" });
+        clearTimeout(timer);
+        if (!probe.ok) throw new Error("probe-not-ok");
+      } catch {
+        try {
+          const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl } });
+          if (!error && data?.url) playUrl = data.url as string;
+        } catch {}
+      }
       if (cancelled) return;
 
       if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
