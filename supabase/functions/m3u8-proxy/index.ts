@@ -6,8 +6,16 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SECRET = Deno.env.get("OWNER_PANEL_TOKEN") || "fallback-secret-change-me";
-const PLAYLIST_TTL_SEC = 60 * 5;   // 5 min — covers a watch session
-const SEGMENT_TTL_SEC  = 60 * 2;   // 2 min — short, segments rotate quickly
+const PLAYLIST_TTL_SEC = 60 * 60 * 2; // 2 hours — avoids player reload loops while still fingerprint-bound
+const SEGMENT_TTL_SEC = 60;           // 1 min — short, segments rotate quickly
+
+const IDN_API = "https://v5.jkt48connect.com/api/jkt48/idnplus?apikey=JKTCONNECT";
+const LIVE_API = "https://v5.jkt48connect.com/api/jkt48/live?apikey=JKTCONNECT";
+const TOKEN_API_BASE = "https://v5.jkt48connect.com";
+const CTV_BASE = "https://ctv.jkt48connect.com";
+const SIGNING_PATH = "/api/token/generate?apikey=JKTCONNECT";
+const PARTNER_KID = "jkt48connect-v1";
+const PARTNER_SECRET = "gstream@jkt48connect@2108";
 
 const enc = new TextEncoder();
 
@@ -22,6 +30,15 @@ const b64urlDecode = (s: string) => {
   while (s.length % 4) s += "=";
   return atob(s);
 };
+const b64urlToBytes = (s: string) => {
+  const bin = b64urlDecode(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+};
+
+const toHex = (buf: ArrayBuffer) =>
+  Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 
 // Cache HMAC key across requests in the same isolate — avoids re-importing per signature.
 let keyPromise: Promise<CryptoKey> | null = null;
