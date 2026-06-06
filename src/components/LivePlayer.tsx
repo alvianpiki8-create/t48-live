@@ -5,7 +5,6 @@ import Artplayer from "artplayer";
 import artplayerPluginHlsQuality from "artplayer-plugin-hls-quality";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
-import { resolveIdnLive } from "@/lib/idnStream";
 
 interface LivePlayerProps {
   videoId: string;
@@ -99,6 +98,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [hasStarted, setHasStarted] = useState(false);
   const [activeServerId, setActiveServerId] = useState<string>("");
   const userPickedRef = useRef(false);
+  const currentIdnSlugRef = useRef("");
   const hideTimerRef = useRef<number | null>(null);
   const artContainerRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<Artplayer | null>(null);
@@ -106,55 +106,41 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   const baseServers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
 
-  // Auto-resolve IDN+ live stream. idnplus + generate token tetap di browser;
-  // hanya playback m3u8 yang di-proxy supaya header x-api-token bisa diinject.
+  // Auto-resolve IDN+ live stream fully in edge so the v4 x-api-token never hits the browser.
   const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
   const [idnQualities, setIdnQualities] = useState<{ name: string; url: string }[]>([]);
-  const [idnToken, setIdnToken] = useState<string>("");
+  const [idnMasterUrl, setIdnMasterUrl] = useState("");
   const [idnQuality, setIdnQuality] = useState<string>(""); // selected quality name; "" = auto/master
-
-  const proxyIdn = useCallback(async (rawUrl: string, token: string) => {
-    const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl, token } });
-    if (error || !data?.url) throw error || new Error("proxy failed");
-    return data.url as string;
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
     const resolve = async () => {
-      const r = await resolveIdnLive();
-      if (cancelled) return;
-      if (!r?.url) { setIdnServer(null); setIdnQualities([]); return; }
       try {
-        const proxied = await proxyIdn(r.url, r.token);
+        const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { action: "resolve-idn" } });
+        if (error) throw error;
         if (cancelled) return;
-        setIdnToken(r.token);
-        setIdnQualities(r.qualities?.map((q) => ({ name: q.name, url: q.url })) || []);
-        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: proxied, label: "IDN" });
+        if (!data?.live || !data?.url) { setIdnServer(null); setIdnQualities([]); currentIdnSlugRef.current = ""; return; }
+        if (currentIdnSlugRef.current === data.slug && idnServer) return;
+        currentIdnSlugRef.current = data.slug || "idn";
+        setIdnMasterUrl(data.url as string);
+        setIdnQualities((data.qualities || []).map((q: any) => ({ name: q.name, url: q.url })));
+        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: data.url as string, label: "IDN" });
       } catch {
-        if (!cancelled) setIdnServer(null);
+        if (!cancelled && !idnServer) setIdnServer(null);
       }
     };
     resolve();
-    const timer = window.setInterval(resolve, 60_000);
+    const timer = window.setInterval(resolve, 120_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [proxyIdn]);
+  }, [idnServer]);
 
-  // Switch IDN quality: re-proxy the chosen variant URL
+  // Switch IDN quality: edge already returned proxied URLs with x-api-token injected server-side.
   useEffect(() => {
-    if (!idnToken || !idnQualities.length) return;
-    const target = idnQuality ? idnQualities.find((q) => q.name === idnQuality) : null;
+    if (!idnMasterUrl) return;
+    const target = idnQuality ? idnQualities.find((q) => q.name === idnQuality)?.url : idnMasterUrl;
     if (!target) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const proxied = await proxyIdn(target.url, idnToken);
-        if (cancelled) return;
-        setIdnServer((prev) => prev ? { ...prev, src: proxied } : prev);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [idnQuality, idnToken, idnQualities, proxyIdn]);
+    setIdnServer((prev) => prev && prev.src !== target ? { ...prev, src: target } : prev);
+  }, [idnQuality, idnMasterUrl, idnQualities]);
 
   const servers = useMemo<ServerOption[]>(
     () => (idnServer ? [...baseServers, idnServer] : baseServers),

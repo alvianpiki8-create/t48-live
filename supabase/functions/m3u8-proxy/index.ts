@@ -6,8 +6,16 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SECRET = Deno.env.get("OWNER_PANEL_TOKEN") || "fallback-secret-change-me";
-const PLAYLIST_TTL_SEC = 60 * 5;   // 5 min — covers a watch session
-const SEGMENT_TTL_SEC  = 60 * 2;   // 2 min — short, segments rotate quickly
+const PLAYLIST_TTL_SEC = 60 * 60 * 2; // 2 hours — avoids player reload loops while still fingerprint-bound
+const SEGMENT_TTL_SEC = 60;           // 1 min — short, segments rotate quickly
+
+const IDN_API = "https://v5.jkt48connect.com/api/jkt48/idnplus?apikey=JKTCONNECT";
+const LIVE_API = "https://v5.jkt48connect.com/api/jkt48/live?apikey=JKTCONNECT";
+const TOKEN_API_BASE = "https://v5.jkt48connect.com";
+const CTV_BASE = "https://ctv.jkt48connect.com";
+const SIGNING_PATH = "/api/token/generate?apikey=JKTCONNECT";
+const PARTNER_KID = "jkt48connect-v1";
+const PARTNER_SECRET = "gstream@jkt48connect@2108";
 
 const enc = new TextEncoder();
 
@@ -22,6 +30,15 @@ const b64urlDecode = (s: string) => {
   while (s.length % 4) s += "=";
   return atob(s);
 };
+const b64urlToBytes = (s: string) => {
+  const bin = b64urlDecode(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+};
+
+const toHex = (buf: ArrayBuffer) =>
+  Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 
 // Cache HMAC key across requests in the same isolate — avoids re-importing per signature.
 let keyPromise: Promise<CryptoKey> | null = null;
@@ -42,11 +59,32 @@ async function hmac(data: string): Promise<string> {
   return b64url(sig);
 }
 
+let aesKeyPromise: Promise<CryptoKey> | null = null;
+const getAesKey = async () => {
+  if (!aesKeyPromise) {
+    aesKeyPromise = crypto.subtle.digest("SHA-256", enc.encode(SECRET)).then((key) =>
+      crypto.subtle.importKey("raw", key, { name: "AES-GCM" }, false, ["encrypt", "decrypt"])
+    );
+  }
+  return aesKeyPromise;
+};
+
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(s));
+  return toHex(buf);
+}
+
+async function hmacSHA256Hex(secret: string, msg: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return toHex(await crypto.subtle.sign("HMAC", key, enc.encode(msg)));
+}
+
 // Fingerprint binds a token to a particular client to prevent token theft.
 async function fpHash(req: Request): Promise<string> {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+  const rawIp = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
     || req.headers.get("cf-connecting-ip")
     || "unknown";
+  const ip = rawIp.includes(":") ? rawIp.split(":").slice(0, 4).join(":") : rawIp.split(".").slice(0, 3).join(".");
   const ua = req.headers.get("user-agent") || "ua";
   const digest = await crypto.subtle.digest("SHA-256", enc.encode(`${ip}|${ua}`));
   return b64url(digest).slice(0, 12);
@@ -56,12 +94,28 @@ interface Payload { u: string; e: number; h?: Record<string, string>; f: string;
 
 async function makeToken(url: string, headers: Record<string, string>, fp: string, ttl: number): Promise<string> {
   const payload: Payload = { u: url, e: Math.floor(Date.now() / 1000) + ttl, h: headers, f: fp };
-  const body = b64url(enc.encode(JSON.stringify(payload)));
-  const sig = await hmac(body);
-  return `${body}.${sig}`;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await getAesKey(), enc.encode(JSON.stringify(payload)));
+  const body = `${b64url(iv)}.${b64url(cipher)}`;
+  const sig = await hmac(`v2.${body}`);
+  return `v2.${body}.${sig}`;
 }
 
 async function readToken(token: string): Promise<Payload | null> {
+  if (token.startsWith("v2.")) {
+    const [, iv, cipher, sig] = token.split(".");
+    if (!iv || !cipher || !sig) return null;
+    const expected = await hmac(`v2.${iv}.${cipher}`);
+    if (expected !== sig) return null;
+    try {
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64urlToBytes(iv) }, await getAesKey(), b64urlToBytes(cipher));
+      const payload = JSON.parse(new TextDecoder().decode(plain)) as Payload;
+      if (typeof payload.u !== "string" || typeof payload.e !== "number" || typeof payload.f !== "string") return null;
+      if (payload.e < Math.floor(Date.now() / 1000)) return null;
+      return payload;
+    } catch { return null; }
+  }
+
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = await hmac(body);
@@ -72,6 +126,64 @@ async function readToken(token: string): Promise<Payload | null> {
     if (payload.e < Math.floor(Date.now() / 1000)) return null;
     return payload;
   } catch { return null; }
+}
+
+async function buildHMACHeaders(): Promise<Record<string, string>> {
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const bodyHash = await sha256Hex("{}");
+  const signature = await hmacSHA256Hex(PARTNER_SECRET, `${timestamp}:${nonce}:POST:${SIGNING_PATH}:${bodyHash}`);
+  return { "x-kid": PARTNER_KID, "x-timestamp": timestamp, "x-nonce": nonce, "x-signature": signature };
+}
+
+async function generateStreamToken(slugOrId: string, isSlug: boolean): Promise<string> {
+  const hh = await buildHMACHeaders();
+  const res = await fetch(`${TOKEN_API_BASE}${SIGNING_PATH}`, {
+    method: "POST",
+    headers: { ...hh, ...(isSlug ? { "x-slug": slugOrId } : { "x-showid": slugOrId }), "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const data = await res.json().catch(() => null);
+  if (!data?.status || !data?.data?.token) throw new Error(data?.message || "generate_token_failed");
+  return data.data.token;
+}
+
+async function getStreamURL(token: string, slugOrId: string, isSlug: boolean) {
+  const param = isSlug ? `slug=${encodeURIComponent(slugOrId)}` : `showId=${encodeURIComponent(slugOrId)}`;
+  const res = await fetch(`${CTV_BASE}/stream?${param}`, {
+    headers: { "x-api-token": token, ...(isSlug ? { "x-slug": slugOrId } : { "x-showid": slugOrId }) },
+  });
+  const data = await res.json();
+  if (!data?.success) throw new Error(data?.message || "stream_url_failed");
+  const streams = Array.isArray(data.streams) ? data.streams : [];
+  return {
+    url: streams[0]?.url || "",
+    qualities: streams.map((s: any, idx: number) => ({
+      index: idx,
+      name: s.NAME || `${String(s.RESOLUTION || "").split("x")[1] || "?"}p`,
+      bandwidth: Number.parseInt(s.BANDWIDTH) || 0,
+      resolution: s.RESOLUTION || "",
+      url: s.url || "",
+    })).filter((q: any) => q.url),
+  };
+}
+
+async function resolveIdnLive() {
+  const pick = (arr: any[]) => arr.find((s) => s?.status === "live" || s?.is_live) || arr[0];
+  let show: any = null;
+  try { show = pick((await (await fetch(IDN_API)).json())?.data || []); } catch {}
+  if (!show) {
+    const live = await (await fetch(LIVE_API)).json();
+    const arr = Array.isArray(live?.data) ? live.data : (Array.isArray(live) ? live : []);
+    show = arr.find((s) => (s.type === "idn" || s.platform === "idn") && (s.is_live || s.status === "live")) || arr[0];
+  }
+  const slugOrId = show?.slug || show?.identifier || show?.url_key || show?.showid || show?.show_id;
+  if (!slugOrId) return null;
+  const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
+  const token = await generateStreamToken(String(slugOrId), isSlug);
+  const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
+  if (!url) return null;
+  return { url, token, qualities, name: show?.name || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
 }
 
 // Rewrite m3u8 playlist so segments & sub-playlists go back through this proxy.
@@ -90,6 +202,12 @@ async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: strin
         return trimmed.replace(/URI="[^"]+"/, `URI="${proxyOrigin}?t=${encodeURIComponent(tok)}"`);
       }
       return line;
+    }
+    if (trimmed.startsWith("#EXT-X-PREFETCH:")) {
+      const uri = trimmed.slice("#EXT-X-PREFETCH:".length).trim();
+      const abs = new URL(uri, baseUrl).toString();
+      const tok = await makeToken(abs, headers, fp, SEGMENT_TTL_SEC);
+      return `#EXT-X-PREFETCH:${proxyOrigin}?t=${encodeURIComponent(tok)}`;
     }
     if (trimmed.startsWith("#")) return line;
 
@@ -113,6 +231,25 @@ Deno.serve(async (req) => {
   try {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
+      if (body?.action === "resolve-idn") {
+        const resolved = await resolveIdnLive();
+        if (!resolved) return new Response(JSON.stringify({ live: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const headers: Record<string, string> = { "x-api-token": resolved.token };
+        const proxied = await makeToken(resolved.url, headers, fp, PLAYLIST_TTL_SEC);
+        return new Response(JSON.stringify({
+          live: true,
+          url: `${proxyOrigin}?t=${encodeURIComponent(proxied)}`,
+          name: resolved.name,
+          slug: resolved.slug,
+          qualities: await Promise.all(resolved.qualities.map(async (q: any) => ({
+            name: q.name,
+            resolution: q.resolution,
+            bandwidth: q.bandwidth,
+            url: `${proxyOrigin}?t=${encodeURIComponent(await makeToken(q.url, headers, fp, PLAYLIST_TTL_SEC))}`,
+          }))),
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       const target = (body?.url || "").trim();
       const apiToken = (body?.token || "").trim();
       if (!target || !/^https?:\/\//i.test(target)) {
@@ -148,6 +285,12 @@ Deno.serve(async (req) => {
           ...customHeaders,
         },
       });
+      if (!upstream.ok) {
+        return new Response(await upstream.text(), {
+          status: upstream.status,
+          headers: { ...corsHeaders, "Content-Type": upstream.headers.get("content-type") || "text/plain", "Cache-Control": "no-store" },
+        });
+      }
 
       const ct = upstream.headers.get("content-type") || "";
       const isPlaylist = /mpegurl|m3u8/i.test(ct) || /\.m3u8(\?|$)/i.test(target);
