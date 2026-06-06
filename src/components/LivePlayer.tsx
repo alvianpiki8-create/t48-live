@@ -277,6 +277,13 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                       xhrSetup: (xhr: XMLHttpRequest) => {
                         try { xhr.setRequestHeader("x-api-token", apiToken); } catch {}
                       },
+                      fetchSetup: (context: any, initParams: any) => {
+                        initParams.headers = {
+                          ...(initParams.headers || {}),
+                          "x-api-token": apiToken,
+                        };
+                        return new Request(context.url, initParams);
+                      },
                     }
                   : {}),
               });
