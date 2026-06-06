@@ -5,6 +5,3 @@ verify_jwt = false
 
 [functions.admin-auth]
 verify_jwt = false
-
-[functions.idn-stream]
-verify_jwt = false
