@@ -232,7 +232,10 @@ async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: strin
     const abs = new URL(trimmed, baseUrl).toString();
     // sub-playlist .m3u8 needs longer TTL than .ts segments
     const ttl = /\.m3u8(\?|$)/i.test(abs) ? PLAYLIST_TTL_SEC : SEGMENT_TTL_SEC;
-    const tok = await makeToken(abs, headers, fp, ttl);
+    // v4 media lines are already signed CDN/proxy segment URLs; keep them proxied,
+    // but don't carry the large x-api-token into every segment token.
+    const segmentHeaders = ttl === SEGMENT_TTL_SEC && /v4\.gstreamlive\.com\/proxy/i.test(abs) ? {} : headers;
+    const tok = await makeToken(abs, segmentHeaders, fp, ttl);
     return `${proxyOrigin}?t=${encodeURIComponent(tok)}`;
   });
   return (await Promise.all(tasks)).join("\n");
