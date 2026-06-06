@@ -456,6 +456,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   const switchServer = (id: string) => {
     if (id === activeServerId) return;
+    userPickedRef.current = true;
     setActiveServerId(id);
     setShowQuality(false);
   };
