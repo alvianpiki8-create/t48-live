@@ -188,32 +188,33 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   // ArtPlayer for m3u8 server
   useEffect(() => {
-    if (!activeServer || activeServer.kind !== "m3u8" || !artContainerRef.current) {
+    if (!activeServer || (activeServer.kind !== "m3u8" && activeServer.kind !== "idn-auto") || !artContainerRef.current) {
       if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
       return;
     }
     let cancelled = false;
     const container = artContainerRef.current;
+    const apiToken = activeServer.token;
+    const isIdnAuto = activeServer.kind === "idn-auto";
 
     (async () => {
-      // IDN server: coba langsung. Kalau upstream tidak punya CORS header,
-      // browser akan menolak. Untuk URL yang dikenal butuh proxy
-      // (mis. Supabase edge functions tanpa CORS), fallback otomatis lewat m3u8-proxy.
       const rawUrl = activeServer.src;
       let playUrl = rawUrl;
 
-      // Probe CORS dengan fetch ringan; kalau gagal → pakai proxy.
-      try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3500);
-        const probe = await fetch(rawUrl, { method: "GET", mode: "cors", signal: ctrl.signal, cache: "no-store" });
-        clearTimeout(timer);
-        if (!probe.ok) throw new Error("probe-not-ok");
-      } catch {
+      // IDN auto stream: hit URL directly with token header — no proxy fallback.
+      if (!isIdnAuto) {
         try {
-          const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl } });
-          if (!error && data?.url) playUrl = data.url as string;
-        } catch {}
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 3500);
+          const probe = await fetch(rawUrl, { method: "GET", mode: "cors", signal: ctrl.signal, cache: "no-store" });
+          clearTimeout(timer);
+          if (!probe.ok) throw new Error("probe-not-ok");
+        } catch {
+          try {
+            const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl } });
+            if (!error && data?.url) playUrl = data.url as string;
+          } catch {}
+        }
       }
       if (cancelled) return;
 
