@@ -98,6 +98,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [controlsVisible, setControlsVisible] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [activeServerId, setActiveServerId] = useState<string>("");
+  const userPickedRef = useRef(false);
   const hideTimerRef = useRef<number | null>(null);
   const artContainerRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<Artplayer | null>(null);
