@@ -207,7 +207,7 @@ const pickStartupQuality = (qualities: any[]) => {
 // Rewrite m3u8 playlist so segments & sub-playlists go back through this proxy.
 // All HMAC signings run in parallel.
 async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: string, headers: Record<string, string>, fp: string): Promise<string> {
-  const lines = text.split(/\r?\n/);
+  const lines = trimLiveWindow(text.split(/\r?\n/));
   const tasks: Promise<string>[] = lines.map(async (line) => {
     const trimmed = line.trim();
     if (!trimmed) return line;
@@ -236,6 +236,14 @@ async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: strin
     return `${proxyOrigin}?t=${encodeURIComponent(tok)}`;
   });
   return (await Promise.all(tasks)).join("\n");
+}
+
+function trimLiveWindow(lines: string[]) {
+  if (lines.some((line) => line.startsWith("#EXT-X-STREAM-INF")) || lines.some((line) => line.startsWith("#EXT-X-ENDLIST"))) return lines;
+  const mediaIndexes = lines.map((line, idx) => (!line.trim() || line.trim().startsWith("#") ? -1 : idx)).filter((idx) => idx >= 0);
+  if (mediaIndexes.length <= 4) return lines;
+  const keepFrom = mediaIndexes[Math.max(0, mediaIndexes.length - 4)];
+  return lines.filter((line, idx) => idx < keepFrom ? !line.startsWith("#EXTINF") && !line.startsWith("#EXT-X-PROGRAM-DATE-TIME") && (line.startsWith("#EXTM3U") || line.startsWith("#EXT-X-VERSION") || line.startsWith("#EXT-X-TARGETDURATION") || line.startsWith("#EXT-X-MEDIA-SEQUENCE")) : true);
 }
 
 Deno.serve(async (req) => {
