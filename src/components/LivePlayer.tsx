@@ -5,6 +5,7 @@ import Artplayer from "artplayer";
 import artplayerPluginHlsQuality from "artplayer-plugin-hls-quality";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveIdnLive } from "@/lib/idnStream";
 
 interface LivePlayerProps {
   videoId: string;
@@ -104,33 +105,22 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   const baseServers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
 
-  // Auto-resolve IDN+ live stream via edge function (GiStream + CTV).
+  // Auto-resolve IDN+ live stream directly from JKT48 + GiStream + CTV (no proxy).
   const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
   useEffect(() => {
     let cancelled = false;
-    let timer: number | null = null;
     const resolve = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("idn-stream", { body: {} });
-        if (cancelled) return;
-        if (!error && data?.ok && data?.url) {
-          setIdnServer({
-            id: "idn-auto",
-            kind: "idn-auto",
-            src: data.url as string,
-            token: data.token as string,
-            label: "IDN",
-          });
-        } else {
-          setIdnServer(null);
-        }
-      } catch {
-        if (!cancelled) setIdnServer(null);
+      const r = await resolveIdnLive();
+      if (cancelled) return;
+      if (r?.url) {
+        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: r.url, token: r.token, label: "IDN" });
+      } else {
+        setIdnServer(null);
       }
     };
     resolve();
-    timer = window.setInterval(resolve, 60_000);
-    return () => { cancelled = true; if (timer) window.clearInterval(timer); };
+    const timer = window.setInterval(resolve, 60_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, []);
 
   const servers = useMemo<ServerOption[]>(
