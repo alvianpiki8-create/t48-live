@@ -242,8 +242,11 @@ function trimLiveWindow(lines: string[]) {
   if (lines.some((line) => line.startsWith("#EXT-X-STREAM-INF")) || lines.some((line) => line.startsWith("#EXT-X-ENDLIST"))) return lines;
   const mediaIndexes = lines.map((line, idx) => (!line.trim() || line.trim().startsWith("#") ? -1 : idx)).filter((idx) => idx >= 0);
   if (mediaIndexes.length <= 4) return lines;
-  const keepFrom = mediaIndexes[Math.max(0, mediaIndexes.length - 4)];
-  return lines.filter((line, idx) => idx < keepFrom ? !line.startsWith("#EXTINF") && !line.startsWith("#EXT-X-PROGRAM-DATE-TIME") && (line.startsWith("#EXTM3U") || line.startsWith("#EXT-X-VERSION") || line.startsWith("#EXT-X-TARGETDURATION") || line.startsWith("#EXT-X-MEDIA-SEQUENCE")) : true);
+  const skipped = mediaIndexes.length - 4;
+  const keepFrom = mediaIndexes[skipped];
+  return lines
+    .filter((line, idx) => idx < keepFrom ? !line.startsWith("#EXTINF") && !line.startsWith("#EXT-X-PROGRAM-DATE-TIME") && (line.startsWith("#EXTM3U") || line.startsWith("#EXT-X-VERSION") || line.startsWith("#EXT-X-TARGETDURATION") || line.startsWith("#EXT-X-MEDIA-SEQUENCE")) : true)
+    .map((line) => line.replace(/^#EXT-X-MEDIA-SEQUENCE:(\d+)/, (_m, n) => `#EXT-X-MEDIA-SEQUENCE:${Number(n) + skipped}`));
 }
 
 Deno.serve(async (req) => {
