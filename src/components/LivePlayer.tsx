@@ -282,6 +282,13 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 abrBandWidthFactor: 0.8,
                 abrBandWidthUpFactor: 0.7,
                 abrMaxWithRealBitrate: true,
+                ...(apiToken
+                  ? {
+                      xhrSetup: (xhr: XMLHttpRequest) => {
+                        try { xhr.setRequestHeader("x-api-token", apiToken); } catch {}
+                      },
+                    }
+                  : {}),
               });
               hls.loadSource(url);
               hls.attachMedia(video);
