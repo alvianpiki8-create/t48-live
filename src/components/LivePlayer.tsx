@@ -111,6 +111,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [idnQualities, setIdnQualities] = useState<{ name: string; url: string }[]>([]);
   const [idnMasterUrl, setIdnMasterUrl] = useState("");
   const [idnQuality, setIdnQuality] = useState<string>(""); // selected quality name; "" = auto/master
+  const autoUpgradeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +125,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
         currentIdnSlugRef.current = data.slug || "idn";
         setIdnMasterUrl(data.url as string);
         setIdnQualities((data.qualities || []).map((q: any) => ({ name: q.name, url: q.url })));
+        setIdnQuality(data.startupQuality || "");
         setIdnServer({ id: "idn-auto", kind: "idn-auto", src: data.url as string, label: "IDN" });
       } catch {
         if (!cancelled && !idnServer) setIdnServer(null);
@@ -141,6 +143,10 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     if (!target) return;
     setIdnServer((prev) => prev && prev.src !== target ? { ...prev, src: target } : prev);
   }, [idnQuality, idnMasterUrl, idnQualities]);
+
+  useEffect(() => () => {
+    if (autoUpgradeTimerRef.current) window.clearTimeout(autoUpgradeTimerRef.current);
+  }, []);
 
   const servers = useMemo<ServerOption[]>(
     () => (idnServer ? [...baseServers, idnServer] : baseServers),
@@ -267,15 +273,15 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                // Smaller forward buffer = faster startup; bigger back buffer hurts memory only
-                backBufferLength: 15,
-                maxBufferLength: 15,
-                maxMaxBufferLength: 30,
-                maxBufferSize: 30 * 1000 * 1000,
+                // Smaller buffers and one low startup variant make IDN show first frame faster.
+                backBufferLength: 6,
+                maxBufferLength: 8,
+                maxMaxBufferLength: 15,
+                maxBufferSize: 16 * 1000 * 1000,
                 maxBufferHole: 0.3,
                 // Stay close to live edge so first frame appears fast
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 8,
+                liveSyncDurationCount: 2,
+                liveMaxLatencyDurationCount: 5,
                 liveDurationInfinity: true,
                 highBufferWatchdogPeriod: 2,
                 nudgeMaxRetry: 10,
@@ -289,12 +295,12 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 fragLoadingTimeOut: 12000,
                 fragLoadingMaxRetry: 6,
                 fragLoadingRetryDelay: 300,
-                startFragPrefetch: true,
+                startFragPrefetch: false,
                 progressive: false,
                 // Skip bandwidth test on first segment — play immediately at lowest level
                 testBandwidth: false,
                 startLevel: 0,
-                abrEwmaDefaultEstimate: 2_000_000,
+                abrEwmaDefaultEstimate: 700_000,
                 abrBandWidthFactor: 0.9,
                 abrBandWidthUpFactor: 0.8,
                 abrMaxWithRealBitrate: true,
@@ -346,7 +352,16 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                   }
                 }
               });
-              hls.on(Hls.Events.MANIFEST_PARSED, () => { try { video.play().catch(() => {}); } catch {} });
+              hls.on(Hls.Events.MANIFEST_PARSED, () => { try { hls.startLoad(-1); video.play().catch(() => {}); } catch {} });
+              hls.on(Hls.Events.FRAG_BUFFERED, () => {
+                if (!isIdnAuto || idnQuality !== "360p") return;
+                if (autoUpgradeTimerRef.current) return;
+                autoUpgradeTimerRef.current = window.setTimeout(() => {
+                  const next = idnQualities.find((q) => /720p60/i.test(q.name)) || idnQualities.find((q) => /480p/i.test(q.name));
+                  if (next) setIdnQuality(next.name);
+                  autoUpgradeTimerRef.current = null;
+                }, 7000);
+              });
             } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
               video.src = url;
             }
