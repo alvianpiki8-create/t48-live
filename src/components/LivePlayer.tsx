@@ -163,8 +163,10 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   useEffect(() => {
     if (!servers.length) { setActiveServerId(""); return; }
     if (!servers.some((s) => s.id === activeServerId)) {
+      // Prefer IDN auto-resolved stream when available (YouTube often geo/uploader-blocked)
+      const idn = servers.find((s) => s.kind === "idn-auto");
       const yt = servers.find((s) => s.kind === "youtube");
-      setActiveServerId((yt || servers[0]).id);
+      setActiveServerId((idn || yt || servers[0]).id);
     }
   }, [servers, activeServerId]);
 
