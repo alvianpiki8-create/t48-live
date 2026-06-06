@@ -102,7 +102,41 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const artRef = useRef<Artplayer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const servers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
+  const baseServers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
+
+  // Auto-resolve IDN+ live stream via edge function (GiStream + CTV).
+  const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | null = null;
+    const resolve = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("idn-stream", { body: {} });
+        if (cancelled) return;
+        if (!error && data?.ok && data?.url) {
+          setIdnServer({
+            id: "idn-auto",
+            kind: "idn-auto",
+            src: data.url as string,
+            token: data.token as string,
+            label: "IDN",
+          });
+        } else {
+          setIdnServer(null);
+        }
+      } catch {
+        if (!cancelled) setIdnServer(null);
+      }
+    };
+    resolve();
+    timer = window.setInterval(resolve, 60_000);
+    return () => { cancelled = true; if (timer) window.clearInterval(timer); };
+  }, []);
+
+  const servers = useMemo<ServerOption[]>(
+    () => (idnServer ? [...baseServers, idnServer] : baseServers),
+    [baseServers, idnServer],
+  );
 
   useEffect(() => {
     if (!servers.length) { setActiveServerId(""); return; }
