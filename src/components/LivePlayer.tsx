@@ -124,7 +124,10 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
         if (currentIdnSlugRef.current === data.slug && idnServer) return;
         currentIdnSlugRef.current = data.slug || "idn";
         setIdnMasterUrl(data.url as string);
-        setIdnQualities((data.qualities || []).map((q: any) => ({ name: q.name, url: q.url })));
+        setIdnQualities((data.qualities || []).map((q: any) => ({
+          name: q.name,
+          url: q.name === data.startupQuality ? data.url : q.url,
+        })));
         setIdnQuality(data.startupQuality || "");
         setIdnServer({ id: "idn-auto", kind: "idn-auto", src: data.url as string, label: "IDN" });
       } catch {
