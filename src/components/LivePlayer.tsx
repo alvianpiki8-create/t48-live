@@ -98,6 +98,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [controlsVisible, setControlsVisible] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [activeServerId, setActiveServerId] = useState<string>("");
+  const userPickedRef = useRef(false);
   const hideTimerRef = useRef<number | null>(null);
   const artContainerRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<Artplayer | null>(null);
@@ -162,9 +163,14 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => {
     if (!servers.length) { setActiveServerId(""); return; }
-    if (!servers.some((s) => s.id === activeServerId)) {
-      const yt = servers.find((s) => s.kind === "youtube");
-      setActiveServerId((yt || servers[0]).id);
+    const current = servers.find((s) => s.id === activeServerId);
+    const idn = servers.find((s) => s.kind === "idn-auto");
+    const yt = servers.find((s) => s.kind === "youtube");
+    if (!current) {
+      setActiveServerId((idn || yt || servers[0]).id);
+    } else if (!userPickedRef.current && current.kind === "youtube" && idn) {
+      // YT was auto-picked first; IDN resolved later — swap to IDN.
+      setActiveServerId(idn.id);
     }
   }, [servers, activeServerId]);
 
@@ -450,6 +456,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   const switchServer = (id: string) => {
     if (id === activeServerId) return;
+    userPickedRef.current = true;
     setActiveServerId(id);
     setShowQuality(false);
   };
