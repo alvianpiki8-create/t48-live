@@ -33,12 +33,13 @@ const YT_QUALITY = [
   { label: "360p", value: "medium" },
 ];
 
-type ServerKind = "youtube" | "m3u8";
+type ServerKind = "youtube" | "m3u8" | "idn-auto";
 interface ServerOption {
   id: string;
   kind: ServerKind;
   src: string;
   label: string;
+  token?: string;
 }
 
 const isM3u8 = (url: string) => {
@@ -53,21 +54,18 @@ const isM3u8 = (url: string) => {
 const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): ServerOption[] => {
   const list: ServerOption[] = [];
   let ytCount = 0;
-  let m3uCount = 0;
 
   const addUrl = (raw: string) => {
     const url = (raw || "").trim();
     if (!url) return;
-    if (isM3u8(url)) {
-      m3uCount += 1;
-      list.push({ id: `idn-${list.length}`, kind: "m3u8", src: url, label: m3uCount > 1 ? `IDN ${m3uCount}` : "IDN" });
-    } else {
+    if (!isM3u8(url)) {
       const id = extractYouTubeVideoId(url);
       if (id) {
         ytCount += 1;
         list.push({ id: `yt-${list.length}`, kind: "youtube", src: id, label: ytCount > 1 ? `YouTube ${ytCount}` : "YouTube" });
       }
     }
+    // manual m3u8 URLs intentionally ignored — IDN server resolves automatically
   };
 
   const ytId = extractYouTubeVideoId((videoId || "").trim());
