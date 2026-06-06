@@ -112,7 +112,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [idnQualities, setIdnQualities] = useState<{ name: string; url: string }[]>([]);
   const [idnMasterUrl, setIdnMasterUrl] = useState("");
   const [idnQuality, setIdnQuality] = useState<string>(""); // selected quality name; "" = auto/master
-  const autoUpgradeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,10 +152,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
       return next;
     });
   }, [idnQuality, idnMasterUrl, idnQualities]);
-
-  useEffect(() => () => {
-    if (autoUpgradeTimerRef.current) window.clearTimeout(autoUpgradeTimerRef.current);
-  }, []);
 
   const servers = useMemo<ServerOption[]>(
     () => (idnServer ? [...baseServers, idnServer] : baseServers),
@@ -363,15 +358,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 }
               });
               hls.on(Hls.Events.MANIFEST_PARSED, () => { try { hls.startLoad(-1); video.play().catch(() => {}); } catch {} });
-              hls.on(Hls.Events.FRAG_BUFFERED, () => {
-                if (!isIdnAuto || !/^(360p|480p)$/i.test(idnQuality)) return;
-                if (autoUpgradeTimerRef.current) return;
-                autoUpgradeTimerRef.current = window.setTimeout(() => {
-                  const next = idnQualities.find((q) => /720p60/i.test(q.name)) || idnQualities.find((q) => /480p/i.test(q.name));
-                  if (next) setIdnQuality(next.name);
-                  autoUpgradeTimerRef.current = null;
-                }, 7000);
-              });
             } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
               video.src = url;
             }
