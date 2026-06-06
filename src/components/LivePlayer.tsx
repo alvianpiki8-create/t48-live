@@ -105,23 +105,55 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   const baseServers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
 
-  // Auto-resolve IDN+ live stream directly from JKT48 + GiStream + CTV (no proxy).
+  // Auto-resolve IDN+ live stream. idnplus + generate token tetap di browser;
+  // hanya playback m3u8 yang di-proxy supaya header x-api-token bisa diinject.
   const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
+  const [idnQualities, setIdnQualities] = useState<{ name: string; url: string }[]>([]);
+  const [idnToken, setIdnToken] = useState<string>("");
+  const [idnQuality, setIdnQuality] = useState<string>(""); // selected quality name; "" = auto/master
+
+  const proxyIdn = useCallback(async (rawUrl: string, token: string) => {
+    const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl, token } });
+    if (error || !data?.url) throw error || new Error("proxy failed");
+    return data.url as string;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const resolve = async () => {
       const r = await resolveIdnLive();
       if (cancelled) return;
-      if (r?.url) {
-        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: r.url, token: r.token, label: "IDN" });
-      } else {
-        setIdnServer(null);
+      if (!r?.url) { setIdnServer(null); setIdnQualities([]); return; }
+      try {
+        const proxied = await proxyIdn(r.url, r.token);
+        if (cancelled) return;
+        setIdnToken(r.token);
+        setIdnQualities(r.qualities?.map((q) => ({ name: q.name, url: q.url })) || []);
+        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: proxied, label: "IDN" });
+      } catch {
+        if (!cancelled) setIdnServer(null);
       }
     };
     resolve();
     const timer = window.setInterval(resolve, 60_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, []);
+  }, [proxyIdn]);
+
+  // Switch IDN quality: re-proxy the chosen variant URL
+  useEffect(() => {
+    if (!idnToken || !idnQualities.length) return;
+    const target = idnQuality ? idnQualities.find((q) => q.name === idnQuality) : null;
+    if (!target) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const proxied = await proxyIdn(target.url, idnToken);
+        if (cancelled) return;
+        setIdnServer((prev) => prev ? { ...prev, src: proxied } : prev);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [idnQuality, idnToken, idnQualities, proxyIdn]);
 
   const servers = useMemo<ServerOption[]>(
     () => (idnServer ? [...baseServers, idnServer] : baseServers),
@@ -184,7 +216,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     }
     let cancelled = false;
     const container = artContainerRef.current;
-    const apiToken = activeServer.token;
     const isIdnAuto = activeServer.kind === "idn-auto";
 
     (async () => {
@@ -272,20 +303,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 abrBandWidthFactor: 0.8,
                 abrBandWidthUpFactor: 0.7,
                 abrMaxWithRealBitrate: true,
-                ...(apiToken
-                  ? {
-                      xhrSetup: (xhr: XMLHttpRequest) => {
-                        try { xhr.setRequestHeader("x-api-token", apiToken); } catch {}
-                      },
-                      fetchSetup: (context: any, initParams: any) => {
-                        initParams.headers = {
-                          ...(initParams.headers || {}),
-                          "x-api-token": apiToken,
-                        };
-                        return new Request(context.url, initParams);
-                      },
-                    }
-                  : {}),
               });
               hls.loadSource(url);
               hls.attachMedia(video);
@@ -608,6 +625,37 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               </button>
             );
           })}
+        </div>
+      )}
+
+      {activeServer?.kind === "idn-auto" && idnQualities.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap px-1">
+          <span className="text-[11px] font-bold tracking-widest text-muted-foreground">KUALITAS:</span>
+          <button
+            type="button"
+            onClick={() => setIdnQuality("")}
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all ${
+              idnQuality === ""
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card/60 text-foreground border-border hover:border-primary/60"
+            }`}
+          >
+            AUTO
+          </button>
+          {idnQualities.map((q) => (
+            <button
+              key={q.name}
+              type="button"
+              onClick={() => setIdnQuality(q.name)}
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all ${
+                idnQuality === q.name
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card/60 text-foreground border-border hover:border-primary/60"
+              }`}
+            >
+              {q.name.toUpperCase()}
+            </button>
+          ))}
         </div>
       )}
     </div>
