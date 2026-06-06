@@ -17,6 +17,8 @@ const SIGNING_PATH = "/api/token/generate?apikey=JKTCONNECT";
 const PARTNER_KID = "jkt48connect-v1";
 const PARTNER_SECRET = "gstream@jkt48connect@2108";
 
+let idnCache: { value: any; expiresAt: number } | null = null;
+
 const enc = new TextEncoder();
 
 const b64url = (buf: ArrayBuffer | Uint8Array) => {
@@ -185,6 +187,22 @@ async function resolveIdnLive() {
   if (!url) return null;
   return { url, token, qualities, name: show?.name || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
 }
+
+async function cachedResolveIdnLive() {
+  if (idnCache && idnCache.expiresAt > Date.now()) return idnCache.value;
+  const value = await resolveIdnLive();
+  if (value) idnCache = { value, expiresAt: Date.now() + 45_000 };
+  return value;
+}
+
+const qualityHeight = (q: any) => Number(String(q?.name || q?.resolution || "").match(/(\d{3,4})/)?.[1] || 0);
+const pickStartupQuality = (qualities: any[]) => {
+  const valid = qualities.filter((q) => q?.url);
+  return valid.find((q) => /360p/i.test(q.name))
+    || valid.find((q) => /480p/i.test(q.name))
+    || valid.find((q) => /160p|240p/i.test(q.name))
+    || [...valid].sort((a, b) => (a.bandwidth || qualityHeight(a)) - (b.bandwidth || qualityHeight(b)))[0];
+};
 
 // Rewrite m3u8 playlist so segments & sub-playlists go back through this proxy.
 // All HMAC signings run in parallel.
