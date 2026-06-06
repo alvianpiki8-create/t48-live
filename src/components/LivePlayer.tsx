@@ -99,6 +99,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [activeServerId, setActiveServerId] = useState<string>("");
   const userPickedRef = useRef(false);
   const currentIdnSlugRef = useRef("");
+  const idnServerRef = useRef<ServerOption | null>(null);
   const hideTimerRef = useRef<number | null>(null);
   const artContainerRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<Artplayer | null>(null);
@@ -121,7 +122,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
         if (error) throw error;
         if (cancelled) return;
         if (!data?.live || !data?.url) { setIdnServer(null); setIdnQualities([]); currentIdnSlugRef.current = ""; return; }
-        if (currentIdnSlugRef.current === data.slug && idnServer) return;
+        if (currentIdnSlugRef.current === data.slug && idnServerRef.current) return;
         currentIdnSlugRef.current = data.slug || "idn";
         setIdnMasterUrl(data.url as string);
         setIdnQualities((data.qualities || []).map((q: any) => ({
@@ -129,22 +130,28 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           url: q.name === data.startupQuality ? data.url : q.url,
         })));
         setIdnQuality(data.startupQuality || "");
-        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: data.url as string, label: "IDN" });
+        const nextServer = { id: "idn-auto", kind: "idn-auto" as const, src: data.url as string, label: "IDN" };
+        idnServerRef.current = nextServer;
+        setIdnServer(nextServer);
       } catch {
-        if (!cancelled && !idnServer) setIdnServer(null);
+        if (!cancelled && !idnServerRef.current) setIdnServer(null);
       }
     };
     resolve();
     const timer = window.setInterval(resolve, 120_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [idnServer]);
+  }, []);
 
   // Switch IDN quality: edge already returned proxied URLs with x-api-token injected server-side.
   useEffect(() => {
     if (!idnMasterUrl) return;
     const target = idnQuality ? idnQualities.find((q) => q.name === idnQuality)?.url : idnMasterUrl;
     if (!target) return;
-    setIdnServer((prev) => prev && prev.src !== target ? { ...prev, src: target } : prev);
+    setIdnServer((prev) => {
+      const next = prev && prev.src !== target ? { ...prev, src: target } : prev;
+      idnServerRef.current = next;
+      return next;
+    });
   }, [idnQuality, idnMasterUrl, idnQualities]);
 
   useEffect(() => () => {
