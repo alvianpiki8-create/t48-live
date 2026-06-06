@@ -95,13 +95,16 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       const target = (body?.url || "").trim();
+      const apiToken = (body?.token || "").trim();
       if (!target || !/^https?:\/\//i.test(target)) {
         return new Response(JSON.stringify({ error: "invalid_url" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const token = await makeToken(target);
+      const headers: Record<string, string> = {};
+      if (apiToken) headers["x-api-token"] = apiToken;
+      const token = await makeToken(target, headers);
       const proxied = `${proxyOrigin}?t=${encodeURIComponent(token)}`;
       return new Response(JSON.stringify({ token, url: proxied }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -111,11 +114,16 @@ Deno.serve(async (req) => {
     if (req.method === "GET") {
       const t = url.searchParams.get("t");
       if (!t) return new Response("missing token", { status: 400, headers: corsHeaders });
-      const target = await readToken(t);
-      if (!target) return new Response("invalid token", { status: 403, headers: corsHeaders });
+      const decoded = await readToken(t);
+      if (!decoded) return new Response("invalid token", { status: 403, headers: corsHeaders });
+      const { url: target, headers: customHeaders } = decoded;
 
       const upstream = await fetch(target, {
-        headers: { "User-Agent": "Mozilla/5.0", "Referer": new URL(target).origin + "/" },
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          "Referer": new URL(target).origin + "/",
+          ...customHeaders,
+        },
       });
 
       const ct = upstream.headers.get("content-type") || "";
@@ -123,7 +131,7 @@ Deno.serve(async (req) => {
 
       if (isPlaylist) {
         const text = await upstream.text();
-        const rewritten = await rewritePlaylist(text, target, proxyOrigin);
+        const rewritten = await rewritePlaylist(text, target, proxyOrigin, customHeaders);
         return new Response(rewritten, {
           status: upstream.status,
           headers: {
@@ -134,7 +142,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Segment / key / init
       return new Response(upstream.body, {
         status: upstream.status,
         headers: {
