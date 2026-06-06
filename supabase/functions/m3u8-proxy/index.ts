@@ -203,6 +203,12 @@ async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: strin
       }
       return line;
     }
+    if (trimmed.startsWith("#EXT-X-PREFETCH:")) {
+      const uri = trimmed.slice("#EXT-X-PREFETCH:".length).trim();
+      const abs = new URL(uri, baseUrl).toString();
+      const tok = await makeToken(abs, headers, fp, SEGMENT_TTL_SEC);
+      return `#EXT-X-PREFETCH:${proxyOrigin}?t=${encodeURIComponent(tok)}`;
+    }
     if (trimmed.startsWith("#")) return line;
 
     const abs = new URL(trimmed, baseUrl).toString();
@@ -225,6 +231,25 @@ Deno.serve(async (req) => {
   try {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
+      if (body?.action === "resolve-idn") {
+        const resolved = await resolveIdnLive();
+        if (!resolved) return new Response(JSON.stringify({ live: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const headers: Record<string, string> = { "x-api-token": resolved.token };
+        const proxied = await makeToken(resolved.url, headers, fp, PLAYLIST_TTL_SEC);
+        return new Response(JSON.stringify({
+          live: true,
+          url: `${proxyOrigin}?t=${encodeURIComponent(proxied)}`,
+          name: resolved.name,
+          slug: resolved.slug,
+          qualities: await Promise.all(resolved.qualities.map(async (q: any) => ({
+            name: q.name,
+            resolution: q.resolution,
+            bandwidth: q.bandwidth,
+            url: `${proxyOrigin}?t=${encodeURIComponent(await makeToken(q.url, headers, fp, PLAYLIST_TTL_SEC))}`,
+          }))),
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       const target = (body?.url || "").trim();
       const apiToken = (body?.token || "").trim();
       if (!target || !/^https?:\/\//i.test(target)) {
@@ -260,6 +285,12 @@ Deno.serve(async (req) => {
           ...customHeaders,
         },
       });
+      if (!upstream.ok) {
+        return new Response(await upstream.text(), {
+          status: upstream.status,
+          headers: { ...corsHeaders, "Content-Type": upstream.headers.get("content-type") || "text/plain", "Cache-Control": "no-store" },
+        });
+      }
 
       const ct = upstream.headers.get("content-type") || "";
       const isPlaylist = /mpegurl|m3u8/i.test(ct) || /\.m3u8(\?|$)/i.test(target);
