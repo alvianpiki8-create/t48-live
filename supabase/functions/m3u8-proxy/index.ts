@@ -17,6 +17,8 @@ const SIGNING_PATH = "/api/token/generate?apikey=JKTCONNECT";
 const PARTNER_KID = "jkt48connect-v1";
 const PARTNER_SECRET = "gstream@jkt48connect@2108";
 
+let idnCache: { value: any; expiresAt: number } | null = null;
+
 const enc = new TextEncoder();
 
 const b64url = (buf: ArrayBuffer | Uint8Array) => {
@@ -186,10 +188,26 @@ async function resolveIdnLive() {
   return { url, token, qualities, name: show?.name || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
 }
 
+async function cachedResolveIdnLive() {
+  if (idnCache && idnCache.expiresAt > Date.now()) return idnCache.value;
+  const value = await resolveIdnLive();
+  if (value) idnCache = { value, expiresAt: Date.now() + 45_000 };
+  return value;
+}
+
+const qualityHeight = (q: any) => Number(String(q?.name || q?.resolution || "").match(/(\d{3,4})/)?.[1] || 0);
+const pickStartupQuality = (qualities: any[]) => {
+  const valid = qualities.filter((q) => q?.url);
+  return valid.find((q) => /360p/i.test(q.name))
+    || valid.find((q) => /480p/i.test(q.name))
+    || valid.find((q) => /160p|240p/i.test(q.name))
+    || [...valid].sort((a, b) => (a.bandwidth || qualityHeight(a)) - (b.bandwidth || qualityHeight(b)))[0];
+};
+
 // Rewrite m3u8 playlist so segments & sub-playlists go back through this proxy.
 // All HMAC signings run in parallel.
 async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: string, headers: Record<string, string>, fp: string): Promise<string> {
-  const lines = text.split(/\r?\n/);
+  const lines = trimLiveWindow(text.split(/\r?\n/));
   const tasks: Promise<string>[] = lines.map(async (line) => {
     const trimmed = line.trim();
     if (!trimmed) return line;
@@ -214,10 +232,24 @@ async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: strin
     const abs = new URL(trimmed, baseUrl).toString();
     // sub-playlist .m3u8 needs longer TTL than .ts segments
     const ttl = /\.m3u8(\?|$)/i.test(abs) ? PLAYLIST_TTL_SEC : SEGMENT_TTL_SEC;
-    const tok = await makeToken(abs, headers, fp, ttl);
+    // v4 media lines are already signed CDN/proxy segment URLs; keep them proxied,
+    // but don't carry the large x-api-token into every segment token.
+    const segmentHeaders = ttl === SEGMENT_TTL_SEC && /v4\.gstreamlive\.com\/proxy/i.test(abs) ? {} : headers;
+    const tok = await makeToken(abs, segmentHeaders, fp, ttl);
     return `${proxyOrigin}?t=${encodeURIComponent(tok)}`;
   });
   return (await Promise.all(tasks)).join("\n");
+}
+
+function trimLiveWindow(lines: string[]) {
+  if (lines.some((line) => line.startsWith("#EXT-X-STREAM-INF")) || lines.some((line) => line.startsWith("#EXT-X-ENDLIST"))) return lines;
+  const mediaIndexes = lines.map((line, idx) => (!line.trim() || line.trim().startsWith("#") ? -1 : idx)).filter((idx) => idx >= 0);
+  if (mediaIndexes.length <= 4) return lines;
+  const skipped = mediaIndexes.length - 4;
+  const keepFrom = mediaIndexes[skipped];
+  return lines
+    .filter((line, idx) => idx < keepFrom ? !line.startsWith("#EXTINF") && !line.startsWith("#EXT-X-PROGRAM-DATE-TIME") && (line.startsWith("#EXTM3U") || line.startsWith("#EXT-X-VERSION") || line.startsWith("#EXT-X-TARGETDURATION") || line.startsWith("#EXT-X-MEDIA-SEQUENCE")) : true)
+    .map((line) => line.replace(/^#EXT-X-MEDIA-SEQUENCE:(\d+)/, (_m, n) => `#EXT-X-MEDIA-SEQUENCE:${Number(n) + skipped}`));
 }
 
 Deno.serve(async (req) => {
@@ -232,16 +264,20 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       if (body?.action === "resolve-idn") {
-        const resolved = await resolveIdnLive();
+        const resolved = await cachedResolveIdnLive();
         if (!resolved) return new Response(JSON.stringify({ live: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         const headers: Record<string, string> = { "x-api-token": resolved.token };
-        const proxied = await makeToken(resolved.url, headers, fp, PLAYLIST_TTL_SEC);
+        const startup = pickStartupQuality(resolved.qualities) || { url: resolved.url, name: "Auto" };
+        const proxied = await makeToken(startup.url, headers, fp, PLAYLIST_TTL_SEC);
         return new Response(JSON.stringify({
           live: true,
           url: `${proxyOrigin}?t=${encodeURIComponent(proxied)}`,
+          startupQuality: startup.name,
           name: resolved.name,
           slug: resolved.slug,
-          qualities: await Promise.all(resolved.qualities.map(async (q: any) => ({
+          qualities: await Promise.all([...resolved.qualities]
+            .sort((a: any, b: any) => qualityHeight(b) - qualityHeight(a))
+            .map(async (q: any) => ({
             name: q.name,
             resolution: q.resolution,
             bandwidth: q.bandwidth,

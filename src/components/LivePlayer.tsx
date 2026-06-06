@@ -51,6 +51,8 @@ const isM3u8 = (url: string) => {
   return false;
 };
 
+const IDN_CACHE_KEY = "team-live-idn-proxy-v2";
+
 const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): ServerOption[] => {
   const list: ServerOption[] = [];
   let ytCount = 0;
@@ -99,6 +101,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const [activeServerId, setActiveServerId] = useState<string>("");
   const userPickedRef = useRef(false);
   const currentIdnSlugRef = useRef("");
+  const idnServerRef = useRef<ServerOption | null>(null);
   const hideTimerRef = useRef<number | null>(null);
   const artContainerRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<Artplayer | null>(null);
@@ -114,32 +117,63 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => {
     let cancelled = false;
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(IDN_CACHE_KEY) || "null");
+      if (cached?.expiresAt > Date.now() && cached?.url) {
+        currentIdnSlugRef.current = cached.slug || "idn";
+        setIdnMasterUrl(cached.url);
+        setIdnQuality(cached.startupQuality || "360p");
+        setIdnQualities(cached.qualities || []);
+        const nextServer = { id: "idn-auto", kind: "idn-auto" as const, src: cached.url, label: "IDN" };
+        idnServerRef.current = nextServer;
+        setIdnServer(nextServer);
+      }
+    } catch {}
     const resolve = async () => {
       try {
         const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { action: "resolve-idn" } });
         if (error) throw error;
         if (cancelled) return;
         if (!data?.live || !data?.url) { setIdnServer(null); setIdnQualities([]); currentIdnSlugRef.current = ""; return; }
-        if (currentIdnSlugRef.current === data.slug && idnServer) return;
+        if (currentIdnSlugRef.current === data.slug && idnServerRef.current) return;
         currentIdnSlugRef.current = data.slug || "idn";
         setIdnMasterUrl(data.url as string);
-        setIdnQualities((data.qualities || []).map((q: any) => ({ name: q.name, url: q.url })));
-        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: data.url as string, label: "IDN" });
+        setIdnQualities((data.qualities || []).map((q: any) => ({
+          name: q.name,
+          url: q.name === data.startupQuality ? data.url : q.url,
+        })));
+        setIdnQuality(data.startupQuality || "");
+        const nextServer = { id: "idn-auto", kind: "idn-auto" as const, src: data.url as string, label: "IDN" };
+        idnServerRef.current = nextServer;
+        setIdnServer(nextServer);
+        try {
+          sessionStorage.setItem(IDN_CACHE_KEY, JSON.stringify({
+            slug: data.slug,
+            url: data.url,
+            startupQuality: data.startupQuality,
+            qualities: (data.qualities || []).map((q: any) => ({ name: q.name, url: q.name === data.startupQuality ? data.url : q.url })),
+            expiresAt: Date.now() + 4 * 60_000,
+          }));
+        } catch {}
       } catch {
-        if (!cancelled && !idnServer) setIdnServer(null);
+        if (!cancelled && !idnServerRef.current) setIdnServer(null);
       }
     };
     resolve();
     const timer = window.setInterval(resolve, 120_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [idnServer]);
+  }, []);
 
   // Switch IDN quality: edge already returned proxied URLs with x-api-token injected server-side.
   useEffect(() => {
     if (!idnMasterUrl) return;
     const target = idnQuality ? idnQualities.find((q) => q.name === idnQuality)?.url : idnMasterUrl;
     if (!target) return;
-    setIdnServer((prev) => prev && prev.src !== target ? { ...prev, src: target } : prev);
+    setIdnServer((prev) => {
+      const next = prev && prev.src !== target ? { ...prev, src: target } : prev;
+      idnServerRef.current = next;
+      return next;
+    });
   }, [idnQuality, idnMasterUrl, idnQualities]);
 
   const servers = useMemo<ServerOption[]>(
@@ -267,15 +301,15 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                // Smaller forward buffer = faster startup; bigger back buffer hurts memory only
-                backBufferLength: 15,
-                maxBufferLength: 15,
-                maxMaxBufferLength: 30,
-                maxBufferSize: 30 * 1000 * 1000,
+                // Smaller buffers and one low startup variant make IDN show first frame faster.
+                backBufferLength: 6,
+                maxBufferLength: 8,
+                maxMaxBufferLength: 15,
+                maxBufferSize: 16 * 1000 * 1000,
                 maxBufferHole: 0.3,
                 // Stay close to live edge so first frame appears fast
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 8,
+                liveSyncDurationCount: 2,
+                liveMaxLatencyDurationCount: 5,
                 liveDurationInfinity: true,
                 highBufferWatchdogPeriod: 2,
                 nudgeMaxRetry: 10,
@@ -289,12 +323,12 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 fragLoadingTimeOut: 12000,
                 fragLoadingMaxRetry: 6,
                 fragLoadingRetryDelay: 300,
-                startFragPrefetch: true,
+                startFragPrefetch: false,
                 progressive: false,
                 // Skip bandwidth test on first segment — play immediately at lowest level
                 testBandwidth: false,
                 startLevel: 0,
-                abrEwmaDefaultEstimate: 2_000_000,
+                abrEwmaDefaultEstimate: 700_000,
                 abrBandWidthFactor: 0.9,
                 abrBandWidthUpFactor: 0.8,
                 abrMaxWithRealBitrate: true,
@@ -346,7 +380,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                   }
                 }
               });
-              hls.on(Hls.Events.MANIFEST_PARSED, () => { try { video.play().catch(() => {}); } catch {} });
+              hls.on(Hls.Events.MANIFEST_PARSED, () => { try { hls.startLoad(-1); video.play().catch(() => {}); } catch {} });
             } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
               video.src = url;
             }
