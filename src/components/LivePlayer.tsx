@@ -216,7 +216,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     }
     let cancelled = false;
     const container = artContainerRef.current;
-    const apiToken = activeServer.token;
     const isIdnAuto = activeServer.kind === "idn-auto";
 
     (async () => {
