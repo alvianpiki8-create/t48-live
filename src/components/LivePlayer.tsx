@@ -105,23 +105,55 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   const baseServers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
 
-  // Auto-resolve IDN+ live stream directly from JKT48 + GiStream + CTV (no proxy).
+  // Auto-resolve IDN+ live stream. idnplus + generate token tetap di browser;
+  // hanya playback m3u8 yang di-proxy supaya header x-api-token bisa diinject.
   const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
+  const [idnQualities, setIdnQualities] = useState<{ name: string; url: string }[]>([]);
+  const [idnToken, setIdnToken] = useState<string>("");
+  const [idnQuality, setIdnQuality] = useState<string>(""); // selected quality name; "" = auto/master
+
+  const proxyIdn = useCallback(async (rawUrl: string, token: string) => {
+    const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl, token } });
+    if (error || !data?.url) throw error || new Error("proxy failed");
+    return data.url as string;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const resolve = async () => {
       const r = await resolveIdnLive();
       if (cancelled) return;
-      if (r?.url) {
-        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: r.url, token: r.token, label: "IDN" });
-      } else {
-        setIdnServer(null);
+      if (!r?.url) { setIdnServer(null); setIdnQualities([]); return; }
+      try {
+        const proxied = await proxyIdn(r.url, r.token);
+        if (cancelled) return;
+        setIdnToken(r.token);
+        setIdnQualities(r.qualities?.map((q) => ({ name: q.name, url: q.url })) || []);
+        setIdnServer({ id: "idn-auto", kind: "idn-auto", src: proxied, label: "IDN" });
+      } catch {
+        if (!cancelled) setIdnServer(null);
       }
     };
     resolve();
     const timer = window.setInterval(resolve, 60_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, []);
+  }, [proxyIdn]);
+
+  // Switch IDN quality: re-proxy the chosen variant URL
+  useEffect(() => {
+    if (!idnToken || !idnQualities.length) return;
+    const target = idnQuality ? idnQualities.find((q) => q.name === idnQuality) : null;
+    if (!target) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const proxied = await proxyIdn(target.url, idnToken);
+        if (cancelled) return;
+        setIdnServer((prev) => prev ? { ...prev, src: proxied } : prev);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [idnQuality, idnToken, idnQualities, proxyIdn]);
 
   const servers = useMemo<ServerOption[]>(
     () => (idnServer ? [...baseServers, idnServer] : baseServers),
