@@ -33,14 +33,14 @@ async function hmac(data: string): Promise<string> {
   return b64url(sig);
 }
 
-async function makeToken(url: string, ttl = TOKEN_TTL_SEC): Promise<string> {
-  const payload = { u: url, e: Math.floor(Date.now() / 1000) + ttl };
+async function makeToken(url: string, headers: Record<string, string> = {}, ttl = TOKEN_TTL_SEC): Promise<string> {
+  const payload = { u: url, e: Math.floor(Date.now() / 1000) + ttl, h: headers };
   const body = b64url(enc.encode(JSON.stringify(payload)));
   const sig = await hmac(body);
   return `${body}.${sig}`;
 }
 
-async function readToken(token: string): Promise<string | null> {
+async function readToken(token: string): Promise<{ url: string; headers: Record<string, string> } | null> {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = await hmac(body);
@@ -49,14 +49,14 @@ async function readToken(token: string): Promise<string | null> {
     const payload = JSON.parse(b64urlDecode(body));
     if (typeof payload.u !== "string" || typeof payload.e !== "number") return null;
     if (payload.e < Math.floor(Date.now() / 1000)) return null;
-    return payload.u;
+    return { url: payload.u, headers: payload.h && typeof payload.h === "object" ? payload.h : {} };
   } catch {
     return null;
   }
 }
 
 // Rewrite m3u8 playlist so segment & sub-playlist URLs go back through this proxy
-async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: string): Promise<string> {
+async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: string, headers: Record<string, string>): Promise<string> {
   const lines = text.split(/\r?\n/);
   const out: string[] = [];
   for (let i = 0; i < lines.length; i++) {
@@ -64,12 +64,11 @@ async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: strin
     const trimmed = line.trim();
     if (!trimmed) { out.push(line); continue; }
 
-    // Handle EXT-X-KEY URI
     if (trimmed.startsWith("#EXT-X-KEY") || trimmed.startsWith("#EXT-X-MAP")) {
       const m = trimmed.match(/URI="([^"]+)"/);
       if (m) {
         const abs = new URL(m[1], baseUrl).toString();
-        const tok = await makeToken(abs);
+        const tok = await makeToken(abs, headers);
         const proxied = `${proxyOrigin}?t=${encodeURIComponent(tok)}`;
         out.push(trimmed.replace(/URI="[^"]+"/, `URI="${proxied}"`));
         continue;
@@ -78,9 +77,8 @@ async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: strin
 
     if (trimmed.startsWith("#")) { out.push(line); continue; }
 
-    // It's a URI line (segment or sub-playlist)
     const abs = new URL(trimmed, baseUrl).toString();
-    const tok = await makeToken(abs);
+    const tok = await makeToken(abs, headers);
     out.push(`${proxyOrigin}?t=${encodeURIComponent(tok)}`);
   }
   return out.join("\n");
