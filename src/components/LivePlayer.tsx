@@ -357,7 +357,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               });
               hls.on(Hls.Events.MANIFEST_PARSED, () => { try { hls.startLoad(-1); video.play().catch(() => {}); } catch {} });
               hls.on(Hls.Events.FRAG_BUFFERED, () => {
-                if (!isIdnAuto || idnQuality !== "360p") return;
+                if (!isIdnAuto || !/^(360p|480p)$/i.test(idnQuality)) return;
                 if (autoUpgradeTimerRef.current) return;
                 autoUpgradeTimerRef.current = window.setTimeout(() => {
                   const next = idnQualities.find((q) => /720p60/i.test(q.name)) || idnQualities.find((q) => /480p/i.test(q.name));
