@@ -59,11 +59,32 @@ async function hmac(data: string): Promise<string> {
   return b64url(sig);
 }
 
+let aesKeyPromise: Promise<CryptoKey> | null = null;
+const getAesKey = async () => {
+  if (!aesKeyPromise) {
+    aesKeyPromise = crypto.subtle.digest("SHA-256", enc.encode(SECRET)).then((key) =>
+      crypto.subtle.importKey("raw", key, { name: "AES-GCM" }, false, ["encrypt", "decrypt"])
+    );
+  }
+  return aesKeyPromise;
+};
+
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(s));
+  return toHex(buf);
+}
+
+async function hmacSHA256Hex(secret: string, msg: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return toHex(await crypto.subtle.sign("HMAC", key, enc.encode(msg)));
+}
+
 // Fingerprint binds a token to a particular client to prevent token theft.
 async function fpHash(req: Request): Promise<string> {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+  const rawIp = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
     || req.headers.get("cf-connecting-ip")
     || "unknown";
+  const ip = rawIp.includes(":") ? rawIp.split(":").slice(0, 4).join(":") : rawIp.split(".").slice(0, 3).join(".");
   const ua = req.headers.get("user-agent") || "ua";
   const digest = await crypto.subtle.digest("SHA-256", enc.encode(`${ip}|${ua}`));
   return b64url(digest).slice(0, 12);
@@ -73,12 +94,28 @@ interface Payload { u: string; e: number; h?: Record<string, string>; f: string;
 
 async function makeToken(url: string, headers: Record<string, string>, fp: string, ttl: number): Promise<string> {
   const payload: Payload = { u: url, e: Math.floor(Date.now() / 1000) + ttl, h: headers, f: fp };
-  const body = b64url(enc.encode(JSON.stringify(payload)));
-  const sig = await hmac(body);
-  return `${body}.${sig}`;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await getAesKey(), enc.encode(JSON.stringify(payload)));
+  const body = `${b64url(iv)}.${b64url(cipher)}`;
+  const sig = await hmac(`v2.${body}`);
+  return `v2.${body}.${sig}`;
 }
 
 async function readToken(token: string): Promise<Payload | null> {
+  if (token.startsWith("v2.")) {
+    const [, iv, cipher, sig] = token.split(".");
+    if (!iv || !cipher || !sig) return null;
+    const expected = await hmac(`v2.${iv}.${cipher}`);
+    if (expected !== sig) return null;
+    try {
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64urlToBytes(iv) }, await getAesKey(), b64urlToBytes(cipher));
+      const payload = JSON.parse(new TextDecoder().decode(plain)) as Payload;
+      if (typeof payload.u !== "string" || typeof payload.e !== "number" || typeof payload.f !== "string") return null;
+      if (payload.e < Math.floor(Date.now() / 1000)) return null;
+      return payload;
+    } catch { return null; }
+  }
+
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = await hmac(body);
