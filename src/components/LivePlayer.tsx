@@ -627,6 +627,37 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           })}
         </div>
       )}
+
+      {activeServer?.kind === "idn-auto" && idnQualities.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap px-1">
+          <span className="text-[11px] font-bold tracking-widest text-muted-foreground">KUALITAS:</span>
+          <button
+            type="button"
+            onClick={() => setIdnQuality("")}
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all ${
+              idnQuality === ""
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card/60 text-foreground border-border hover:border-primary/60"
+            }`}
+          >
+            AUTO
+          </button>
+          {idnQualities.map((q) => (
+            <button
+              key={q.name}
+              type="button"
+              onClick={() => setIdnQuality(q.name)}
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all ${
+                idnQuality === q.name
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card/60 text-foreground border-border hover:border-primary/60"
+              }`}
+            >
+              {q.name.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
