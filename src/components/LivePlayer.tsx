@@ -305,7 +305,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 abrBandWidthUpFactor: 0.7,
                 abrMaxWithRealBitrate: true,
               });
-              });
               hls.loadSource(url);
               hls.attachMedia(video);
               (art as any).hls = hls;
