@@ -250,16 +250,20 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       if (body?.action === "resolve-idn") {
-        const resolved = await resolveIdnLive();
+        const resolved = await cachedResolveIdnLive();
         if (!resolved) return new Response(JSON.stringify({ live: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         const headers: Record<string, string> = { "x-api-token": resolved.token };
-        const proxied = await makeToken(resolved.url, headers, fp, PLAYLIST_TTL_SEC);
+        const startup = pickStartupQuality(resolved.qualities) || { url: resolved.url, name: "Auto" };
+        const proxied = await makeToken(startup.url, headers, fp, PLAYLIST_TTL_SEC);
         return new Response(JSON.stringify({
           live: true,
           url: `${proxyOrigin}?t=${encodeURIComponent(proxied)}`,
+          startupQuality: startup.name,
           name: resolved.name,
           slug: resolved.slug,
-          qualities: await Promise.all(resolved.qualities.map(async (q: any) => ({
+          qualities: await Promise.all([...resolved.qualities]
+            .sort((a: any, b: any) => qualityHeight(b) - qualityHeight(a))
+            .map(async (q: any) => ({
             name: q.name,
             resolution: q.resolution,
             bandwidth: q.bandwidth,
