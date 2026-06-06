@@ -368,7 +368,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   // Sync mute/volume to artplayer
   useEffect(() => {
     const a = artRef.current;
-    if (a && activeServer?.kind === "m3u8") {
+    if (a && (activeServer?.kind === "m3u8" || activeServer?.kind === "idn-auto")) {
       try { a.muted = muted; a.volume = volume; } catch {}
     }
   }, [muted, volume, activeServer?.kind]);
@@ -389,7 +389,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   useEffect(() => {
     const keepAlive = () => {
       const a = artRef.current;
-      if (a && activeServer?.kind === "m3u8") { try { if ((a as any).video?.paused) a.play(); } catch {} }
+      if (a && (activeServer?.kind === "m3u8" || activeServer?.kind === "idn-auto")) { try { if ((a as any).video?.paused) a.play(); } catch {} }
       if (activeServer?.kind === "youtube") sendYT("playVideo");
     };
     document.addEventListener("visibilitychange", keepAlive);
@@ -458,7 +458,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 e.stopPropagation();
                 setHasStarted(true);
                 setMuted(false);
-                if (artRef.current && activeServer?.kind === "m3u8") {
+                if (artRef.current && (activeServer?.kind === "m3u8" || activeServer?.kind === "idn-auto")) {
                   try { artRef.current.muted = false; artRef.current.play(); } catch {}
                 }
                 if (activeServer?.kind === "youtube") {
