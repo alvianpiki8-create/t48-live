@@ -33,12 +33,13 @@ const YT_QUALITY = [
   { label: "360p", value: "medium" },
 ];
 
-type ServerKind = "youtube" | "m3u8";
+type ServerKind = "youtube" | "m3u8" | "idn-auto";
 interface ServerOption {
   id: string;
   kind: ServerKind;
   src: string;
   label: string;
+  token?: string;
 }
 
 const isM3u8 = (url: string) => {
@@ -53,21 +54,18 @@ const isM3u8 = (url: string) => {
 const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): ServerOption[] => {
   const list: ServerOption[] = [];
   let ytCount = 0;
-  let m3uCount = 0;
 
   const addUrl = (raw: string) => {
     const url = (raw || "").trim();
     if (!url) return;
-    if (isM3u8(url)) {
-      m3uCount += 1;
-      list.push({ id: `idn-${list.length}`, kind: "m3u8", src: url, label: m3uCount > 1 ? `IDN ${m3uCount}` : "IDN" });
-    } else {
+    if (!isM3u8(url)) {
       const id = extractYouTubeVideoId(url);
       if (id) {
         ytCount += 1;
         list.push({ id: `yt-${list.length}`, kind: "youtube", src: id, label: ytCount > 1 ? `YouTube ${ytCount}` : "YouTube" });
       }
     }
+    // manual m3u8 URLs intentionally ignored — IDN server resolves automatically
   };
 
   const ytId = extractYouTubeVideoId((videoId || "").trim());
@@ -104,7 +102,41 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const artRef = useRef<Artplayer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const servers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
+  const baseServers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
+
+  // Auto-resolve IDN+ live stream via edge function (GiStream + CTV).
+  const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | null = null;
+    const resolve = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("idn-stream", { body: {} });
+        if (cancelled) return;
+        if (!error && data?.ok && data?.url) {
+          setIdnServer({
+            id: "idn-auto",
+            kind: "idn-auto",
+            src: data.url as string,
+            token: data.token as string,
+            label: "IDN",
+          });
+        } else {
+          setIdnServer(null);
+        }
+      } catch {
+        if (!cancelled) setIdnServer(null);
+      }
+    };
+    resolve();
+    timer = window.setInterval(resolve, 60_000);
+    return () => { cancelled = true; if (timer) window.clearInterval(timer); };
+  }, []);
+
+  const servers = useMemo<ServerOption[]>(
+    () => (idnServer ? [...baseServers, idnServer] : baseServers),
+    [baseServers, idnServer],
+  );
 
   useEffect(() => {
     if (!servers.length) { setActiveServerId(""); return; }
@@ -156,32 +188,33 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   // ArtPlayer for m3u8 server
   useEffect(() => {
-    if (!activeServer || activeServer.kind !== "m3u8" || !artContainerRef.current) {
+    if (!activeServer || (activeServer.kind !== "m3u8" && activeServer.kind !== "idn-auto") || !artContainerRef.current) {
       if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
       return;
     }
     let cancelled = false;
     const container = artContainerRef.current;
+    const apiToken = activeServer.token;
+    const isIdnAuto = activeServer.kind === "idn-auto";
 
     (async () => {
-      // IDN server: coba langsung. Kalau upstream tidak punya CORS header,
-      // browser akan menolak. Untuk URL yang dikenal butuh proxy
-      // (mis. Supabase edge functions tanpa CORS), fallback otomatis lewat m3u8-proxy.
       const rawUrl = activeServer.src;
       let playUrl = rawUrl;
 
-      // Probe CORS dengan fetch ringan; kalau gagal → pakai proxy.
-      try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3500);
-        const probe = await fetch(rawUrl, { method: "GET", mode: "cors", signal: ctrl.signal, cache: "no-store" });
-        clearTimeout(timer);
-        if (!probe.ok) throw new Error("probe-not-ok");
-      } catch {
+      // IDN auto stream: hit URL directly with token header — no proxy fallback.
+      if (!isIdnAuto) {
         try {
-          const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl } });
-          if (!error && data?.url) playUrl = data.url as string;
-        } catch {}
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 3500);
+          const probe = await fetch(rawUrl, { method: "GET", mode: "cors", signal: ctrl.signal, cache: "no-store" });
+          clearTimeout(timer);
+          if (!probe.ok) throw new Error("probe-not-ok");
+        } catch {
+          try {
+            const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl } });
+            if (!error && data?.url) playUrl = data.url as string;
+          } catch {}
+        }
       }
       if (cancelled) return;
 
@@ -249,6 +282,13 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 abrBandWidthFactor: 0.8,
                 abrBandWidthUpFactor: 0.7,
                 abrMaxWithRealBitrate: true,
+                ...(apiToken
+                  ? {
+                      xhrSetup: (xhr: XMLHttpRequest) => {
+                        try { xhr.setRequestHeader("x-api-token", apiToken); } catch {}
+                      },
+                    }
+                  : {}),
               });
               hls.loadSource(url);
               hls.attachMedia(video);
@@ -328,7 +368,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   // Sync mute/volume to artplayer
   useEffect(() => {
     const a = artRef.current;
-    if (a && activeServer?.kind === "m3u8") {
+    if (a && (activeServer?.kind === "m3u8" || activeServer?.kind === "idn-auto")) {
       try { a.muted = muted; a.volume = volume; } catch {}
     }
   }, [muted, volume, activeServer?.kind]);
@@ -349,7 +389,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   useEffect(() => {
     const keepAlive = () => {
       const a = artRef.current;
-      if (a && activeServer?.kind === "m3u8") { try { if ((a as any).video?.paused) a.play(); } catch {} }
+      if (a && (activeServer?.kind === "m3u8" || activeServer?.kind === "idn-auto")) { try { if ((a as any).video?.paused) a.play(); } catch {} }
       if (activeServer?.kind === "youtube") sendYT("playVideo");
     };
     document.addEventListener("visibilitychange", keepAlive);
@@ -418,7 +458,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 e.stopPropagation();
                 setHasStarted(true);
                 setMuted(false);
-                if (artRef.current && activeServer?.kind === "m3u8") {
+                if (artRef.current && (activeServer?.kind === "m3u8" || activeServer?.kind === "idn-auto")) {
                   try { artRef.current.muted = false; artRef.current.play(); } catch {}
                 }
                 if (activeServer?.kind === "youtube") {
