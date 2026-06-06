@@ -163,11 +163,14 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => {
     if (!servers.length) { setActiveServerId(""); return; }
-    if (!servers.some((s) => s.id === activeServerId)) {
-      // Prefer IDN auto-resolved stream when available (YouTube often geo/uploader-blocked)
-      const idn = servers.find((s) => s.kind === "idn-auto");
-      const yt = servers.find((s) => s.kind === "youtube");
+    const current = servers.find((s) => s.id === activeServerId);
+    const idn = servers.find((s) => s.kind === "idn-auto");
+    const yt = servers.find((s) => s.kind === "youtube");
+    if (!current) {
       setActiveServerId((idn || yt || servers[0]).id);
+    } else if (!userPickedRef.current && current.kind === "youtube" && idn) {
+      // YT was auto-picked first; IDN resolved later — swap to IDN.
+      setActiveServerId(idn.id);
     }
   }, [servers, activeServerId]);
 
