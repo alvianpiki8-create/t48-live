@@ -51,6 +51,8 @@ const isM3u8 = (url: string) => {
   return false;
 };
 
+const IDN_CACHE_KEY = "team-live-idn-proxy-v2";
+
 const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): ServerOption[] => {
   const list: ServerOption[] = [];
   let ytCount = 0;
@@ -115,6 +117,18 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
 
   useEffect(() => {
     let cancelled = false;
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(IDN_CACHE_KEY) || "null");
+      if (cached?.expiresAt > Date.now() && cached?.url) {
+        currentIdnSlugRef.current = cached.slug || "idn";
+        setIdnMasterUrl(cached.url);
+        setIdnQuality(cached.startupQuality || "360p");
+        setIdnQualities(cached.qualities || []);
+        const nextServer = { id: "idn-auto", kind: "idn-auto" as const, src: cached.url, label: "IDN" };
+        idnServerRef.current = nextServer;
+        setIdnServer(nextServer);
+      }
+    } catch {}
     const resolve = async () => {
       try {
         const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { action: "resolve-idn" } });
@@ -132,6 +146,15 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
         const nextServer = { id: "idn-auto", kind: "idn-auto" as const, src: data.url as string, label: "IDN" };
         idnServerRef.current = nextServer;
         setIdnServer(nextServer);
+        try {
+          sessionStorage.setItem(IDN_CACHE_KEY, JSON.stringify({
+            slug: data.slug,
+            url: data.url,
+            startupQuality: data.startupQuality,
+            qualities: (data.qualities || []).map((q: any) => ({ name: q.name, url: q.name === data.startupQuality ? data.url : q.url })),
+            expiresAt: Date.now() + 4 * 60_000,
+          }));
+        } catch {}
       } catch {
         if (!cancelled && !idnServerRef.current) setIdnServer(null);
       }
