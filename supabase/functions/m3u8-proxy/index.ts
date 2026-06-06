@@ -128,6 +128,64 @@ async function readToken(token: string): Promise<Payload | null> {
   } catch { return null; }
 }
 
+async function buildHMACHeaders(): Promise<Record<string, string>> {
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const bodyHash = await sha256Hex("{}");
+  const signature = await hmacSHA256Hex(PARTNER_SECRET, `${timestamp}:${nonce}:POST:${SIGNING_PATH}:${bodyHash}`);
+  return { "x-kid": PARTNER_KID, "x-timestamp": timestamp, "x-nonce": nonce, "x-signature": signature };
+}
+
+async function generateStreamToken(slugOrId: string, isSlug: boolean): Promise<string> {
+  const hh = await buildHMACHeaders();
+  const res = await fetch(`${TOKEN_API_BASE}${SIGNING_PATH}`, {
+    method: "POST",
+    headers: { ...hh, ...(isSlug ? { "x-slug": slugOrId } : { "x-showid": slugOrId }), "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const data = await res.json().catch(() => null);
+  if (!data?.status || !data?.data?.token) throw new Error(data?.message || "generate_token_failed");
+  return data.data.token;
+}
+
+async function getStreamURL(token: string, slugOrId: string, isSlug: boolean) {
+  const param = isSlug ? `slug=${encodeURIComponent(slugOrId)}` : `showId=${encodeURIComponent(slugOrId)}`;
+  const res = await fetch(`${CTV_BASE}/stream?${param}`, {
+    headers: { "x-api-token": token, ...(isSlug ? { "x-slug": slugOrId } : { "x-showid": slugOrId }) },
+  });
+  const data = await res.json();
+  if (!data?.success) throw new Error(data?.message || "stream_url_failed");
+  const streams = Array.isArray(data.streams) ? data.streams : [];
+  return {
+    url: streams[0]?.url || "",
+    qualities: streams.map((s: any, idx: number) => ({
+      index: idx,
+      name: s.NAME || `${String(s.RESOLUTION || "").split("x")[1] || "?"}p`,
+      bandwidth: Number.parseInt(s.BANDWIDTH) || 0,
+      resolution: s.RESOLUTION || "",
+      url: s.url || "",
+    })).filter((q: any) => q.url),
+  };
+}
+
+async function resolveIdnLive() {
+  const pick = (arr: any[]) => arr.find((s) => s?.status === "live" || s?.is_live) || arr[0];
+  let show: any = null;
+  try { show = pick((await (await fetch(IDN_API)).json())?.data || []); } catch {}
+  if (!show) {
+    const live = await (await fetch(LIVE_API)).json();
+    const arr = Array.isArray(live?.data) ? live.data : (Array.isArray(live) ? live : []);
+    show = arr.find((s) => (s.type === "idn" || s.platform === "idn") && (s.is_live || s.status === "live")) || arr[0];
+  }
+  const slugOrId = show?.slug || show?.identifier || show?.url_key || show?.showid || show?.show_id;
+  if (!slugOrId) return null;
+  const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
+  const token = await generateStreamToken(String(slugOrId), isSlug);
+  const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
+  if (!url) return null;
+  return { url, token, qualities, name: show?.name || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
+}
+
 // Rewrite m3u8 playlist so segments & sub-playlists go back through this proxy.
 // All HMAC signings run in parallel.
 async function rewritePlaylist(text: string, baseUrl: string, proxyOrigin: string, headers: Record<string, string>, fp: string): Promise<string> {
