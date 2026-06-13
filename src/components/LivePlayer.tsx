@@ -56,18 +56,21 @@ const IDN_CACHE_KEY = "team-live-idn-proxy-v2";
 const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): ServerOption[] => {
   const list: ServerOption[] = [];
   let ytCount = 0;
+  let rtmpCount = 0;
 
   const addUrl = (raw: string) => {
     const url = (raw || "").trim();
     if (!url) return;
-    if (!isM3u8(url)) {
+    if (isM3u8(url)) {
+      rtmpCount += 1;
+      list.push({ id: `rtmp-${list.length}`, kind: "m3u8", src: url, label: rtmpCount > 1 ? `RTMP ${rtmpCount}` : "RTMP" });
+    } else {
       const id = extractYouTubeVideoId(url);
       if (id) {
         ytCount += 1;
         list.push({ id: `yt-${list.length}`, kind: "youtube", src: id, label: ytCount > 1 ? `YouTube ${ytCount}` : "YouTube" });
       }
     }
-    // manual m3u8 URLs intentionally ignored — IDN server resolves automatically
   };
 
   const ytId = extractYouTubeVideoId((videoId || "").trim());
