@@ -107,6 +107,14 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
     setUploadingCatBg(false);
   };
 
+  const handleQrisUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingQris(true);
+    const url = await uploadFile(file);
+    if (url) setQrisUrl(url);
+    setUploadingQris(false);
+  };
+
   const handleSave = async () => {
     let countdown_datetime: string | null = null;
     if (countdownDate && countdownTime) {
