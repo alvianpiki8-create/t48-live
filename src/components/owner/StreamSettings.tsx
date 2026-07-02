@@ -30,9 +30,12 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
   const [logoUrl, setLogoUrl] = useState("");
   const [catalogBgUrl, setCatalogBgUrl] = useState("");
   const [catalogBgType, setCatalogBgType] = useState<"image" | "video">("image");
+  const [qrisUrl, setQrisUrl] = useState("");
+  const [paymentReminder, setPaymentReminder] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [uploadingCatBg, setUploadingCatBg] = useState(false);
+  const [uploadingQris, setUploadingQris] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
