@@ -54,6 +54,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       setLogoUrl(settings.logo_url || "");
       setCatalogBgUrl((settings as any).catalog_background_url || "");
       setCatalogBgType(((settings as any).catalog_background_type as "image" | "video") || "image");
+      setQrisUrl((settings as any).qris_image_url || "");
+      setPaymentReminder((settings as any).payment_reminder_text || "");
     }
   }, [settings]);
 
