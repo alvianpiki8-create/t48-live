@@ -617,7 +617,9 @@ export type Database = {
           lineup: Json | null
           logo_url: string | null
           membership_link: string | null
+          payment_reminder_text: string | null
           public_link_enabled: boolean
+          qris_image_url: string | null
           replay_password: string | null
           replay_url: string | null
           site_name: string | null
@@ -648,7 +650,9 @@ export type Database = {
           lineup?: Json | null
           logo_url?: string | null
           membership_link?: string | null
+          payment_reminder_text?: string | null
           public_link_enabled?: boolean
+          qris_image_url?: string | null
           replay_password?: string | null
           replay_url?: string | null
           site_name?: string | null
@@ -679,7 +683,9 @@ export type Database = {
           lineup?: Json | null
           logo_url?: string | null
           membership_link?: string | null
+          payment_reminder_text?: string | null
           public_link_enabled?: boolean
+          qris_image_url?: string | null
           replay_password?: string | null
           replay_url?: string | null
           site_name?: string | null
