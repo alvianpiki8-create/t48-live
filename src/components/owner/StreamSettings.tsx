@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload } from "lucide-react";
+import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StreamSettingsProps {
@@ -30,9 +30,12 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
   const [logoUrl, setLogoUrl] = useState("");
   const [catalogBgUrl, setCatalogBgUrl] = useState("");
   const [catalogBgType, setCatalogBgType] = useState<"image" | "video">("image");
+  const [qrisUrl, setQrisUrl] = useState("");
+  const [paymentReminder, setPaymentReminder] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [uploadingCatBg, setUploadingCatBg] = useState(false);
+  const [uploadingQris, setUploadingQris] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -51,6 +54,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       setLogoUrl(settings.logo_url || "");
       setCatalogBgUrl((settings as any).catalog_background_url || "");
       setCatalogBgType(((settings as any).catalog_background_type as "image" | "video") || "image");
+      setQrisUrl((settings as any).qris_image_url || "");
+      setPaymentReminder((settings as any).payment_reminder_text || "");
     }
   }, [settings]);
 
@@ -102,6 +107,14 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
     setUploadingCatBg(false);
   };
 
+  const handleQrisUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingQris(true);
+    const url = await uploadFile(file);
+    if (url) setQrisUrl(url);
+    setUploadingQris(false);
+  };
+
   const handleSave = async () => {
     let countdown_datetime: string | null = null;
     if (countdownDate && countdownTime) {
@@ -119,6 +132,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       logo_url: logoUrl,
       catalog_background_url: catalogBgUrl,
       catalog_background_type: catalogBgType,
+      qris_image_url: qrisUrl,
+      payment_reminder_text: paymentReminder,
       updated_at: new Date().toISOString(),
     };
     let error: any = null;
@@ -253,6 +268,31 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         <label className="text-sm text-muted-foreground mb-1 block">🔑 Sandi Replay</label>
         <input type="text" value={replayPassword} onChange={(e) => setReplayPassword(e.target.value)}
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+      </div>
+
+      {/* QRIS untuk setoran admin */}
+      <div className="border-t border-border pt-4 space-y-3">
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1">
+          <QrCode size={14} /> QRIS Setoran (tampil di panel admin)
+        </label>
+        <div className="flex items-center gap-3">
+          <div className="w-20 h-20 rounded-lg overflow-hidden bg-secondary flex items-center justify-center flex-shrink-0 border border-border">
+            {qrisUrl ? <img src={qrisUrl} alt="QRIS" className="w-full h-full object-contain" /> : <QrCode size={24} className="text-muted-foreground" />}
+          </div>
+          <label className="flex-1 cursor-pointer bg-secondary hover:bg-accent text-foreground text-sm text-center py-2 rounded-lg transition-colors">
+            {uploadingQris ? "Mengupload..." : "Upload QRIS"}
+            <input type="file" accept="image/*" className="hidden" onChange={handleQrisUpload} disabled={uploadingQris} />
+          </label>
+          {qrisUrl && (
+            <button type="button" onClick={() => setQrisUrl("")} className="text-xs text-destructive hover:underline">Hapus</button>
+          )}
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Pesan pengingat setoran (opsional)</label>
+          <textarea value={paymentReminder} onChange={(e) => setPaymentReminder(e.target.value)}
+            rows={2} placeholder="Contoh: Jangan lupa setor tiap 5 hari sekali ya!"
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
+        </div>
       </div>
 
       <button onClick={handleSave}
