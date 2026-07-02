@@ -132,6 +132,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       logo_url: logoUrl,
       catalog_background_url: catalogBgUrl,
       catalog_background_type: catalogBgType,
+      qris_image_url: qrisUrl,
+      payment_reminder_text: paymentReminder,
       updated_at: new Date().toISOString(),
     };
     let error: any = null;
