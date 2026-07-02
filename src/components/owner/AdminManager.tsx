@@ -35,7 +35,6 @@ const generateCode = () => {
 const AdminManager = () => {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [logs, setLogs] = useState<LinkLog[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [expandedAdmin, setExpandedAdmin] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
@@ -44,16 +43,12 @@ const AdminManager = () => {
   const [blockReason, setBlockReason] = useState("");
 
   const fetchAll = useCallback(async () => {
-    const [a, l, c] = await Promise.all([
+    const [a, l] = await Promise.all([
       supabase.from("admins").select("*").order("created_at", { ascending: false }),
-      supabase.from("admin_link_logs").select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("admin_link_logs").select("admin_id"),
+      supabase.from("admin_link_logs").select("*").order("created_at", { ascending: false }).limit(500),
     ]);
     setAdmins((a.data as any) || []);
     setLogs((l.data as any) || []);
-    const tally: Record<string, number> = {};
-    ((c.data as any[]) || []).forEach((r) => { tally[r.admin_id] = (tally[r.admin_id] || 0) + 1; });
-    setCounts(tally);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
