@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload } from "lucide-react";
+import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StreamSettingsProps {
