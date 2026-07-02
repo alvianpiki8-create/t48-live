@@ -270,7 +270,31 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
       </div>
 
-      <button onClick={handleSave}
+      {/* QRIS untuk setoran admin */}
+      <div className="border-t border-border pt-4 space-y-3">
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1">
+          <QrCode size={14} /> QRIS Setoran (tampil di panel admin)
+        </label>
+        <div className="flex items-center gap-3">
+          <div className="w-20 h-20 rounded-lg overflow-hidden bg-secondary flex items-center justify-center flex-shrink-0 border border-border">
+            {qrisUrl ? <img src={qrisUrl} alt="QRIS" className="w-full h-full object-contain" /> : <QrCode size={24} className="text-muted-foreground" />}
+          </div>
+          <label className="flex-1 cursor-pointer bg-secondary hover:bg-accent text-foreground text-sm text-center py-2 rounded-lg transition-colors">
+            {uploadingQris ? "Mengupload..." : "Upload QRIS"}
+            <input type="file" accept="image/*" className="hidden" onChange={handleQrisUpload} disabled={uploadingQris} />
+          </label>
+          {qrisUrl && (
+            <button type="button" onClick={() => setQrisUrl("")} className="text-xs text-destructive hover:underline">Hapus</button>
+          )}
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Pesan pengingat setoran (opsional)</label>
+          <textarea value={paymentReminder} onChange={(e) => setPaymentReminder(e.target.value)}
+            rows={2} placeholder="Contoh: Jangan lupa setor tiap 5 hari sekali ya!"
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
+        </div>
+      </div>
+
         className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 flex items-center justify-center gap-2">
         <Save size={16} /> {saved ? "Tersimpan ✓" : "Simpan Pengaturan Stream"}
       </button>
