@@ -295,6 +295,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         </div>
       </div>
 
+      <button onClick={handleSave}
         className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 flex items-center justify-center gap-2">
         <Save size={16} /> {saved ? "Tersimpan ✓" : "Simpan Pengaturan Stream"}
       </button>
