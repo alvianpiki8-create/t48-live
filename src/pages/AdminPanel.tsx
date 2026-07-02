@@ -289,9 +289,14 @@ const AdminPanel = () => {
             <p className="text-[10px] text-muted-foreground">Akses terbatas: pembuatan link saja</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive">
-          <LogOut size={14} /> Logout
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate("/live")} className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80" title="Tonton livestream">
+            <PlayCircle size={14} /> Live
+          </button>
+          <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive">
+            <LogOut size={14} /> Logout
+          </button>
+        </div>
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
