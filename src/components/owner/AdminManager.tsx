@@ -121,7 +121,8 @@ const AdminManager = () => {
         Mereka HANYA bisa membuat link akses (biasa & membership). Tidak bisa akses pengaturan lain.
       </p>
       <p className="text-[11px] text-amber-500/90 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
-        ⏱ Pantauan jumlah link admin akan otomatis di-reset menjadi 0 setiap 3 hari sekali.
+        ⏱ Pantauan jumlah link admin akan otomatis di-reset menjadi 0 setiap 5 hari sekali.
+        Harga: {formatIDR(PRICE_NORMAL)}/link biasa · {formatIDR(PRICE_MEMBERSHIP_WEEKLY)}/member mingguan · {formatIDR(PRICE_MEMBERSHIP_MONTHLY)}/member bulanan.
       </p>
 
       <div className="space-y-2 bg-secondary/20 p-3 rounded-lg">
