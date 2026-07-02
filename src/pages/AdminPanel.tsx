@@ -391,4 +391,135 @@ const AdminPanel = () => {
   );
 };
 
+interface RowCopyState { id: string; kind: "link" | "text" }
+
+const AdminLogsPanel = ({
+  logs, onRefresh, copyRow, rowCopy,
+}: {
+  logs: any[];
+  onRefresh: () => void;
+  copyRow: (l: any, k: "link" | "text") => void;
+  rowCopy: RowCopyState | null;
+}) => {
+  const groups = useMemo(() => {
+    const normal = logs.filter((l) => l.link_type !== "membership");
+    const membership = logs.filter((l) => l.link_type === "membership");
+    return [
+      { key: "normal" as const, title: "🎬 Show", items: normal },
+      { key: "membership" as const, title: "🎫 Membership", items: membership },
+    ];
+  }, [logs]);
+
+  const renderItem = (l: any) => (
+    <div key={l.id} className="text-[11px] bg-secondary/20 rounded px-2 py-1.5 space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="font-mono font-bold text-foreground">T4-{l.token_code}</div>
+          <div className="text-muted-foreground truncate">
+            {l.show_name || "—"} · {l.duration_days}hr {l.access_hour ? `· ${l.access_hour}` : ""}
+            <span className="text-primary font-semibold"> · {formatIDR(priceOf(l))}</span>
+          </div>
+        </div>
+        <div className="text-[9px] text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</div>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button onClick={() => copyRow(l, "link")} className="bg-secondary hover:bg-secondary/70 text-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
+          {rowCopy?.id === l.id && rowCopy.kind === "link" ? <><Check size={10} /> Tersalin</> : <><LinkIcon size={10} /> Link</>}
+        </button>
+        <button onClick={() => copyRow(l, "text")} className="bg-primary/80 hover:bg-primary text-primary-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
+          {rowCopy?.id === l.id && rowCopy.kind === "text" ? <><Check size={10} /> Tersalin</> : <><FileText size={10} /> Teks</>}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Link saya ({logs.length})</h2>
+        <button onClick={onRefresh} className="p-1 rounded hover:bg-secondary text-muted-foreground"><RefreshCw size={12} /></button>
+      </div>
+      {logs.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Belum ada link dibuat.</p>}
+      {groups.map((g) => (
+        g.items.length === 0 ? null : (
+          <div key={g.key} className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">{g.title} ({g.items.length})</p>
+            </div>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {g.items.map(renderItem)}
+            </div>
+          </div>
+        )
+      ))}
+    </div>
+  );
+};
+
+const QrisSetoranCard = ({
+  tally, settings,
+}: {
+  tally: ReturnType<typeof tallyLogs>;
+  settings: StreamSettings | null;
+}) => {
+  const qris = settings?.qris_image_url;
+  const reminder = settings?.payment_reminder_text || "Jangan lupa lakukan setoran ya! Terima kasih 🙏";
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <Wallet size={16} className="text-primary" />
+        <h2 className="text-sm font-semibold text-foreground">Setoran Saya</h2>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="bg-secondary/30 rounded-lg py-2">
+          <div className="text-[10px] text-muted-foreground">🎬 Show</div>
+          <div className="text-sm font-bold text-foreground">{tally.normal}</div>
+          <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_NORMAL)}</div>
+        </div>
+        <div className="bg-secondary/30 rounded-lg py-2">
+          <div className="text-[10px] text-muted-foreground">🎫 Mingguan</div>
+          <div className="text-sm font-bold text-foreground">{tally.weekly}</div>
+          <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_WEEKLY)}</div>
+        </div>
+        <div className="bg-secondary/30 rounded-lg py-2">
+          <div className="text-[10px] text-muted-foreground">🎫 Bulanan</div>
+          <div className="text-sm font-bold text-foreground">{tally.monthly}</div>
+          <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_MONTHLY)}</div>
+        </div>
+      </div>
+
+      <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 text-center space-y-0.5">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Setoran</div>
+        <div className="text-2xl font-black text-primary">{formatIDR(tally.amount)}</div>
+        <div className="text-[10px] text-muted-foreground">dari {tally.total} link yang diambil</div>
+      </div>
+
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <QrCode size={12} /> Scan QRIS untuk setoran
+        </div>
+        <div className="w-56 h-56 rounded-lg overflow-hidden bg-white flex items-center justify-center border-2 border-border">
+          {qris ? (
+            <img src={qris} alt="QRIS Setoran" className="w-full h-full object-contain" />
+          ) : (
+            <div className="text-center text-muted-foreground text-xs px-4">
+              <QrCode size={40} className="mx-auto mb-2 opacity-50" />
+              QRIS belum di-upload oleh owner
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400 text-center whitespace-pre-line">
+        ⚠ {reminder}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground text-center">
+        Perhitungan otomatis akan di-reset tiap 5 hari sekali.
+      </p>
+    </div>
+  );
+};
+
 export default AdminPanel;
