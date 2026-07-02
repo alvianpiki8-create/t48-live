@@ -22,6 +22,7 @@ interface LinkLog {
   token_code: string;
   show_name: string | null;
   duration_days: number | null;
+  access_hour: string | null;
   created_at: string;
 }
 
