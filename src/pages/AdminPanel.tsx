@@ -384,37 +384,8 @@ const AdminPanel = () => {
           )}
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Link saya ({myLogs.length})</h2>
-            <button onClick={fetchData} className="p-1 rounded hover:bg-secondary text-muted-foreground"><RefreshCw size={12} /></button>
-          </div>
-          <div className="space-y-1.5 max-h-80 overflow-y-auto">
-            {myLogs.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Belum ada link dibuat.</p>}
-            {myLogs.map((l) => (
-              <div key={l.id} className="text-[11px] bg-secondary/20 rounded px-2 py-1.5 space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-mono font-bold text-foreground">T4-{l.token_code}</div>
-                    <div className="text-muted-foreground truncate">
-                      {l.link_type === "membership" ? "🎫 " : "🎬 "}
-                      {l.show_name || "—"} · {l.duration_days}hr {l.access_hour ? `· ${l.access_hour}` : ""}
-                    </div>
-                  </div>
-                  <div className="text-[9px] text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button onClick={() => copyRow(l, "link")} className="bg-secondary hover:bg-secondary/70 text-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
-                    {rowCopy?.id === l.id && rowCopy.kind === "link" ? <><Check size={10} /> Tersalin</> : <><LinkIcon size={10} /> Link</>}
-                  </button>
-                  <button onClick={() => copyRow(l, "text")} className="bg-primary/80 hover:bg-primary text-primary-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
-                    {rowCopy?.id === l.id && rowCopy.kind === "text" ? <><Check size={10} /> Tersalin</> : <><FileText size={10} /> Teks</>}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <AdminLogsPanel logs={myLogs} onRefresh={fetchData} copyRow={copyRow} rowCopy={rowCopy} />
+        <QrisSetoranCard tally={tallyLogs(myLogs)} settings={streamSettings} />
       </main>
     </div>
   );
