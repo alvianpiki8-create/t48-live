@@ -18,7 +18,7 @@ const generateTokenCode = () => {
 
 interface Show { id: string; name: string; }
 interface Membership { id: string; name: string; type: string; }
-interface StreamSettings { backup_video_url?: string; replay_url?: string; replay_password?: string; }
+interface StreamSettings { backup_video_url?: string; replay_url?: string; replay_password?: string; qris_image_url?: string; payment_reminder_text?: string; }
 
 const buildShareText = (opts: {
   origin: string;
