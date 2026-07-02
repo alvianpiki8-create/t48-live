@@ -142,7 +142,10 @@ const AdminManager = () => {
 
       <div className="space-y-2">
         {admins.length === 0 && <p className="text-sm text-muted-foreground text-center py-3">Belum ada admin.</p>}
-        {admins.map((a) => (
+        {admins.map((a) => {
+          const own = logs.filter((l) => l.admin_id === a.id);
+          const t = tallyLogs(own);
+          return (
           <div key={a.id} className={`border rounded-lg p-3 space-y-2 ${a.is_blocked ? "border-destructive/30 bg-destructive/5" : "border-border bg-secondary/10"}`}>
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
@@ -151,10 +154,14 @@ const AdminManager = () => {
                   {a.is_blocked && <span className="text-[9px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded font-bold">DIBLOKIR</span>}
                   <span className="text-[10px] font-mono bg-accent text-muted-foreground px-1.5 py-0.5 rounded">#{a.code}</span>
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-0.5"><Activity size={10} /> {counts[a.id] || 0} link dibuat</span>
-                  {a.last_login_at && <span>· Login: {new Date(a.last_login_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>}
+                <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-0.5"><Activity size={10} /> {t.total} link</span>
+                  <span className="bg-secondary px-1.5 py-0.5 rounded">🎬 Show: {t.normal}</span>
+                  <span className="bg-secondary px-1.5 py-0.5 rounded">🎫 Mingguan: {t.weekly}</span>
+                  <span className="bg-secondary px-1.5 py-0.5 rounded">🎫 Bulanan: {t.monthly}</span>
+                  <span className="inline-flex items-center gap-0.5 bg-primary/15 text-primary font-semibold px-1.5 py-0.5 rounded"><Wallet size={10} /> {formatIDR(t.amount)}</span>
                 </div>
+                {a.last_login_at && <div className="text-[10px] text-muted-foreground mt-0.5">Login: {new Date(a.last_login_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</div>}
                 {a.blocked_reason && <div className="text-[10px] text-destructive mt-1">⚠ {a.blocked_reason}</div>}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -191,34 +198,44 @@ const AdminManager = () => {
                 </button>
               </div>
             )}
-            {expandedAdmin === a.id && (() => {
-              const own = logs.filter((l) => l.admin_id === a.id);
-              return (
-                <div className="border-t border-border/50 pt-2 mt-1 space-y-1 max-h-56 overflow-y-auto">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                    Link diambil ({own.length}) — auto reset tiap 3 hari
-                  </p>
-                  {own.length === 0 && <p className="text-[11px] text-muted-foreground italic">Belum ambil link.</p>}
-                  {own.map((l) => (
-                    <div key={l.id} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 bg-secondary/20 rounded group/log">
-                      <div className="min-w-0 flex-1 truncate">
-                        <span className="font-mono font-bold text-primary">T4-{l.token_code}</span>
-                        <span className="text-muted-foreground"> · {l.link_type === "membership" ? "🎫" : "🎬"} {l.show_name || "—"}</span>
-                        {l.duration_days && <span className="text-muted-foreground"> · {l.duration_days}h</span>}
-                      </div>
-                      <span className="text-[9px] text-muted-foreground flex-shrink-0">
-                        {new Date(l.created_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
-                      </span>
-                      <button onClick={() => handleDeleteLog(l.id)} className="opacity-0 group-hover/log:opacity-100 p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-opacity" title="Hapus log">
-                        <X size={10} />
-                      </button>
+            {expandedAdmin === a.id && (
+              <div className="border-t border-border/50 pt-2 mt-1 space-y-2 max-h-72 overflow-y-auto">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                  Link diambil ({own.length}) — auto reset tiap 5 hari
+                </p>
+                {(["normal", "membership"] as const).map((group) => {
+                  const items = own.filter((l) => group === "membership" ? l.link_type === "membership" : l.link_type !== "membership");
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={group} className="space-y-1">
+                      <p className="text-[10px] font-semibold text-foreground">
+                        {group === "membership" ? "🎫 Membership" : "🎬 Show"} ({items.length})
+                      </p>
+                      {items.map((l) => (
+                        <div key={l.id} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 bg-secondary/20 rounded group/log">
+                          <div className="min-w-0 flex-1 truncate">
+                            <span className="font-mono font-bold text-primary">T4-{l.token_code}</span>
+                            <span className="text-muted-foreground"> · {l.show_name || "—"}</span>
+                            {l.duration_days && <span className="text-muted-foreground"> · {l.duration_days}h</span>}
+                            <span className="text-primary font-semibold"> · {formatIDR(priceOf(l))}</span>
+                          </div>
+                          <span className="text-[9px] text-muted-foreground flex-shrink-0">
+                            {new Date(l.created_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                          </span>
+                          <button onClick={() => handleDeleteLog(l.id)} className="opacity-0 group-hover/log:opacity-100 p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-opacity" title="Hapus log">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              );
-            })()}
+                  );
+                })}
+                {own.length === 0 && <p className="text-[11px] text-muted-foreground italic">Belum ambil link.</p>}
+              </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Live activity feed */}
