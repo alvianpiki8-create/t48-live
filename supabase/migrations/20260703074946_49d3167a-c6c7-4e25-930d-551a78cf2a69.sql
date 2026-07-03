@@ -1,0 +1,1 @@
+UPDATE public.stream_settings SET qris_image_url = 'https://vtccweeokudkelzaoudl.supabase.co/storage/v1/object/public/catalog-images/qris%2Fsetoran-qris.jpeg' WHERE qris_image_url IS NULL OR qris_image_url = '';
