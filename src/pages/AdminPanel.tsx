@@ -175,6 +175,40 @@ const AdminPanel = () => {
 
   const handleLogout = () => { sessionStorage.removeItem(STORAGE_KEY); setSession(null); };
 
+  const [openingLive, setOpeningLive] = useState(false);
+  const handleOpenLive = async () => {
+    if (!session || openingLive) return;
+    setOpeningLive(true);
+    try {
+      const cacheKey = `teamlive_admin_watch_${session.id}`;
+      // Try cached private token
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const { code, exp } = JSON.parse(cached);
+        if (code && exp && exp > Date.now()) {
+          navigate(`/watch/${code}`);
+          return;
+        }
+      }
+      // Provision a NEW private admin token (not logged as setoran)
+      const token_code = generateTokenCode();
+      const days = 30;
+      const { error } = await supabase.from("access_tokens").insert({
+        token_code,
+        show_name: `🔒 Admin · ${session.name}`,
+        duration_days: days,
+      } as any);
+      if (error) { alert("Gagal membuat akses: " + error.message); return; }
+      localStorage.setItem(cacheKey, JSON.stringify({
+        code: token_code,
+        exp: Date.now() + days * 24 * 60 * 60 * 1000 - 60 * 60 * 1000,
+      }));
+      navigate(`/watch/${token_code}`);
+    } finally {
+      setOpeningLive(false);
+    }
+  };
+
   const finalizeGenerated = (token_code: string, showName: string | null, accessHour: string | null) => {
     const link = `${window.location.origin}/watch/${token_code}`;
     const text = buildShareText({
