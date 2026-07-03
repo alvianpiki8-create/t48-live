@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle } from "lucide-react";
+import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY } from "@/lib/adminPricing";
 
@@ -175,6 +175,40 @@ const AdminPanel = () => {
 
   const handleLogout = () => { sessionStorage.removeItem(STORAGE_KEY); setSession(null); };
 
+  const [openingLive, setOpeningLive] = useState(false);
+  const handleOpenLive = async () => {
+    if (!session || openingLive) return;
+    setOpeningLive(true);
+    try {
+      const cacheKey = `teamlive_admin_watch_${session.id}`;
+      // Try cached private token
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const { code, exp } = JSON.parse(cached);
+        if (code && exp && exp > Date.now()) {
+          navigate(`/watch/${code}`);
+          return;
+        }
+      }
+      // Provision a NEW private admin token (not logged as setoran)
+      const token_code = generateTokenCode();
+      const days = 30;
+      const { error } = await supabase.from("access_tokens").insert({
+        token_code,
+        show_name: `🔒 Admin · ${session.name}`,
+        duration_days: days,
+      } as any);
+      if (error) { alert("Gagal membuat akses: " + error.message); return; }
+      localStorage.setItem(cacheKey, JSON.stringify({
+        code: token_code,
+        exp: Date.now() + days * 24 * 60 * 60 * 1000 - 60 * 60 * 1000,
+      }));
+      navigate(`/watch/${token_code}`);
+    } finally {
+      setOpeningLive(false);
+    }
+  };
+
   const finalizeGenerated = (token_code: string, showName: string | null, accessHour: string | null) => {
     const link = `${window.location.origin}/watch/${token_code}`;
     const text = buildShareText({
@@ -290,8 +324,8 @@ const AdminPanel = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/live")} className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80" title="Tonton livestream">
-            <PlayCircle size={14} /> Live
+          <button onClick={handleOpenLive} disabled={openingLive} className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80 disabled:opacity-50" title="Tonton livestream (akses pribadi admin)">
+            {openingLive ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />} {openingLive ? "Menyiapkan..." : "Live"}
           </button>
           <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive">
             <LogOut size={14} /> Logout
