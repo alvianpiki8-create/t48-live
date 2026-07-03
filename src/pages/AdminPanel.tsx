@@ -324,8 +324,8 @@ const AdminPanel = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/live")} className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80" title="Tonton livestream">
-            <PlayCircle size={14} /> Live
+          <button onClick={handleOpenLive} disabled={openingLive} className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80 disabled:opacity-50" title="Tonton livestream (akses pribadi admin)">
+            {openingLive ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />} {openingLive ? "Menyiapkan..." : "Live"}
           </button>
           <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive">
             <LogOut size={14} /> Logout
