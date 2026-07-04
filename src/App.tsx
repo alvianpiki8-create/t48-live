@@ -13,6 +13,7 @@ import AuthPage from "./pages/AuthPage.tsx";
 import CatalogPage from "./pages/CatalogPage.tsx";
 import TopUpPage from "./pages/TopUpPage.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
+import ReplayPage from "./pages/ReplayPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
