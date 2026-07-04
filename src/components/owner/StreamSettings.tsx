@@ -47,7 +47,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         setCountdownTime(dt.toTimeString().slice(0, 5));
       }
       setBackupUrl(settings.backup_video_url || "");
-      setReplayUrl(settings.replay_url || "t48.lovable.app/replay");
+      setReplayUrl(settings.replay_url || "t48-live.lovable.app/replay");
+      setReplayYoutubeUrl((settings as any).replay_youtube_url || "");
       setReplayPassword(settings.replay_password || "");
       setCountdownBackground(settings.countdown_background || "");
       setStreamSourceUrl(settings.stream_source_url || "");
