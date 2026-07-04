@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2 } from "lucide-react";
+import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2, Film, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY } from "@/lib/adminPricing";
+import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, filterLogsSince } from "@/lib/adminPricing";
 
 const STORAGE_KEY = "teamlive_admin_session";
 const DURATION_OPTIONS = [1, 7, 15, 20, 30, 60];
