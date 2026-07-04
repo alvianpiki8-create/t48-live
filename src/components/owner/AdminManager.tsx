@@ -12,6 +12,7 @@ interface Admin {
   blocked_at: string | null;
   last_login_at: string | null;
   created_at: string;
+  payment_reset_at?: string | null;
 }
 
 interface LinkLog {
