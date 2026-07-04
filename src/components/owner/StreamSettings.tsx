@@ -126,6 +126,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       countdown_datetime,
       backup_video_url: backupUrl,
       replay_url: replayUrl,
+      replay_youtube_url: replayYoutubeUrl,
       replay_password: replayPassword,
       countdown_background: countdownBackground,
       stream_source_url: streamSourceUrl,
