@@ -94,6 +94,7 @@ const AdminPanel = () => {
   const [shows, setShows] = useState<Show[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [myLogs, setMyLogs] = useState<any[]>([]);
+  const [paymentResetAt, setPaymentResetAt] = useState<string | null>(null);
   const [streamSettings, setStreamSettings] = useState<StreamSettings | null>(null);
 
   const [tabKind, setTabKind] = useState<"normal" | "membership">("normal");
