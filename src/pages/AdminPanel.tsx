@@ -497,13 +497,34 @@ const AdminLogsPanel = ({
 };
 
 const QrisSetoranCard = ({
-  tally, settings,
+  logs, paymentResetAt, adminId, settings,
 }: {
-  tally: ReturnType<typeof tallyLogs>;
+  logs: any[];
+  paymentResetAt: string | null;
+  adminId: string;
   settings: StreamSettings | null;
 }) => {
+  const billable = useMemo(() => filterLogsSince(logs, paymentResetAt), [logs, paymentResetAt]);
+  const tally = useMemo(() => tallyLogs(billable), [billable]);
+  const [confirming, setConfirming] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [justPaid, setJustPaid] = useState(false);
+
   const qris = settings?.qris_image_url;
   const reminder = settings?.payment_reminder_text || "Jangan lupa lakukan setoran ya! Terima kasih 🙏";
+
+  const handleConfirmPayment = async () => {
+    setSubmitting(true);
+    const { error } = await supabase.from("admins")
+      .update({ payment_reset_at: new Date().toISOString() } as any)
+      .eq("id", adminId);
+    setSubmitting(false);
+    if (error) { alert("Gagal: " + error.message); return; }
+    setConfirming(false);
+    setJustPaid(true);
+    setTimeout(() => setJustPaid(false), 2500);
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
       <div className="flex items-center gap-2">
@@ -530,9 +551,14 @@ const QrisSetoranCard = ({
       </div>
 
       <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 text-center space-y-0.5">
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Setoran</div>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Belum Dibayar</div>
         <div className="text-2xl font-black text-primary">{formatIDR(tally.amount)}</div>
-        <div className="text-[10px] text-muted-foreground">dari {tally.total} link yang diambil</div>
+        <div className="text-[10px] text-muted-foreground">dari {tally.total} link ({logs.length} total history)</div>
+        {paymentResetAt && (
+          <div className="text-[10px] text-green-600 dark:text-green-400 pt-1">
+            ✓ Setoran terakhir: {new Date(paymentResetAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col items-center gap-2">
@@ -551,12 +577,41 @@ const QrisSetoranCard = ({
         </div>
       </div>
 
+      {/* Cek Pembayaran */}
+      {justPaid ? (
+        <div className="bg-green-500/15 border border-green-500/40 rounded-lg p-3 text-center text-sm font-semibold text-green-600 dark:text-green-400 flex items-center justify-center gap-2">
+          <CheckCircle2 size={18} /> Pembayaran dikonfirmasi. Total setoran direset.
+        </div>
+      ) : confirming ? (
+        <div className="space-y-2 bg-secondary/30 border border-border rounded-lg p-3">
+          <p className="text-xs text-foreground text-center">
+            Sudah setor <span className="font-bold text-primary">{formatIDR(tally.amount)}</span>? History link tetap tersimpan.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setConfirming(false)} disabled={submitting}
+              className="bg-secondary text-foreground py-2 rounded-lg text-xs font-semibold hover:bg-secondary/70 disabled:opacity-50">
+              Batal
+            </button>
+            <button onClick={handleConfirmPayment} disabled={submitting}
+              className="bg-green-600 text-white py-2 rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1">
+              {submitting ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+              {submitting ? "Menyimpan..." : "Ya, sudah setor"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setConfirming(true)} disabled={tally.total === 0}
+          className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2">
+          <CheckCircle2 size={14} /> Cek Pembayaran (Reset Total)
+        </button>
+      )}
+
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400 text-center whitespace-pre-line">
         ⚠ {reminder}
       </div>
 
       <p className="text-[10px] text-muted-foreground text-center">
-        Perhitungan otomatis akan di-reset tiap 5 hari sekali.
+        Klik "Cek Pembayaran" setelah menyetor. Total akan direset ke 0 tapi history link tetap ada.
       </p>
     </div>
   );
