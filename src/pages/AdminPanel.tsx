@@ -114,7 +114,7 @@ const AdminPanel = () => {
   useEffect(() => {
     if (!session) return;
     const check = async () => {
-      const { data } = await supabase.from("admins").select("is_blocked, blocked_reason").eq("id", session.id).maybeSingle();
+      const { data } = await supabase.from("admins").select("is_blocked, blocked_reason, payment_reset_at" as any).eq("id", session.id).maybeSingle();
       if (!data) {
         sessionStorage.removeItem(STORAGE_KEY); setSession(null);
         setLoginErr("Akun admin sudah dihapus oleh owner");
@@ -123,7 +123,9 @@ const AdminPanel = () => {
       if ((data as any).is_blocked) {
         sessionStorage.removeItem(STORAGE_KEY); setSession(null);
         setLoginErr((data as any).blocked_reason || "Akses Anda telah ditutup oleh owner");
+        return;
       }
+      setPaymentResetAt((data as any).payment_reset_at || null);
     };
     check();
     const ch = supabase.channel(`admin_self_${session.id}`)
