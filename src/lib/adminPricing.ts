@@ -8,7 +8,15 @@ export type LinkKind = "normal" | "membership_weekly" | "membership_monthly";
 export interface AdminLogLike {
   link_type?: string | null;
   duration_days?: number | null;
+  created_at?: string | null;
 }
+
+export const filterLogsSince = <T extends AdminLogLike>(logs: T[], sinceIso?: string | null): T[] => {
+  if (!sinceIso) return logs;
+  const t = new Date(sinceIso).getTime();
+  if (Number.isNaN(t)) return logs;
+  return logs.filter((l) => (l.created_at ? new Date(l.created_at).getTime() > t : true));
+};
 
 export const classifyLog = (l: AdminLogLike): LinkKind => {
   if (l.link_type === "membership") {
