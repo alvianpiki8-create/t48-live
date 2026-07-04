@@ -238,9 +238,19 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       </div>
 
       <div>
-        <label className="text-sm text-muted-foreground mb-1 block">Link Replay</label>
+        <label className="text-sm text-muted-foreground mb-1 block">Link Halaman Replay (dibagikan ke penonton)</label>
         <input type="text" value={replayUrl} onChange={(e) => setReplayUrl(e.target.value)}
+          placeholder="t48-live.lovable.app/replay"
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        <p className="text-[11px] text-muted-foreground mt-1">Alamat halaman replay baru. Penonton buka lalu masukkan token di bawah.</p>
+      </div>
+
+      <div>
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1"><Film size={12} /> Link YouTube untuk Replay</label>
+        <input type="text" value={replayYoutubeUrl} onChange={(e) => setReplayYoutubeUrl(e.target.value)}
+          placeholder="https://youtu.be/... atau Video ID"
+          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        <p className="text-[11px] text-muted-foreground mt-1">Video ini yang akan diputar di halaman /replay setelah token benar.</p>
       </div>
 
       {/* Catalog Background — image or video */}
