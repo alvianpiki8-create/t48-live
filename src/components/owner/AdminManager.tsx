@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity, ChevronDown, ChevronRight, Eraser, X, Wallet } from "lucide-react";
-import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY } from "@/lib/adminPricing";
+import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity, ChevronDown, ChevronRight, Eraser, X, Wallet, RotateCcw } from "lucide-react";
+import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, filterLogsSince } from "@/lib/adminPricing";
 
 interface Admin {
   id: string;
@@ -12,6 +12,7 @@ interface Admin {
   blocked_at: string | null;
   last_login_at: string | null;
   created_at: string;
+  payment_reset_at?: string | null;
 }
 
 interface LinkLog {
@@ -99,6 +100,11 @@ const AdminManager = () => {
     await supabase.from("admin_link_logs").delete().eq("id", logId);
   };
 
+  const handleResetPayment = async (id: string, name: string) => {
+    if (!confirm(`Reset total setoran untuk "${name}" ke 0?\n\nHistory link tidak akan terhapus.`)) return;
+    await supabase.from("admins").update({ payment_reset_at: new Date().toISOString() } as any).eq("id", id);
+  };
+
   const handleClearAllLogs = async () => {
     if (!confirm("Hapus SEMUA history pengambilan link dari semua admin?")) return;
     await supabase.from("admin_link_logs").delete().gte("created_at", "1900-01-01");
@@ -144,7 +150,8 @@ const AdminManager = () => {
         {admins.length === 0 && <p className="text-sm text-muted-foreground text-center py-3">Belum ada admin.</p>}
         {admins.map((a) => {
           const own = logs.filter((l) => l.admin_id === a.id);
-          const t = tallyLogs(own);
+          const billable = filterLogsSince(own, a.payment_reset_at);
+          const t = tallyLogs(billable);
           return (
           <div key={a.id} className={`border rounded-lg p-3 space-y-2 ${a.is_blocked ? "border-destructive/30 bg-destructive/5" : "border-border bg-secondary/10"}`}>
             <div className="flex items-center justify-between gap-2">
@@ -155,12 +162,14 @@ const AdminManager = () => {
                   <span className="text-[10px] font-mono bg-accent text-muted-foreground px-1.5 py-0.5 rounded">#{a.code}</span>
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-0.5"><Activity size={10} /> {t.total} link</span>
+                  <span className="inline-flex items-center gap-0.5"><Activity size={10} /> {t.total} link (belum lunas)</span>
                   <span className="bg-secondary px-1.5 py-0.5 rounded">🎬 Show: {t.normal}</span>
                   <span className="bg-secondary px-1.5 py-0.5 rounded">🎫 Mingguan: {t.weekly}</span>
                   <span className="bg-secondary px-1.5 py-0.5 rounded">🎫 Bulanan: {t.monthly}</span>
                   <span className="inline-flex items-center gap-0.5 bg-primary/15 text-primary font-semibold px-1.5 py-0.5 rounded"><Wallet size={10} /> {formatIDR(t.amount)}</span>
+                  <span className="text-[9px] text-muted-foreground">Total history: {own.length}</span>
                 </div>
+                {a.payment_reset_at && <div className="text-[10px] text-green-600 dark:text-green-400 mt-0.5">✓ Setoran terakhir dicek: {new Date(a.payment_reset_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</div>}
                 {a.last_login_at && <div className="text-[10px] text-muted-foreground mt-0.5">Login: {new Date(a.last_login_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</div>}
                 {a.blocked_reason && <div className="text-[10px] text-destructive mt-1">⚠ {a.blocked_reason}</div>}
               </div>
@@ -171,6 +180,9 @@ const AdminManager = () => {
                   title="Lihat link yang diambil"
                 >
                   {expandedAdmin === a.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+                <button onClick={() => handleResetPayment(a.id, a.name)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-green-500" title="Reset total setoran (tandai sudah bayar)">
+                  <RotateCcw size={14} />
                 </button>
                 <button onClick={() => handleClearAdminLogs(a.id, a.name)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-amber-500" title="Hapus history link admin ini">
                   <Eraser size={14} />

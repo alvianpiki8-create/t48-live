@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload, QrCode } from "lucide-react";
+import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload, QrCode, Film, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StreamSettingsProps {
@@ -23,6 +23,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
   const [countdownTime, setCountdownTime] = useState("");
   const [backupUrl, setBackupUrl] = useState("");
   const [replayUrl, setReplayUrl] = useState("");
+  const [replayYoutubeUrl, setReplayYoutubeUrl] = useState("");
   const [replayPassword, setReplayPassword] = useState("");
   const [countdownBackground, setCountdownBackground] = useState("");
   const [streamSourceUrl, setStreamSourceUrl] = useState("");
@@ -46,7 +47,8 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         setCountdownTime(dt.toTimeString().slice(0, 5));
       }
       setBackupUrl(settings.backup_video_url || "");
-      setReplayUrl(settings.replay_url || "t48.lovable.app/replay");
+      setReplayUrl(settings.replay_url || "t48-live.lovable.app/replay");
+      setReplayYoutubeUrl((settings as any).replay_youtube_url || "");
       setReplayPassword(settings.replay_password || "");
       setCountdownBackground(settings.countdown_background || "");
       setStreamSourceUrl(settings.stream_source_url || "");
@@ -124,6 +126,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       countdown_datetime,
       backup_video_url: backupUrl,
       replay_url: replayUrl,
+      replay_youtube_url: replayYoutubeUrl,
       replay_password: replayPassword,
       countdown_background: countdownBackground,
       stream_source_url: streamSourceUrl,
@@ -235,9 +238,19 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       </div>
 
       <div>
-        <label className="text-sm text-muted-foreground mb-1 block">Link Replay</label>
+        <label className="text-sm text-muted-foreground mb-1 block">Link Halaman Replay (dibagikan ke penonton)</label>
         <input type="text" value={replayUrl} onChange={(e) => setReplayUrl(e.target.value)}
+          placeholder="t48-live.lovable.app/replay"
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        <p className="text-[11px] text-muted-foreground mt-1">Alamat halaman replay baru. Penonton buka lalu masukkan token di bawah.</p>
+      </div>
+
+      <div>
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1"><Film size={12} /> Link YouTube untuk Replay</label>
+        <input type="text" value={replayYoutubeUrl} onChange={(e) => setReplayYoutubeUrl(e.target.value)}
+          placeholder="https://youtu.be/... atau Video ID"
+          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        <p className="text-[11px] text-muted-foreground mt-1">Video ini yang akan diputar di halaman /replay setelah token benar.</p>
       </div>
 
       {/* Catalog Background — image or video */}
@@ -265,9 +278,11 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       </div>
 
       <div>
-        <label className="text-sm text-muted-foreground mb-1 block">🔑 Sandi Replay</label>
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1"><KeyRound size={12} /> Token Replay (dipakai penonton untuk buka halaman /replay)</label>
         <input type="text" value={replayPassword} onChange={(e) => setReplayPassword(e.target.value)}
+          placeholder="Contoh: t48live"
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        <p className="text-[11px] text-muted-foreground mt-1">Ubah kapan saja. Perubahan langsung dipakai halaman replay secara realtime.</p>
       </div>
 
       {/* QRIS untuk setoran admin */}
