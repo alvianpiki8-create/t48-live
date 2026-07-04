@@ -100,6 +100,11 @@ const AdminManager = () => {
     await supabase.from("admin_link_logs").delete().eq("id", logId);
   };
 
+  const handleResetPayment = async (id: string, name: string) => {
+    if (!confirm(`Reset total setoran untuk "${name}" ke 0?\n\nHistory link tidak akan terhapus.`)) return;
+    await supabase.from("admins").update({ payment_reset_at: new Date().toISOString() } as any).eq("id", id);
+  };
+
   const handleClearAllLogs = async () => {
     if (!confirm("Hapus SEMUA history pengambilan link dari semua admin?")) return;
     await supabase.from("admin_link_logs").delete().gte("created_at", "1900-01-01");
