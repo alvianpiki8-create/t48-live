@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity, ChevronDown, ChevronRight, Eraser, X, Wallet } from "lucide-react";
-import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY } from "@/lib/adminPricing";
+import { ShieldAlert, Plus, Trash2, Ban, Check, RefreshCw, Activity, ChevronDown, ChevronRight, Eraser, X, Wallet, RotateCcw } from "lucide-react";
+import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, filterLogsSince } from "@/lib/adminPricing";
 
 interface Admin {
   id: string;
