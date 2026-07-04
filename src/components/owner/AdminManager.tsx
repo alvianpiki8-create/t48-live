@@ -181,6 +181,9 @@ const AdminManager = () => {
                 >
                   {expandedAdmin === a.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
+                <button onClick={() => handleResetPayment(a.id, a.name)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-green-500" title="Reset total setoran (tandai sudah bayar)">
+                  <RotateCcw size={14} />
+                </button>
                 <button onClick={() => handleClearAdminLogs(a.id, a.name)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-amber-500" title="Hapus history link admin ini">
                   <Eraser size={14} />
                 </button>
