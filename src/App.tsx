@@ -37,6 +37,7 @@ const App = () => (
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/topup" element={<TopUpPage />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/replay" element={<ReplayPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
