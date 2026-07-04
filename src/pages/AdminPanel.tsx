@@ -327,6 +327,9 @@ const AdminPanel = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => navigate("/replay")} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary" title="Buka halaman replay">
+            <Film size={14} /> Replay
+          </button>
           <button onClick={handleOpenLive} disabled={openingLive} className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80 disabled:opacity-50" title="Tonton livestream (akses pribadi admin)">
             {openingLive ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />} {openingLive ? "Menyiapkan..." : "Live"}
           </button>
