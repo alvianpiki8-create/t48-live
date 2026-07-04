@@ -23,6 +23,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
   const [countdownTime, setCountdownTime] = useState("");
   const [backupUrl, setBackupUrl] = useState("");
   const [replayUrl, setReplayUrl] = useState("");
+  const [replayYoutubeUrl, setReplayYoutubeUrl] = useState("");
   const [replayPassword, setReplayPassword] = useState("");
   const [countdownBackground, setCountdownBackground] = useState("");
   const [streamSourceUrl, setStreamSourceUrl] = useState("");
