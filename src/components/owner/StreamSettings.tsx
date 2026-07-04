@@ -278,9 +278,11 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       </div>
 
       <div>
-        <label className="text-sm text-muted-foreground mb-1 block">🔑 Sandi Replay</label>
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1"><KeyRound size={12} /> Token Replay (dipakai penonton untuk buka halaman /replay)</label>
         <input type="text" value={replayPassword} onChange={(e) => setReplayPassword(e.target.value)}
+          placeholder="Contoh: t48live"
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        <p className="text-[11px] text-muted-foreground mt-1">Ubah kapan saja. Perubahan langsung dipakai halaman replay secara realtime.</p>
       </div>
 
       {/* QRIS untuk setoran admin */}
