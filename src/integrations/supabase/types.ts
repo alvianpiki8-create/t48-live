@@ -119,6 +119,7 @@ export type Database = {
           is_blocked: boolean
           last_login_at: string | null
           name: string
+          payment_reset_at: string | null
         }
         Insert: {
           blocked_at?: string | null
@@ -129,6 +130,7 @@ export type Database = {
           is_blocked?: boolean
           last_login_at?: string | null
           name: string
+          payment_reset_at?: string | null
         }
         Update: {
           blocked_at?: string | null
@@ -139,6 +141,7 @@ export type Database = {
           is_blocked?: boolean
           last_login_at?: string | null
           name?: string
+          payment_reset_at?: string | null
         }
         Relationships: []
       }
@@ -622,6 +625,7 @@ export type Database = {
           qris_image_url: string | null
           replay_password: string | null
           replay_url: string | null
+          replay_youtube_url: string | null
           site_name: string | null
           stream_source_type: string | null
           stream_source_url: string | null
@@ -655,6 +659,7 @@ export type Database = {
           qris_image_url?: string | null
           replay_password?: string | null
           replay_url?: string | null
+          replay_youtube_url?: string | null
           site_name?: string | null
           stream_source_type?: string | null
           stream_source_url?: string | null
@@ -688,6 +693,7 @@ export type Database = {
           qris_image_url?: string | null
           replay_password?: string | null
           replay_url?: string | null
+          replay_youtube_url?: string | null
           site_name?: string | null
           stream_source_type?: string | null
           stream_source_url?: string | null
