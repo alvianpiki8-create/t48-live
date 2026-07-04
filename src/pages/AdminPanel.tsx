@@ -425,7 +425,7 @@ const AdminPanel = () => {
         </div>
 
         <AdminLogsPanel logs={myLogs} onRefresh={fetchData} copyRow={copyRow} rowCopy={rowCopy} />
-        <QrisSetoranCard tally={tallyLogs(myLogs)} settings={streamSettings} />
+        <QrisSetoranCard logs={myLogs} paymentResetAt={paymentResetAt} adminId={session.id} settings={streamSettings} />
       </main>
     </div>
   );
