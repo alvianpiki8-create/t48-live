@@ -1,0 +1,1 @@
+ALTER TABLE public.replay_schedules ADD COLUMN IF NOT EXISTS youtube_url TEXT;

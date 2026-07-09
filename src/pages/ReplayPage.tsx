@@ -4,61 +4,78 @@ import { KeyRound, ArrowLeft, Film, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
-const UNLOCK_KEY = "teamlive_replay_unlocked";
+const UNLOCK_KEY = "teamlive_replay_unlocked_token";
 
-interface ReplaySettings {
-  replay_password?: string | null;
-  replay_youtube_url?: string | null;
-  site_name?: string | null;
+interface ReplaySchedule {
+  id: string;
+  show_date: string;
+  replay_password: string;
+  description: string | null;
+  youtube_url: string | null;
 }
 
 const ReplayPage = () => {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<ReplaySettings | null>(null);
+  const [siteName, setSiteName] = useState<string>("TEAM Live");
+  const [schedules, setSchedules] = useState<ReplaySchedule[]>([]);
   const [inputToken, setInputToken] = useState("");
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(UNLOCK_KEY) === "true");
+  const [activeToken, setActiveToken] = useState<string | null>(() => sessionStorage.getItem(UNLOCK_KEY));
   const [err, setErr] = useState("");
 
-  const fetchSettings = useCallback(async () => {
-    const { data } = await supabase
-      .from("stream_settings")
-      .select("replay_password, replay_youtube_url, site_name" as any)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setSettings((data as any) || null);
+  const fetchAll = useCallback(async () => {
+    const [{ data: sched }, { data: settings }] = await Promise.all([
+      supabase.from("replay_schedules").select("*").order("show_date", { ascending: false }),
+      supabase.from("stream_settings").select("site_name").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    setSchedules((sched as any) || []);
+    if (settings?.site_name) setSiteName(settings.site_name);
   }, []);
 
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Realtime settings updates (so token/video changes reflect instantly)
   useEffect(() => {
     const ch = supabase.channel("replay_page_rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, fetchSettings)
+      .on("postgres_changes", { event: "*", schema: "public", table: "replay_schedules" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, fetchAll)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [fetchSettings]);
+  }, [fetchAll]);
+
+  const currentVideo = activeToken
+    ? schedules.find((s) => s.replay_password.trim() === activeToken.trim())
+    : null;
+
+  // If token no longer valid (deleted), auto-lock
+  useEffect(() => {
+    if (activeToken && schedules.length > 0 && !currentVideo) {
+      sessionStorage.removeItem(UNLOCK_KEY);
+      setActiveToken(null);
+    }
+  }, [activeToken, schedules, currentVideo]);
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    const expected = (settings?.replay_password || "").trim();
-    if (!expected) { setErr("Owner belum mengatur token replay."); return; }
-    if (inputToken.trim() !== expected) { setErr("Token salah."); return; }
-    sessionStorage.setItem(UNLOCK_KEY, "true");
-    setUnlocked(true);
+    const t = inputToken.trim();
+    if (!t) { setErr("Masukkan token."); return; }
+    const match = schedules.find((s) => s.replay_password.trim() === t);
+    if (!match) { setErr("Token tidak valid."); return; }
+    if (!match.youtube_url) { setErr("Video belum diatur untuk token ini."); return; }
+    sessionStorage.setItem(UNLOCK_KEY, t);
+    setActiveToken(t);
+    setInputToken("");
   };
 
-  const videoId = extractYouTubeVideoId(settings?.replay_youtube_url || "");
+  const videoId = currentVideo ? extractYouTubeVideoId(currentVideo.youtube_url || "") : null;
 
-  if (!unlocked) {
+  if (!activeToken || !currentVideo) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm" style={{ animation: "fade-in 0.3s ease-out" }}>
           <div className="text-center mb-6">
             <div className="inline-flex p-3 rounded-full bg-primary/10 mb-3"><Lock size={24} className="text-primary" /></div>
             <h1 className="text-xl font-bold text-foreground">Halaman Replay</h1>
-            <p className="text-muted-foreground text-sm mt-1">Masukkan token untuk menonton</p>
+            <p className="text-muted-foreground text-sm mt-1">Masukkan token untuk menonton video replay</p>
           </div>
           <form onSubmit={handleUnlock} className="space-y-4">
             <div>
@@ -83,16 +100,28 @@ const ReplayPage = () => {
     );
   }
 
+  const handleLogout = () => {
+    sessionStorage.removeItem(UNLOCK_KEY);
+    setActiveToken(null);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50">
-        <div className="flex items-center gap-2">
-          <Film size={18} className="text-primary" />
-          <h1 className="text-sm font-bold text-foreground">Replay · {settings?.site_name || "TEAM Live"}</h1>
+        <div className="flex items-center gap-2 min-w-0">
+          <Film size={18} className="text-primary shrink-0" />
+          <h1 className="text-sm font-bold text-foreground truncate">
+            Replay · {currentVideo.description || new Date(currentVideo.show_date + 'T00:00:00').toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+          </h1>
         </div>
-        <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-          <ArrowLeft size={14} /> Kembali
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button onClick={handleLogout} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <Lock size={12} /> Kunci
+          </button>
+          <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ArrowLeft size={14} /> Kembali
+          </button>
+        </div>
       </header>
       <main className="max-w-3xl mx-auto p-4">
         {videoId ? (
@@ -106,9 +135,10 @@ const ReplayPage = () => {
         ) : (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
             <Film size={40} className="mx-auto mb-3 opacity-50" />
-            Owner belum mengatur video replay.
+            Video replay untuk token ini belum tersedia.
           </div>
         )}
+        <p className="text-[10px] text-muted-foreground text-center mt-3">{siteName}</p>
       </main>
     </div>
   );
