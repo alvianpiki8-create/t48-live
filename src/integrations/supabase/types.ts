@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_token_devices: {
+        Row: {
+          device_id: string
+          first_used_at: string
+          id: string
+          token_id: string
+        }
+        Insert: {
+          device_id: string
+          first_used_at?: string
+          id?: string
+          token_id: string
+        }
+        Update: {
+          device_id?: string
+          first_used_at?: string
+          id?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_token_devices_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "access_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       access_tokens: {
         Row: {
           access_hour: string | null
@@ -24,6 +53,7 @@ export type Database = {
           expires_at: string | null
           id: string
           is_blocked: boolean
+          max_uses: number
           show_id: string | null
           show_name: string | null
           token_code: string
@@ -40,6 +70,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_blocked?: boolean
+          max_uses?: number
           show_id?: string | null
           show_name?: string | null
           token_code: string
@@ -56,6 +87,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_blocked?: boolean
+          max_uses?: number
           show_id?: string | null
           show_name?: string | null
           token_code?: string
@@ -282,6 +314,7 @@ export type Database = {
           created_at: string
           device_id: string | null
           id: string
+          is_pinned: boolean
           nickname: string
           text: string
         }
@@ -290,6 +323,7 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           id?: string
+          is_pinned?: boolean
           nickname: string
           text: string
         }
@@ -298,6 +332,7 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           id?: string
+          is_pinned?: boolean
           nickname?: string
           text?: string
         }
