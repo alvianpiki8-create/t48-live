@@ -209,13 +209,32 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
           </div>
         </div>
 
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Kapasitas token (perangkat) — 1 = pribadi, s/d 500 = link bersama
+          </label>
+          <div className="flex items-center gap-2">
+            <input type="number" min={1} max={500} value={maxUses}
+              onChange={(e) => setMaxUses(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
+              className="w-24 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+            <div className="flex gap-1 flex-wrap">
+              {[1, 10, 50, 100, 250, 500].map((n) => (
+                <button key={n} type="button" onClick={() => setMaxUses(n)}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition ${maxUses === n ? "bg-primary text-primary-foreground" : "bg-input border border-border text-foreground hover:bg-secondary"}`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
           <input type="number" min={1} max={50} value={tokenCount}
             onChange={(e) => setTokenCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
             className="w-20 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={handleGenerateTokens}
             className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg font-medium text-sm hover:opacity-90 flex items-center justify-center gap-2">
-            <Plus size={14} /> Buat {tokenCount} Token
+            <Plus size={14} /> Buat {tokenCount} Token ({maxUses} perangkat/token)
           </button>
         </div>
       </div>
