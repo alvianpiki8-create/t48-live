@@ -49,6 +49,7 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
   const [selectedShow, setSelectedShow] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
   const [durationDays, setDurationDays] = useState<number>(1);
+  const [maxUses, setMaxUses] = useState<number>(1);
 
   const activeTokens = tokens.filter((t) => !t.is_blocked);
   const blockedTokens = tokens.filter((t) => t.is_blocked);
@@ -61,9 +62,15 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
         show_name: selectedShow || null,
         access_hour: selectedHour || null,
         duration_days: durationDays,
+        max_uses: Math.max(1, Math.min(500, maxUses)),
       });
     }
     await supabase.from("access_tokens").insert(newTokens as any);
+    onRefresh();
+  };
+
+  const handleUpdateMaxUses = async (tokenId: string, value: number) => {
+    await supabase.from("access_tokens").update({ max_uses: Math.max(1, Math.min(500, value)) } as any).eq("id", tokenId);
     onRefresh();
   };
 
