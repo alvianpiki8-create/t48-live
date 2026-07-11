@@ -198,9 +198,10 @@ async function cachedResolveIdnLive() {
 const qualityHeight = (q: any) => Number(String(q?.name || q?.resolution || "").match(/(\d{3,4})/)?.[1] || 0);
 const pickStartupQuality = (qualities: any[]) => {
   const valid = qualities.filter((q) => q?.url);
-  return valid.find((q) => /360p/i.test(q.name))
-    || valid.find((q) => /480p/i.test(q.name))
-    || valid.find((q) => /160p|240p/i.test(q.name))
+  // Balance smoothness (no lag) and clarity (not blurry): prefer 480p, fall back to 720p, then 360p
+  return valid.find((q) => /480p/i.test(q.name))
+    || valid.find((q) => /720p/i.test(q.name))
+    || valid.find((q) => /360p/i.test(q.name))
     || [...valid].sort((a, b) => (a.bandwidth || qualityHeight(a)) - (b.bandwidth || qualityHeight(b)))[0];
 };
 
