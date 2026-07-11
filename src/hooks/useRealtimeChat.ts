@@ -10,6 +10,7 @@ export interface ChatMessage {
   color: string;
   device_id: string | null;
   created_at: string;
+  is_pinned?: boolean;
 }
 
 const NICKNAME_COLORS = [
