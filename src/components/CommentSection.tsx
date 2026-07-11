@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Trash2, MoreVertical, Flag } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Send, Trash2, MoreVertical, Flag, Pin, PinOff } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useRealtimeChat";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
