@@ -61,12 +61,20 @@ const Index = () => {
       if (error || !data || data.is_blocked) {
         sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
       }
-      // Allow re-entry: if token is bound to another device, reject; else (unbound) bind to this device now
-      if (data.device_id && data.device_id !== deviceId) {
-        sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
-      }
-      if (!data.device_id) {
-        await supabase.from("access_tokens").update({ device_id: deviceId, used_at: new Date().toISOString() }).eq("token_code", token);
+      const maxUses = (data as any).max_uses || 1;
+      if (maxUses > 1) {
+        // Shared token: device must be registered in access_token_devices
+        const { data: dev } = await supabase.from("access_token_devices" as any)
+          .select("id").eq("token_id", data.id).eq("device_id", deviceId).maybeSingle();
+        if (!dev) { sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return; }
+      } else {
+        // Allow re-entry: if token is bound to another device, reject; else (unbound) bind to this device now
+        if (data.device_id && data.device_id !== deviceId) {
+          sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
+        }
+        if (!data.device_id) {
+          await supabase.from("access_tokens").update({ device_id: deviceId, used_at: new Date().toISOString() }).eq("token_code", token);
+        }
       }
       if ((data as any).valid_until && new Date() > new Date((data as any).valid_until)) {
         sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
