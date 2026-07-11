@@ -128,6 +128,17 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
     await supabase.from("chat_messages").delete().not("id", "is", null);
   };
 
+  const handleTogglePin = async (msg: ChatMessage) => {
+    setOpenMenu(null);
+    if (msg.is_pinned) {
+      await supabase.from("chat_messages").update({ is_pinned: false } as any).eq("id", msg.id);
+      return;
+    }
+    // Only one pinned message at a time
+    await supabase.from("chat_messages").update({ is_pinned: false } as any).eq("is_pinned", true);
+    await supabase.from("chat_messages").update({ is_pinned: true } as any).eq("id", msg.id);
+  };
+
   const handleReport = async (msg: ChatMessage) => {
     if (msg.nickname === nickname) {
       alert("Anda tidak bisa melaporkan komentar sendiri.");
