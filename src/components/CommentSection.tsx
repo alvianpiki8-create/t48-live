@@ -207,6 +207,25 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
         </div>
       </div>
 
+      {pinnedMessage && (
+        <div className="px-3 py-2 border-b border-yellow-400/30 bg-gradient-to-r from-yellow-400/10 to-orange-500/10 flex items-start gap-2">
+          <Pin size={12} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-yellow-500">Disematkan</span>
+              <span className="text-[10px] font-semibold text-foreground">{pinnedMessage.nickname}</span>
+            </div>
+            <p className="text-xs text-foreground/90 break-words leading-snug">{renderText(pinnedMessage.text)}</p>
+          </div>
+          {canModerate && (
+            <button onClick={() => handleTogglePin(pinnedMessage)}
+              className="p-1 rounded hover:bg-yellow-500/20 text-yellow-500 flex-shrink-0" title="Lepaskan sematan">
+              <PinOff size={12} />
+            </button>
+          )}
+        </div>
+      )}
+
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         <ChatEventList nickname={nickname} />
         {messages.map((msg) => {
@@ -230,8 +249,9 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
                     {msg.nickname}
                   </span>
                   {code && (<span className="text-[9px] font-mono text-muted-foreground bg-secondary px-1 py-0.5 rounded">#{code}</span>)}
+                  {msg.is_pinned && (<Pin size={10} className="text-yellow-500" />)}
                 </div>
-                <p className="text-sm text-foreground/90 break-words leading-snug">{msg.text}</p>
+                <p className="text-sm text-foreground/90 break-words leading-snug">{renderText(msg.text)}</p>
               </div>
               {(canModerate || msg.nickname !== nickname) && (
                 <div className="relative">
@@ -246,6 +266,12 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
                         <button onClick={() => handleReport(msg)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground hover:bg-destructive/10 hover:text-destructive whitespace-nowrap w-full">
                           <Flag size={10} /> Laporkan
+                        </button>
+                      )}
+                      {canModerate && (
+                        <button onClick={() => handleTogglePin(msg)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-yellow-500 hover:bg-yellow-500/10 whitespace-nowrap w-full border-t border-border">
+                          {msg.is_pinned ? <><PinOff size={10} /> Lepas sematan</> : <><Pin size={10} /> Sematkan</>}
                         </button>
                       )}
                       {canModerate && (
