@@ -16,6 +16,8 @@ interface AccessToken {
   access_hour: string | null;
   duration_days: number | null;
   valid_until: string | null;
+  max_uses?: number | null;
+  uses_count?: number | null;
 }
 
 interface TokenManagerProps {
