@@ -145,7 +145,8 @@ export const useRealtimeChat = () => {
   }, []);
 
   const sendMessage = useCallback(async (nickname: string, text: string) => {
-    if (isBanned) {
+    const isOwner = nickname === "TEAM Live";
+    if (isBanned && !isOwner) {
       toast({
         title: "Anda diblokir dari chat",
         description: banReason,
