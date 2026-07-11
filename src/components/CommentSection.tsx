@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Trash2, MoreVertical, Flag } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Send, Trash2, MoreVertical, Flag, Pin, PinOff } from "lucide-react";
 import type { ChatMessage } from "@/hooks/useRealtimeChat";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
@@ -128,6 +128,17 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
     await supabase.from("chat_messages").delete().not("id", "is", null);
   };
 
+  const handleTogglePin = async (msg: ChatMessage) => {
+    setOpenMenu(null);
+    if (msg.is_pinned) {
+      await supabase.from("chat_messages").update({ is_pinned: false } as any).eq("id", msg.id);
+      return;
+    }
+    // Only one pinned message at a time
+    await supabase.from("chat_messages").update({ is_pinned: false } as any).eq("is_pinned", true);
+    await supabase.from("chat_messages").update({ is_pinned: true } as any).eq("id", msg.id);
+  };
+
   const handleReport = async (msg: ChatMessage) => {
     if (msg.nickname === nickname) {
       alert("Anda tidak bisa melaporkan komentar sendiri.");
@@ -160,6 +171,24 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
 
   const myBadge = getBadge(nickname);
 
+  const pinnedMessage = useMemo(() => messages.find((m) => m.is_pinned), [messages]);
+
+  // Auto-linkify URLs in chat text
+  const renderText = (text: string) => {
+    const parts = text.split(/(https?:\/\/[^\s]+)/g);
+    return parts.map((part, i) =>
+      /^https?:\/\//i.test(part) ? (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+          className="text-blue-400 underline underline-offset-2 hover:text-blue-300 break-all">
+          {part}
+        </a>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  };
+
+
   return (
     <div className="bg-card border border-border rounded-lg flex flex-col" style={{ height: "380px" }}>
       <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
@@ -177,6 +206,25 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
           )}
         </div>
       </div>
+
+      {pinnedMessage && (
+        <div className="px-3 py-2 border-b border-yellow-400/30 bg-gradient-to-r from-yellow-400/10 to-orange-500/10 flex items-start gap-2">
+          <Pin size={12} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-yellow-500">Disematkan</span>
+              <span className="text-[10px] font-semibold text-foreground">{pinnedMessage.nickname}</span>
+            </div>
+            <p className="text-xs text-foreground/90 break-words leading-snug">{renderText(pinnedMessage.text)}</p>
+          </div>
+          {canModerate && (
+            <button onClick={() => handleTogglePin(pinnedMessage)}
+              className="p-1 rounded hover:bg-yellow-500/20 text-yellow-500 flex-shrink-0" title="Lepaskan sematan">
+              <PinOff size={12} />
+            </button>
+          )}
+        </div>
+      )}
 
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         <ChatEventList nickname={nickname} />
@@ -201,8 +249,9 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
                     {msg.nickname}
                   </span>
                   {code && (<span className="text-[9px] font-mono text-muted-foreground bg-secondary px-1 py-0.5 rounded">#{code}</span>)}
+                  {msg.is_pinned && (<Pin size={10} className="text-yellow-500" />)}
                 </div>
-                <p className="text-sm text-foreground/90 break-words leading-snug">{msg.text}</p>
+                <p className="text-sm text-foreground/90 break-words leading-snug">{renderText(msg.text)}</p>
               </div>
               {(canModerate || msg.nickname !== nickname) && (
                 <div className="relative">
@@ -217,6 +266,12 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
                         <button onClick={() => handleReport(msg)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-foreground hover:bg-destructive/10 hover:text-destructive whitespace-nowrap w-full">
                           <Flag size={10} /> Laporkan
+                        </button>
+                      )}
+                      {canModerate && (
+                        <button onClick={() => handleTogglePin(msg)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-yellow-500 hover:bg-yellow-500/10 whitespace-nowrap w-full border-t border-border">
+                          {msg.is_pinned ? <><PinOff size={10} /> Lepas sematan</> : <><Pin size={10} /> Sematkan</>}
                         </button>
                       )}
                       {canModerate && (

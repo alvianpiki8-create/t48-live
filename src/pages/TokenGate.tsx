@@ -49,31 +49,56 @@ const TokenGate = () => {
         }
       }
 
-      // Check device binding
-      if (data.device_id && data.device_id !== deviceId) {
-        setStatus("error");
-        setErrorMsg("Token ini sudah digunakan di perangkat lain. Satu token hanya untuk satu perangkat.");
-        return;
-      }
+      const maxUses = (data as any).max_uses || 1;
 
-      // Bind device + set valid_until based on duration_days
-      if (!data.device_id) {
-        const days = (data as any).duration_days || 1;
-        const validUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      if (maxUses > 1) {
+        // Multi-user token (max N devices)
+        const { data: existing } = await supabase
+          .from("access_token_devices" as any)
+          .select("id")
+          .eq("token_id", data.id)
+          .eq("device_id", deviceId)
+          .maybeSingle();
 
-        const { error: updateError } = await supabase
-          .from("access_tokens")
-          .update({ device_id: deviceId, used_at: new Date().toISOString(), valid_until: validUntil } as any)
-          .eq("id", data.id);
-
-        if (updateError) {
+        if (!existing) {
+          const { count } = await supabase
+            .from("access_token_devices" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("token_id", data.id);
+          if ((count || 0) >= maxUses) {
+            setStatus("error");
+            setErrorMsg(`Kuota token penuh (maks ${maxUses} perangkat). Hubungi admin.`);
+            return;
+          }
+          await supabase.from("access_token_devices" as any).insert({ token_id: data.id, device_id: deviceId } as any);
+          if (!(data as any).valid_until) {
+            const days = (data as any).duration_days || 1;
+            const validUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+            await supabase.from("access_tokens").update({ used_at: new Date().toISOString(), valid_until: validUntil } as any).eq("id", data.id);
+          }
+        }
+      } else {
+        // Single-device token (legacy behaviour)
+        if (data.device_id && data.device_id !== deviceId) {
           setStatus("error");
-          setErrorMsg("Gagal menghubungkan perangkat. Coba lagi.");
+          setErrorMsg("Token ini sudah digunakan di perangkat lain. Satu token hanya untuk satu perangkat.");
           return;
+        }
+        if (!data.device_id) {
+          const days = (data as any).duration_days || 1;
+          const validUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+          const { error: updateError } = await supabase
+            .from("access_tokens")
+            .update({ device_id: deviceId, used_at: new Date().toISOString(), valid_until: validUntil } as any)
+            .eq("id", data.id);
+          if (updateError) {
+            setStatus("error");
+            setErrorMsg("Gagal menghubungkan perangkat. Coba lagi.");
+            return;
+          }
         }
       }
 
-      // Store token in session and navigate
       sessionStorage.setItem("teamlive_token", token);
       sessionStorage.setItem("teamlive_device_id", deviceId);
       navigate("/", { replace: true });

@@ -10,6 +10,7 @@ export interface ChatMessage {
   color: string;
   device_id: string | null;
   created_at: string;
+  is_pinned?: boolean;
 }
 
 const NICKNAME_COLORS = [
@@ -119,6 +120,14 @@ export const useRealtimeChat = () => {
             const updated = [...prev, msg];
             return updated.length > 300 ? updated.slice(-200) : updated;
           });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_messages" },
+        (payload) => {
+          const msg = payload.new as ChatMessage;
+          setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m)));
         }
       )
       .on(

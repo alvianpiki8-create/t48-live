@@ -16,6 +16,8 @@ interface AccessToken {
   access_hour: string | null;
   duration_days: number | null;
   valid_until: string | null;
+  max_uses?: number | null;
+  uses_count?: number | null;
 }
 
 interface TokenManagerProps {
@@ -49,6 +51,7 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
   const [selectedShow, setSelectedShow] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
   const [durationDays, setDurationDays] = useState<number>(1);
+  const [maxUses, setMaxUses] = useState<number>(1);
 
   const activeTokens = tokens.filter((t) => !t.is_blocked);
   const blockedTokens = tokens.filter((t) => t.is_blocked);
@@ -61,9 +64,15 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
         show_name: selectedShow || null,
         access_hour: selectedHour || null,
         duration_days: durationDays,
+        max_uses: Math.max(1, Math.min(500, maxUses)),
       });
     }
     await supabase.from("access_tokens").insert(newTokens as any);
+    onRefresh();
+  };
+
+  const handleUpdateMaxUses = async (tokenId: string, value: number) => {
+    await supabase.from("access_tokens").update({ max_uses: Math.max(1, Math.min(500, value)) } as any).eq("id", tokenId);
     onRefresh();
   };
 
@@ -202,13 +211,32 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
           </div>
         </div>
 
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Kapasitas token (perangkat) — 1 = pribadi, s/d 500 = link bersama
+          </label>
+          <div className="flex items-center gap-2">
+            <input type="number" min={1} max={500} value={maxUses}
+              onChange={(e) => setMaxUses(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
+              className="w-24 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+            <div className="flex gap-1 flex-wrap">
+              {[1, 10, 50, 100, 250, 500].map((n) => (
+                <button key={n} type="button" onClick={() => setMaxUses(n)}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition ${maxUses === n ? "bg-primary text-primary-foreground" : "bg-input border border-border text-foreground hover:bg-secondary"}`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
           <input type="number" min={1} max={50} value={tokenCount}
             onChange={(e) => setTokenCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
             className="w-20 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={handleGenerateTokens}
             className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg font-medium text-sm hover:opacity-90 flex items-center justify-center gap-2">
-            <Plus size={14} /> Buat {tokenCount} Token
+            <Plus size={14} /> Buat {tokenCount} Token ({maxUses} perangkat/token)
           </button>
         </div>
       </div>
@@ -223,8 +251,9 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-sm font-bold text-foreground">T4-{token.token_code}</span>
                 {token.is_blocked && (<span className="text-[10px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded font-medium">BLOCKED</span>)}
-                {!token.is_blocked && token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">TERIKAT</span>)}
-                {!token.is_blocked && !token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">BELUM DIPAKAI</span>)}
+                {!token.is_blocked && (token.max_uses || 1) > 1 && (<span className="text-[10px] bg-blue-500/20 text-blue-500 px-1.5 py-0.5 rounded font-medium">BERSAMA</span>)}
+                {!token.is_blocked && (token.max_uses || 1) <= 1 && token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">TERIKAT</span>)}
+                {!token.is_blocked && (token.max_uses || 1) <= 1 && !token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">BELUM DIPAKAI</span>)}
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => handleCopyLinkOnly(token)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground" title="Salin link saja">
@@ -263,12 +292,27 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
               {token.duration_days && (
                 <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">{token.duration_days} hari</span>
               )}
+              {(token.max_uses || 1) > 1 && (
+                <span className="text-[10px] bg-blue-500/15 text-blue-500 px-1.5 py-0.5 rounded font-semibold">
+                  👥 Bersama · maks {token.max_uses}
+                </span>
+              )}
               {token.valid_until && (
                 <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
                   s/d {new Date(token.valid_until).toLocaleDateString("id-ID")}
                 </span>
               )}
+              <label className="text-[10px] text-muted-foreground flex items-center gap-1">
+                Kapasitas:
+                <input type="number" min={1} max={500} defaultValue={token.max_uses || 1}
+                  onBlur={(e) => {
+                    const v = parseInt(e.target.value) || 1;
+                    if (v !== (token.max_uses || 1)) handleUpdateMaxUses(token.id, v);
+                  }}
+                  className="w-14 bg-input border border-border rounded px-1.5 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              </label>
             </div>
+
 
             {blockingTokenId === token.id && (
               <div className="flex items-center gap-2">
