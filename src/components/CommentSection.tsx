@@ -171,6 +171,24 @@ const CommentSection = ({ nickname, messages, onSendMessage, isOwner, isBanned, 
 
   const myBadge = getBadge(nickname);
 
+  const pinnedMessage = useMemo(() => messages.find((m) => m.is_pinned), [messages]);
+
+  // Auto-linkify URLs in chat text
+  const renderText = (text: string) => {
+    const parts = text.split(/(https?:\/\/[^\s]+)/g);
+    return parts.map((part, i) =>
+      /^https?:\/\//i.test(part) ? (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+          className="text-blue-400 underline underline-offset-2 hover:text-blue-300 break-all">
+          {part}
+        </a>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  };
+
+
   return (
     <div className="bg-card border border-border rounded-lg flex flex-col" style={{ height: "380px" }}>
       <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
