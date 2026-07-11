@@ -177,9 +177,11 @@ export const useRealtimeChat = () => {
       .select("id")
       .maybeSingle();
 
-    const modPromise = supabase.functions
-      .invoke("moderate-chat", { body: { text } })
-      .catch(() => ({ data: null, error: null } as any));
+    const modPromise = isOwner
+      ? Promise.resolve({ data: null, error: null } as any)
+      : supabase.functions
+          .invoke("moderate-chat", { body: { text } })
+          .catch(() => ({ data: null, error: null } as any));
 
     const [{ data: inserted, error: insertError }, { data: modData }] = await Promise.all([
       insertPromise,
@@ -192,7 +194,7 @@ export const useRealtimeChat = () => {
       return;
     }
 
-    if (modData && modData.allow === false) {
+    if (!isOwner && modData && modData.allow === false) {
       // Remove from local state and DB
       setMessages((prev) => prev.filter((m) => m.id !== tempId && m.id !== inserted?.id));
       if (inserted?.id) {
