@@ -251,8 +251,9 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-sm font-bold text-foreground">T4-{token.token_code}</span>
                 {token.is_blocked && (<span className="text-[10px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded font-medium">BLOCKED</span>)}
-                {!token.is_blocked && token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">TERIKAT</span>)}
-                {!token.is_blocked && !token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">BELUM DIPAKAI</span>)}
+                {!token.is_blocked && (token.max_uses || 1) > 1 && (<span className="text-[10px] bg-blue-500/20 text-blue-500 px-1.5 py-0.5 rounded font-medium">BERSAMA</span>)}
+                {!token.is_blocked && (token.max_uses || 1) <= 1 && token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">TERIKAT</span>)}
+                {!token.is_blocked && (token.max_uses || 1) <= 1 && !token.device_id && (<span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">BELUM DIPAKAI</span>)}
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => handleCopyLinkOnly(token)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground" title="Salin link saja">
