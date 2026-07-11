@@ -291,12 +291,27 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
               {token.duration_days && (
                 <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">{token.duration_days} hari</span>
               )}
+              {(token.max_uses || 1) > 1 && (
+                <span className="text-[10px] bg-blue-500/15 text-blue-500 px-1.5 py-0.5 rounded font-semibold">
+                  👥 Bersama · maks {token.max_uses}
+                </span>
+              )}
               {token.valid_until && (
                 <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
                   s/d {new Date(token.valid_until).toLocaleDateString("id-ID")}
                 </span>
               )}
+              <label className="text-[10px] text-muted-foreground flex items-center gap-1">
+                Kapasitas:
+                <input type="number" min={1} max={500} defaultValue={token.max_uses || 1}
+                  onBlur={(e) => {
+                    const v = parseInt(e.target.value) || 1;
+                    if (v !== (token.max_uses || 1)) handleUpdateMaxUses(token.id, v);
+                  }}
+                  className="w-14 bg-input border border-border rounded px-1.5 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              </label>
             </div>
+
 
             {blockingTokenId === token.id && (
               <div className="flex items-center gap-2">
