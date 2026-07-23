@@ -177,6 +177,7 @@ const AdminPanel = () => {
     const ch = supabase.channel(`admin_logs_${session.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "admin_link_logs", filter: `admin_id=eq.${session.id}` }, fetchData)
       .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "access_tokens" }, fetchData)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, fetchData]);
