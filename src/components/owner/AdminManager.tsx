@@ -152,6 +152,14 @@ const AdminManager = () => {
           const own = logs.filter((l) => l.admin_id === a.id);
           const billable = filterLogsSince(own, a.payment_reset_at);
           const t = tallyLogs(billable);
+          // 30-day rolling window: total created + total already paid (created before payment_reset_at within window)
+          const cutoff30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
+          const in30 = own.filter((l) => new Date(l.created_at).getTime() >= cutoff30);
+          const paid30 = a.payment_reset_at
+            ? in30.filter((l) => new Date(l.created_at).getTime() <= new Date(a.payment_reset_at as string).getTime())
+            : [];
+          const t30 = tallyLogs(in30);
+          const paid = tallyLogs(paid30);
           return (
           <div key={a.id} className={`border rounded-lg p-3 space-y-2 ${a.is_blocked ? "border-destructive/30 bg-destructive/5" : "border-border bg-secondary/10"}`}>
             <div className="flex items-center justify-between gap-2">
@@ -168,6 +176,10 @@ const AdminManager = () => {
                   <span className="bg-secondary px-1.5 py-0.5 rounded">🎫 Bulanan: {t.monthly}</span>
                   <span className="inline-flex items-center gap-0.5 bg-primary/15 text-primary font-semibold px-1.5 py-0.5 rounded"><Wallet size={10} /> {formatIDR(t.amount)}</span>
                   <span className="text-[9px] text-muted-foreground">Total history: {own.length}</span>
+                </div>
+                <div className="text-[10px] mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="bg-blue-500/15 text-blue-500 font-semibold px-1.5 py-0.5 rounded">📅 30hr: {t30.total} link · {formatIDR(t30.amount)}</span>
+                  <span className="bg-green-500/15 text-green-500 font-semibold px-1.5 py-0.5 rounded">✅ Sudah bayar (30hr): {paid.total} · {formatIDR(paid.amount)}</span>
                 </div>
                 {a.payment_reset_at && <div className="text-[10px] text-green-600 dark:text-green-400 mt-0.5">✓ Setoran terakhir dicek: {new Date(a.payment_reset_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</div>}
                 {a.last_login_at && <div className="text-[10px] text-muted-foreground mt-0.5">Login: {new Date(a.last_login_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</div>}
