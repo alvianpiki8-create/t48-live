@@ -456,12 +456,14 @@ const AdminPanel = () => {
 interface RowCopyState { id: string; kind: "link" | "text" }
 
 const AdminLogsPanel = ({
-  logs, onRefresh, copyRow, rowCopy,
+  logs, onRefresh, copyRow, rowCopy, usedCodes, onCancel,
 }: {
   logs: any[];
   onRefresh: () => void;
   copyRow: (l: any, k: "link" | "text") => void;
   rowCopy: RowCopyState | null;
+  usedCodes: Set<string>;
+  onCancel: (l: any) => void;
 }) => {
   const groups = useMemo(() => {
     const normal = logs.filter((l) => l.link_type !== "membership");
