@@ -474,11 +474,18 @@ const AdminLogsPanel = ({
     ];
   }, [logs]);
 
-  const renderItem = (l: any) => (
+  const renderItem = (l: any) => {
+    const used = usedCodes.has(l.token_code);
+    return (
     <div key={l.id} className="text-[11px] bg-secondary/20 rounded px-2 py-1.5 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="font-mono font-bold text-foreground">T4-{l.token_code}</div>
+          <div className="font-mono font-bold text-foreground flex items-center gap-1.5">
+            T4-{l.token_code}
+            {used
+              ? <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-primary/20 text-primary">DIPAKAI</span>
+              : <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-amber-500/20 text-amber-500">BELUM</span>}
+          </div>
           <div className="text-muted-foreground truncate">
             {l.show_name || "—"} · {l.duration_days}hr {l.access_hour ? `· ${l.access_hour}` : ""}
             <span className="text-primary font-semibold"> · {formatIDR(priceOf(l))}</span>
@@ -486,16 +493,22 @@ const AdminLogsPanel = ({
         </div>
         <div className="text-[9px] text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</div>
       </div>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         <button onClick={() => copyRow(l, "link")} className="bg-secondary hover:bg-secondary/70 text-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
-          {rowCopy?.id === l.id && rowCopy.kind === "link" ? <><Check size={10} /> Tersalin</> : <><LinkIcon size={10} /> Link</>}
+          {rowCopy?.id === l.id && rowCopy.kind === "link" ? <><Check size={10} /> ✓</> : <><LinkIcon size={10} /> Link</>}
         </button>
         <button onClick={() => copyRow(l, "text")} className="bg-primary/80 hover:bg-primary text-primary-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
-          {rowCopy?.id === l.id && rowCopy.kind === "text" ? <><Check size={10} /> Tersalin</> : <><FileText size={10} /> Teks</>}
+          {rowCopy?.id === l.id && rowCopy.kind === "text" ? <><Check size={10} /> ✓</> : <><FileText size={10} /> Teks</>}
+        </button>
+        <button onClick={() => onCancel(l)} disabled={used} title={used ? "Sudah dipakai" : "Batalkan link (tidak masuk tagihan)"}
+          className="bg-destructive/80 hover:bg-destructive text-destructive-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+          <XCircle size={10} /> {used ? "Terkunci" : "Batal"}
         </button>
       </div>
     </div>
-  );
+    );
+  };
+
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
