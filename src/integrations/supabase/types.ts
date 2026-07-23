@@ -815,6 +815,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_access_tokens: { Args: never; Returns: undefined }
       generate_user_code: { Args: never; Returns: string }
       reset_admin_link_logs: { Args: never; Returns: undefined }
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2, Film, CheckCircle2 } from "lucide-react";
+import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2, Film, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, filterLogsSince } from "@/lib/adminPricing";
 
@@ -94,6 +94,7 @@ const AdminPanel = () => {
   const [shows, setShows] = useState<Show[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [myLogs, setMyLogs] = useState<any[]>([]);
+  const [usedCodes, setUsedCodes] = useState<Set<string>>(new Set());
   const [paymentResetAt, setPaymentResetAt] = useState<string | null>(null);
   const [streamSettings, setStreamSettings] = useState<StreamSettings | null>(null);
 
@@ -145,9 +146,29 @@ const AdminPanel = () => {
     ]);
     setShows((s.data as any) || []);
     setMemberships((m.data as any) || []);
-    setMyLogs((l.data as any) || []);
+    const logs = ((l.data as any) || []) as any[];
+    setMyLogs(logs);
     setStreamSettings((ss.data as any) || null);
+    // Fetch usage status of each token
+    const codes = logs.map((x) => x.token_code).filter(Boolean);
+    if (codes.length > 0) {
+      const { data: tks } = await supabase.from("access_tokens").select("token_code, used_at, device_id").in("token_code", codes);
+      const set = new Set<string>();
+      ((tks as any) || []).forEach((t: any) => {
+        if (t.used_at || t.device_id) set.add(t.token_code);
+      });
+      setUsedCodes(set);
+    } else {
+      setUsedCodes(new Set());
+    }
   }, [session]);
+
+  const handleCancelLink = useCallback(async (log: any) => {
+    if (usedCodes.has(log.token_code)) { alert("Link sudah dipakai — tidak bisa dibatalkan."); return; }
+    if (!confirm(`Batalkan link T4-${log.token_code}?\nLink akan dihapus dan tidak masuk ke tagihan.`)) return;
+    await supabase.from("access_tokens").delete().eq("token_code", log.token_code);
+    await supabase.from("admin_link_logs").delete().eq("id", log.id);
+  }, [usedCodes]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -156,6 +177,7 @@ const AdminPanel = () => {
     const ch = supabase.channel(`admin_logs_${session.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "admin_link_logs", filter: `admin_id=eq.${session.id}` }, fetchData)
       .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "access_tokens" }, fetchData)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, fetchData]);
@@ -424,7 +446,7 @@ const AdminPanel = () => {
           )}
         </div>
 
-        <AdminLogsPanel logs={myLogs} onRefresh={fetchData} copyRow={copyRow} rowCopy={rowCopy} />
+        <AdminLogsPanel logs={myLogs} onRefresh={fetchData} copyRow={copyRow} rowCopy={rowCopy} usedCodes={usedCodes} onCancel={handleCancelLink} />
         <QrisSetoranCard logs={myLogs} paymentResetAt={paymentResetAt} adminId={session.id} settings={streamSettings} />
       </main>
     </div>
@@ -434,12 +456,14 @@ const AdminPanel = () => {
 interface RowCopyState { id: string; kind: "link" | "text" }
 
 const AdminLogsPanel = ({
-  logs, onRefresh, copyRow, rowCopy,
+  logs, onRefresh, copyRow, rowCopy, usedCodes, onCancel,
 }: {
   logs: any[];
   onRefresh: () => void;
   copyRow: (l: any, k: "link" | "text") => void;
   rowCopy: RowCopyState | null;
+  usedCodes: Set<string>;
+  onCancel: (l: any) => void;
 }) => {
   const groups = useMemo(() => {
     const normal = logs.filter((l) => l.link_type !== "membership");
@@ -450,11 +474,18 @@ const AdminLogsPanel = ({
     ];
   }, [logs]);
 
-  const renderItem = (l: any) => (
+  const renderItem = (l: any) => {
+    const used = usedCodes.has(l.token_code);
+    return (
     <div key={l.id} className="text-[11px] bg-secondary/20 rounded px-2 py-1.5 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="font-mono font-bold text-foreground">T4-{l.token_code}</div>
+          <div className="font-mono font-bold text-foreground flex items-center gap-1.5">
+            T4-{l.token_code}
+            {used
+              ? <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-primary/20 text-primary">DIPAKAI</span>
+              : <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-amber-500/20 text-amber-500">BELUM</span>}
+          </div>
           <div className="text-muted-foreground truncate">
             {l.show_name || "—"} · {l.duration_days}hr {l.access_hour ? `· ${l.access_hour}` : ""}
             <span className="text-primary font-semibold"> · {formatIDR(priceOf(l))}</span>
@@ -462,16 +493,22 @@ const AdminLogsPanel = ({
         </div>
         <div className="text-[9px] text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</div>
       </div>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         <button onClick={() => copyRow(l, "link")} className="bg-secondary hover:bg-secondary/70 text-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
-          {rowCopy?.id === l.id && rowCopy.kind === "link" ? <><Check size={10} /> Tersalin</> : <><LinkIcon size={10} /> Link</>}
+          {rowCopy?.id === l.id && rowCopy.kind === "link" ? <><Check size={10} /> ✓</> : <><LinkIcon size={10} /> Link</>}
         </button>
         <button onClick={() => copyRow(l, "text")} className="bg-primary/80 hover:bg-primary text-primary-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1">
-          {rowCopy?.id === l.id && rowCopy.kind === "text" ? <><Check size={10} /> Tersalin</> : <><FileText size={10} /> Teks</>}
+          {rowCopy?.id === l.id && rowCopy.kind === "text" ? <><Check size={10} /> ✓</> : <><FileText size={10} /> Teks</>}
+        </button>
+        <button onClick={() => onCancel(l)} disabled={used} title={used ? "Sudah dipakai" : "Batalkan link (tidak masuk tagihan)"}
+          className="bg-destructive/80 hover:bg-destructive text-destructive-foreground py-1 rounded text-[10px] font-semibold flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+          <XCircle size={10} /> {used ? "Terkunci" : "Batal"}
         </button>
       </div>
     </div>
-  );
+    );
+  };
+
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">

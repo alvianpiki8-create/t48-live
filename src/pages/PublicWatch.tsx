@@ -230,26 +230,14 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
             <div className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-4 space-y-3 animate-fade-in">
               <div>
                 <p className="text-sm font-bold text-foreground">Replay khusus membership</p>
-                <p className="text-xs text-muted-foreground">Salin kode di bawah ini untuk membuka halaman replay.</p>
+                <p className="text-xs text-muted-foreground">Semua video replay terbuka otomatis dengan token membership aktif — tidak perlu sandi.</p>
               </div>
-              <div className="flex gap-2">
-                <code className="flex-1 rounded-lg bg-input px-3 py-2 text-sm font-mono text-foreground">{membershipInfo.replay_password || "Belum diatur"}</code>
-                <button
-                  onClick={async () => {
-                    if (!membershipInfo.replay_password) return;
-                    await navigator.clipboard.writeText(membershipInfo.replay_password);
-                    setReplayCopied(true);
-                    setTimeout(() => setReplayCopied(false), 2000);
-                  }}
-                  disabled={!membershipInfo.replay_password}
-                  className="rounded-lg bg-secondary px-3 text-secondary-foreground disabled:opacity-50"
-                >
-                  {replayCopied ? <Check size={16} /> : <Copy size={16} />}
-                </button>
-              </div>
-              <a href={membershipInfo.replay_url || "https://t48.lovable.app/replay"} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity">
-                Buka Website Replay <ExternalLink size={14} />
-              </a>
+              <button
+                onClick={() => navigate("/replay?m=1")}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                Buka Semua Replay <ExternalLink size={14} />
+              </button>
             </div>
           )}
           <CommentSection nickname={nickname} messages={messages} onSendMessage={handleSendMessage} />
