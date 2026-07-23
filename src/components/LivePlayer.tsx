@@ -440,9 +440,12 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     };
     document.addEventListener("visibilitychange", keepAlive);
     window.addEventListener("blur", keepAlive);
+    // Periodic keepalive so YouTube's idle prompt ("Are you still watching?") never appears
+    const interval = window.setInterval(keepAlive, 4 * 60 * 1000);
     return () => {
       document.removeEventListener("visibilitychange", keepAlive);
       window.removeEventListener("blur", keepAlive);
+      window.clearInterval(interval);
     };
   }, [activeServer, sendYT]);
 
