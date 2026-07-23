@@ -146,9 +146,29 @@ const AdminPanel = () => {
     ]);
     setShows((s.data as any) || []);
     setMemberships((m.data as any) || []);
-    setMyLogs((l.data as any) || []);
+    const logs = ((l.data as any) || []) as any[];
+    setMyLogs(logs);
     setStreamSettings((ss.data as any) || null);
+    // Fetch usage status of each token
+    const codes = logs.map((x) => x.token_code).filter(Boolean);
+    if (codes.length > 0) {
+      const { data: tks } = await supabase.from("access_tokens").select("token_code, used_at, device_id").in("token_code", codes);
+      const set = new Set<string>();
+      ((tks as any) || []).forEach((t: any) => {
+        if (t.used_at || t.device_id) set.add(t.token_code);
+      });
+      setUsedCodes(set);
+    } else {
+      setUsedCodes(new Set());
+    }
   }, [session]);
+
+  const handleCancelLink = useCallback(async (log: any) => {
+    if (usedCodes.has(log.token_code)) { alert("Link sudah dipakai — tidak bisa dibatalkan."); return; }
+    if (!confirm(`Batalkan link T4-${log.token_code}?\nLink akan dihapus dan tidak masuk ke tagihan.`)) return;
+    await supabase.from("access_tokens").delete().eq("token_code", log.token_code);
+    await supabase.from("admin_link_logs").delete().eq("id", log.id);
+  }, [usedCodes]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
