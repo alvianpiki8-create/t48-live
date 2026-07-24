@@ -26,9 +26,7 @@ interface TokenManagerProps {
   loadingTokens: boolean;
   onRefresh: () => void;
   streamSettings: {
-    backup_video_url: string;
     replay_url: string;
-    replay_password?: string;
   } | null;
 }
 
