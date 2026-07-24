@@ -139,7 +139,7 @@ const AdminPanel = () => {
       supabase.from("shows").select("id,name").order("created_at", { ascending: true }),
       supabase.from("memberships").select("id,name,type").eq("is_active", true).order("created_at", { ascending: true }),
       supabase.from("admin_link_logs").select("*").eq("admin_id", session.id).order("created_at", { ascending: false }).limit(50),
-      supabase.from("stream_settings").select("backup_video_url, replay_url, replay_password, qris_image_url, payment_reminder_text").maybeSingle(),
+      supabase.from("stream_settings").select("replay_url, qris_image_url, payment_reminder_text").maybeSingle(),
     ]);
     setShows((s.data as any) || []);
     setMemberships((m.data as any) || []);
