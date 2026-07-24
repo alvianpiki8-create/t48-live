@@ -230,12 +230,6 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         </div>
       </div>
 
-      <div>
-        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1"><Link2 size={12} /> Link Cadangan (Lama)</label>
-        <input type="text" value={backupUrl} onChange={(e) => setBackupUrl(e.target.value)}
-          placeholder="https://youtu.be/... atau .m3u8"
-          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-      </div>
 
       <div>
         <label className="text-sm text-muted-foreground mb-1 block">Link Halaman Replay (dibagikan ke penonton)</label>

@@ -26,9 +26,7 @@ interface TokenManagerProps {
   loadingTokens: boolean;
   onRefresh: () => void;
   streamSettings: {
-    backup_video_url: string;
     replay_url: string;
-    replay_password?: string;
   } | null;
 }
 
@@ -79,9 +77,9 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
   const buildShareText = (token: AccessToken) => {
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/watch/${token.token_code}`;
-    const backupUrl = streamSettings?.backup_video_url || "";
     const replayUrl = streamSettings?.replay_url || "t48.lovable.app/replay";
-    const replayPassword = streamSettings?.replay_password || "(admin yang atur)";
+    // Sandi replay = kode token yang sama
+    const replayPassword = token.token_code;
     const showName = token.show_name || "(pilih show)";
     const accessHour = token.access_hour || "(atur jam)";
     const showDate = token.expires_at ? new Date(token.expires_at).toLocaleDateString("id-ID") : "(tanggal show)";
@@ -94,25 +92,22 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
 
 
 
-📢 *AKSES LIVE STREAMING pada LINK UTAMA,LINK CADANGAN Dan REPLAY* :
+📢 *AKSES LIVE STREAMING & REPLAY* :
 
 
 
 * 1️⃣ *Link Utama*: 🔗 ${link}
 
-                
-
-* 2⃣ *Link Cadangan* : 🔗 ${backupUrl || "(kalo ada)"}
 
 
-
-🔗Replay ${showDate} 2026 :
+🔗Replay ${showDate} :
 
 1. ${replayUrl}
 
 
 
-🗝️ Sandi : ${replayPassword}
+🗝️ Sandi Replay : ${replayPassword}
+(sandi replay = kode token link di atas)
 
 
 

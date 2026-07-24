@@ -89,11 +89,18 @@ const ReplayPage = () => {
     return () => { supabase.removeChannel(ch); };
   }, [fetchAll]);
 
-  const currentVideo = activeToken
-    ? schedules.find((s) => s.replay_password.trim() === activeToken.trim())
-    : null;
+  // Video currently unlocked (either by matching a replay_schedule password, or by an access token)
+  const currentVideo = (() => {
+    if (!activeToken) return null;
+    const t = activeToken.trim();
+    const direct = schedules.find((s) => s.replay_password.trim() === t);
+    if (direct) return direct;
+    // Token-based unlock: pick the newest schedule that has a video
+    const withVideo = schedules.filter((s) => s.youtube_url);
+    return withVideo[0] || null;
+  })();
 
-  // If token no longer valid (deleted), auto-lock
+  // If activeToken exists but no video available at all, auto-lock
   useEffect(() => {
     if (activeToken && schedules.length > 0 && !currentVideo) {
       sessionStorage.removeItem(UNLOCK_KEY);
@@ -101,17 +108,45 @@ const ReplayPage = () => {
     }
   }, [activeToken, schedules, currentVideo]);
 
-  const handleUnlock = (e: React.FormEvent) => {
+  const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
     const t = inputToken.trim();
     if (!t) { setErr("Masukkan sandi."); return; }
+
+    // 1) Match a replay_schedule password directly
     const match = schedules.find((s) => s.replay_password.trim() === t);
-    if (!match) { setErr("Sandi tidak valid."); return; }
-    if (!match.youtube_url) { setErr("Video belum diatur untuk sandi ini."); return; }
-    sessionStorage.setItem(UNLOCK_KEY, t);
-    setActiveToken(t);
-    setInputToken("");
+    if (match) {
+      if (!match.youtube_url) { setErr("Video belum diatur untuk sandi ini."); return; }
+      sessionStorage.setItem(UNLOCK_KEY, t);
+      setActiveToken(t);
+      setInputToken("");
+      return;
+    }
+
+    // 2) Match an active access_token (live token = replay password)
+    try {
+      const { data: tok } = await (supabase as any)
+        .from("access_tokens")
+        .select("id,is_blocked,valid_until,expires_at")
+        .eq("token_code", t)
+        .maybeSingle();
+      if (tok && !tok.is_blocked) {
+        const notExpired =
+          (!tok.valid_until || new Date(tok.valid_until) > new Date()) &&
+          (!tok.expires_at || new Date(tok.expires_at) > new Date());
+        if (notExpired) {
+          const withVideo = schedules.filter((s) => s.youtube_url);
+          if (withVideo.length === 0) { setErr("Belum ada video replay tersedia."); return; }
+          sessionStorage.setItem(UNLOCK_KEY, t);
+          setActiveToken(t);
+          setInputToken("");
+          return;
+        }
+      }
+    } catch {}
+
+    setErr("Sandi tidak valid.");
   };
 
   // Membership all-access mode
