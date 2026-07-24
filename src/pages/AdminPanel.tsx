@@ -18,7 +18,7 @@ const generateTokenCode = () => {
 
 interface Show { id: string; name: string; }
 interface Membership { id: string; name: string; type: string; }
-interface StreamSettings { backup_video_url?: string; replay_url?: string; replay_password?: string; qris_image_url?: string; payment_reminder_text?: string; }
+interface StreamSettings { replay_url?: string; qris_image_url?: string; payment_reminder_text?: string; }
 
 const buildShareText = (opts: {
   origin: string;
@@ -29,9 +29,9 @@ const buildShareText = (opts: {
   settings: StreamSettings | null;
 }) => {
   const link = `${opts.origin}/watch/${opts.tokenCode}`;
-  const backupUrl = opts.settings?.backup_video_url || "";
   const replayUrl = opts.settings?.replay_url || "t48.lovable.app/replay";
-  const replayPassword = opts.settings?.replay_password || "(admin yang atur)";
+  // Sandi replay = token yang sama dengan link live
+  const replayPassword = opts.tokenCode;
   const showName = opts.showName || "(pilih show)";
   const accessHour = opts.accessHour || "(atur jam)";
   const showDate = opts.showDate || "(tanggal show)";
@@ -43,25 +43,22 @@ const buildShareText = (opts: {
 
 
 
-📢 *AKSES LIVE STREAMING pada LINK UTAMA,LINK CADANGAN Dan REPLAY* :
+📢 *AKSES LIVE STREAMING & REPLAY* :
 
 
 
 * 1️⃣ *Link Utama*: 🔗 ${link}
 
-                
-
-* 2⃣ *Link Cadangan* : 🔗 ${backupUrl || "(kalo ada)"}
 
 
-
-🔗Replay ${showDate} 2026 :
+🔗Replay ${showDate} :
 
 1. ${replayUrl}
 
 
 
-🗝️ Sandi : ${replayPassword}
+🗝️ Sandi Replay : ${replayPassword}
+(sandi replay = kode token link di atas)
 
 
 
