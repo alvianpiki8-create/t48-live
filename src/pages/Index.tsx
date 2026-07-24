@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings } from "lucide-react";
+import { Crown, ExternalLink, Settings } from "lucide-react";
 import RainEffect from "@/components/RainEffect";
 import LivePlayer from "@/components/LivePlayer";
 import ChannelInfo from "@/components/ChannelInfo";
@@ -34,6 +34,7 @@ const Index = () => {
   const { messages, sendMessage, isBanned, banReason } = useRealtimeChat();
   const [tokenCode, setTokenCode] = useState<string | null>(null);
   const [tokenShowId, setTokenShowId] = useState<string | null>(null);
+  const [tokenShowName, setTokenShowName] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessDeniedReason, setAccessDeniedReason] = useState<string>("");
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
@@ -81,6 +82,7 @@ const Index = () => {
       }
       setTokenCode(data.token_code);
       setTokenShowId((data as any).show_id || null);
+      setTokenShowName((data as any).show_name || null);
     };
     validate();
 
@@ -184,6 +186,14 @@ const Index = () => {
             {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />}
             <h1 className="text-lg font-bold text-foreground tracking-tight">{siteName}</h1>
             <span className="text-xs text-muted-foreground font-mono">@t48id</span>
+            {tokenShowName?.toLowerCase().startsWith("membership") && (
+              <button
+                onClick={() => navigate("/replay?m=1")}
+                className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Crown size={12} /> Replay
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span>Hai, <span className="text-foreground font-medium">{nickname}</span></span>
@@ -204,6 +214,20 @@ const Index = () => {
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
           <LineupDisplay lineup={lineup} />
+          {tokenShowName?.toLowerCase().startsWith("membership") && (
+            <div className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-4 space-y-3 animate-fade-in">
+              <div>
+                <p className="text-sm font-bold text-foreground">Replay khusus membership</p>
+                <p className="text-xs text-muted-foreground">Semua video replay terbuka otomatis dengan token membership aktif — tidak perlu sandi.</p>
+              </div>
+              <button
+                onClick={() => navigate("/replay?m=1")}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                Buka Semua Replay <ExternalLink size={14} />
+              </button>
+            </div>
+          )}
           <CommentSection nickname={nickname} messages={messages} onSendMessage={handleSendMessage} isBanned={isBanned} banReason={banReason} />
           <OrderShowBanner />
         </main>
