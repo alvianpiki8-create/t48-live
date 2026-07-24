@@ -37,21 +37,42 @@ const ReplayPage = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Check membership session — if active, unlock everything
+  // Check membership session — authenticated user_membership OR valid membership token
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
       try {
+        let active = false;
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { if (!cancelled) { setMembershipActive(false); setCheckingMembership(false); } return; }
-        const { data } = await (supabase as any)
-          .from("user_memberships")
-          .select("id,expires_at")
-          .eq("user_id", user.id)
-          .gt("expires_at", new Date().toISOString())
-          .limit(1)
-          .maybeSingle();
-        if (!cancelled) { setMembershipActive(Boolean(data)); setCheckingMembership(false); }
+        if (user) {
+          const { data } = await (supabase as any)
+            .from("user_memberships")
+            .select("id,expires_at")
+            .eq("user_id", user.id)
+            .gt("expires_at", new Date().toISOString())
+            .limit(1)
+            .maybeSingle();
+          active = Boolean(data);
+        }
+        if (!active) {
+          const token = sessionStorage.getItem("teamlive_token");
+          if (token) {
+            const { data } = await (supabase as any)
+              .from("access_tokens")
+              .select("id,show_name,valid_until,is_blocked")
+              .eq("token_code", token)
+              .maybeSingle();
+            if (
+              data &&
+              !data.is_blocked &&
+              data.show_name?.toLowerCase().startsWith("membership") &&
+              (!data.valid_until || new Date(data.valid_until) > new Date())
+            ) {
+              active = true;
+            }
+          }
+        }
+        if (!cancelled) { setMembershipActive(active); setCheckingMembership(false); }
       } catch {
         if (!cancelled) setCheckingMembership(false);
       }

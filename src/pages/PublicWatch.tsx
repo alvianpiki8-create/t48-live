@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Clock3, Copy, ExternalLink } from "lucide-react";
+import { Check, Clock3, Copy, Crown, ExternalLink } from "lucide-react";
 import RainEffect from "@/components/RainEffect";
 import LivePlayer from "@/components/LivePlayer";
 import ChannelInfo from "@/components/ChannelInfo";
@@ -203,6 +203,14 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
             {logoUrl && <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />}
             <h1 className="text-lg font-bold text-foreground tracking-tight">{siteName}</h1>
             <span className="text-xs text-muted-foreground font-mono">@t48id</span>
+            {mode === "membership" && membershipInfo && (
+              <button
+                onClick={() => navigate("/replay?m=1")}
+                className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Crown size={12} /> Replay
+              </button>
+            )}
           </div>
           <span className="text-sm text-muted-foreground">Hai, <span className="text-foreground font-medium">{nickname}</span></span>
         </header>
