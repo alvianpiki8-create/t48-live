@@ -20,6 +20,27 @@ interface Show { id: string; name: string; }
 interface Membership { id: string; name: string; type: string; }
 interface StreamSettings { replay_url?: string; qris_image_url?: string; payment_reminder_text?: string; }
 
+// Jaringan HP sering putus sesaat / diblokir adblock -> "TypeError: Failed to fetch".
+// Retry singkat dengan backoff supaya pembuatan link tidak gagal total.
+const withRetry = async <T,>(fn: () => PromiseLike<T>, tries = 3): Promise<T> => {
+  let lastErr: any;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw lastErr;
+};
+
+const netMessage = (msg: string) =>
+  /failed to fetch|networkerror|load failed/i.test(msg)
+    ? "Koneksi ke server terputus. Matikan AdBlock/VPN lalu coba lagi."
+    : msg;
+
+
 const buildShareText = (opts: {
   origin: string;
   tokenCode: string;
@@ -247,18 +268,22 @@ const AdminPanel = () => {
     if (!session) return;
     setCreating(true); setGenerated(null);
     const token_code = generateTokenCode();
-    const { error } = await supabase.from("access_tokens").insert({
-      token_code,
-      show_name: selectedShow || null,
-      access_hour: selectedHour || null,
-      duration_days: duration,
-    } as any);
-    if (error) { alert("Gagal: " + error.message); setCreating(false); return; }
-    await supabase.from("admin_link_logs").insert({
-      admin_id: session.id, admin_name: session.name, link_type: "normal",
-      token_code, show_name: selectedShow || null, duration_days: duration, access_hour: selectedHour || null,
-    } as any);
-    finalizeGenerated(token_code, selectedShow || null, selectedHour || null);
+    try {
+      const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
+        token_code,
+        show_name: selectedShow || null,
+        access_hour: selectedHour || null,
+        duration_days: duration,
+      } as any));
+      if (error) { alert("Gagal: " + netMessage(error.message)); setCreating(false); return; }
+      await withRetry(() => supabase.from("admin_link_logs").insert({
+        admin_id: session.id, admin_name: session.name, link_type: "normal",
+        token_code, show_name: selectedShow || null, duration_days: duration, access_hour: selectedHour || null,
+      } as any));
+      finalizeGenerated(token_code, selectedShow || null, selectedHour || null);
+    } catch (e: any) {
+      alert("Gagal: " + netMessage(String(e?.message || e)));
+    }
     setCreating(false);
   };
 
@@ -270,18 +295,23 @@ const AdminPanel = () => {
     const days = m.type === "weekly" ? 7 : 30;
     const token_code = generateTokenCode();
     const showName = `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`;
-    // Membership uses TOKEN-BASED link (not public membership link)
-    const { error } = await supabase.from("access_tokens").insert({
-      token_code, duration_days: days, show_name: showName,
-    } as any);
-    if (error) { alert("Gagal: " + error.message); setCreating(false); return; }
-    await supabase.from("admin_link_logs").insert({
-      admin_id: session.id, admin_name: session.name, link_type: "membership",
-      token_code, show_name: m.name, duration_days: days,
-    } as any);
-    finalizeGenerated(token_code, m.name, null);
+    try {
+      // Membership uses TOKEN-BASED link (not public membership link)
+      const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
+        token_code, duration_days: days, show_name: showName,
+      } as any));
+      if (error) { alert("Gagal: " + netMessage(error.message)); setCreating(false); return; }
+      await withRetry(() => supabase.from("admin_link_logs").insert({
+        admin_id: session.id, admin_name: session.name, link_type: "membership",
+        token_code, show_name: m.name, duration_days: days,
+      } as any));
+      finalizeGenerated(token_code, m.name, null);
+    } catch (e: any) {
+      alert("Gagal: " + netMessage(String(e?.message || e)));
+    }
     setCreating(false);
   };
+
 
   const copyText = async (val: string) => {
     try { await navigator.clipboard.writeText(val); } catch {}

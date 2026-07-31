@@ -304,38 +304,42 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                // Larger buffers keep playback smooth over unstable mobile networks
-                backBufferLength: 30,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                maxBufferSize: 60 * 1000 * 1000,
+                // Buffer cukup untuk stabil, tapi tidak berat di memori HP
+                backBufferLength: 15,
+                maxBufferLength: 20,
+                maxMaxBufferLength: 40,
+                maxBufferSize: 40 * 1000 * 1000,
                 maxBufferHole: 0.5,
-                // Stay close to live edge (a few segments back = fewer rebuffers)
-                liveSyncDurationCount: 4,
-                liveMaxLatencyDurationCount: 10,
+                // Dekat live edge -> latensi kecil, rebuffer tetap minim
+                liveSyncDurationCount: 3,
+                liveMaxLatencyDurationCount: 8,
                 liveDurationInfinity: true,
-                highBufferWatchdogPeriod: 3,
-                nudgeMaxRetry: 10,
+                highBufferWatchdogPeriod: 2,
+                nudgeMaxRetry: 12,
                 nudgeOffset: 0.2,
-                manifestLoadingTimeOut: 8000,
+                manifestLoadingTimeOut: 6000,
                 manifestLoadingMaxRetry: 4,
-                manifestLoadingRetryDelay: 500,
-                levelLoadingTimeOut: 8000,
+                manifestLoadingRetryDelay: 400,
+                levelLoadingTimeOut: 6000,
                 levelLoadingMaxRetry: 4,
-                levelLoadingRetryDelay: 500,
-                fragLoadingTimeOut: 15000,
-                fragLoadingMaxRetry: 6,
-                fragLoadingRetryDelay: 500,
+                levelLoadingRetryDelay: 400,
+                fragLoadingTimeOut: 12000,
+                fragLoadingMaxRetry: 8,
+                fragLoadingRetryDelay: 400,
                 startFragPrefetch: true,
                 progressive: false,
-                // Enable proper ABR: pick a starting level based on measured bandwidth
-                testBandwidth: true,
+                // Start cepat: jangan test bandwidth dulu, biar frame pertama muncul instan,
+                // ABR tetap jalan untuk naik kualitas setelahnya
+                testBandwidth: false,
                 startLevel: -1,
-                abrEwmaDefaultEstimate: 2_500_000,
-                abrBandWidthFactor: 0.95,
-                abrBandWidthUpFactor: 0.85,
+                abrEwmaFastLive: 2,
+                abrEwmaSlowLive: 6,
+                abrEwmaDefaultEstimate: 1_800_000,
+                abrBandWidthFactor: 0.9,
+                abrBandWidthUpFactor: 0.8,
                 abrMaxWithRealBitrate: true,
               });
+
               hls.loadSource(url);
               hls.attachMedia(video);
               (art as any).hls = hls;
