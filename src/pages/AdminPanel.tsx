@@ -20,6 +20,27 @@ interface Show { id: string; name: string; }
 interface Membership { id: string; name: string; type: string; }
 interface StreamSettings { replay_url?: string; qris_image_url?: string; payment_reminder_text?: string; }
 
+// Jaringan HP sering putus sesaat / diblokir adblock -> "TypeError: Failed to fetch".
+// Retry singkat dengan backoff supaya pembuatan link tidak gagal total.
+const withRetry = async <T,>(fn: () => Promise<T>, tries = 3): Promise<T> => {
+  let lastErr: any;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw lastErr;
+};
+
+const netMessage = (msg: string) =>
+  /failed to fetch|networkerror|load failed/i.test(msg)
+    ? "Koneksi ke server terputus. Matikan AdBlock/VPN lalu coba lagi."
+    : msg;
+
+
 const buildShareText = (opts: {
   origin: string;
   tokenCode: string;
