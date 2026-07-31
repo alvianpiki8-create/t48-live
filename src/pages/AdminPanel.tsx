@@ -22,7 +22,7 @@ interface StreamSettings { replay_url?: string; qris_image_url?: string; payment
 
 // Jaringan HP sering putus sesaat / diblokir adblock -> "TypeError: Failed to fetch".
 // Retry singkat dengan backoff supaya pembuatan link tidak gagal total.
-const withRetry = async <T,>(fn: () => Promise<T>, tries = 3): Promise<T> => {
+const withRetry = async <T,>(fn: () => PromiseLike<T>, tries = 3): Promise<T> => {
   let lastErr: any;
   for (let i = 0; i < tries; i++) {
     try {
@@ -269,7 +269,7 @@ const AdminPanel = () => {
     setCreating(true); setGenerated(null);
     const token_code = generateTokenCode();
     try {
-      const { error } = await withRetry(() => supabase.from("access_tokens").insert({
+      const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
         token_code,
         show_name: selectedShow || null,
         access_hour: selectedHour || null,
@@ -297,7 +297,7 @@ const AdminPanel = () => {
     const showName = `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`;
     try {
       // Membership uses TOKEN-BASED link (not public membership link)
-      const { error } = await withRetry(() => supabase.from("access_tokens").insert({
+      const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
         token_code, duration_days: days, show_name: showName,
       } as any));
       if (error) { alert("Gagal: " + netMessage(error.message)); setCreating(false); return; }
