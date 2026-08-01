@@ -23,6 +23,7 @@ const ReplayPage = () => {
   const [schedules, setSchedules] = useState<ReplaySchedule[]>([]);
   const [inputToken, setInputToken] = useState("");
   const [activeToken, setActiveToken] = useState<string | null>(() => sessionStorage.getItem(UNLOCK_KEY));
+  const [tokenShowId, setTokenShowId] = useState<string | null>(() => sessionStorage.getItem(UNLOCK_SHOW_KEY));
   const [err, setErr] = useState("");
   const [membershipActive, setMembershipActive] = useState(false);
   const [checkingMembership, setCheckingMembership] = useState(true);
