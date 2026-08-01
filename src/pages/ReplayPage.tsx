@@ -90,14 +90,15 @@ const ReplayPage = () => {
     return () => { supabase.removeChannel(ch); };
   }, [fetchAll]);
 
-  // Video currently unlocked (either by matching a replay_schedule password, or by an access token)
+  // Video currently unlocked (either by matching a replay_schedule password, or by an access token tied to a show)
   const currentVideo = (() => {
     if (!activeToken) return null;
     const t = activeToken.trim();
     const direct = schedules.find((s) => s.replay_password.trim() === t);
     if (direct) return direct;
-    // Token-based unlock: pick the newest schedule that has a video
-    const withVideo = schedules.filter((s) => s.youtube_url);
+    // Token-based unlock: only replays linked to the same show as the token
+    if (!tokenShowId) return null;
+    const withVideo = schedules.filter((s) => s.youtube_url && s.show_id === tokenShowId);
     return withVideo[0] || null;
   })();
 
@@ -105,7 +106,9 @@ const ReplayPage = () => {
   useEffect(() => {
     if (activeToken && schedules.length > 0 && !currentVideo) {
       sessionStorage.removeItem(UNLOCK_KEY);
+      sessionStorage.removeItem(UNLOCK_SHOW_KEY);
       setActiveToken(null);
+      setTokenShowId(null);
     }
   }, [activeToken, schedules, currentVideo]);
 
@@ -120,16 +123,18 @@ const ReplayPage = () => {
     if (match) {
       if (!match.youtube_url) { setErr("Video belum diatur untuk sandi ini."); return; }
       sessionStorage.setItem(UNLOCK_KEY, t);
+      sessionStorage.removeItem(UNLOCK_SHOW_KEY);
+      setTokenShowId(null);
       setActiveToken(t);
       setInputToken("");
       return;
     }
 
-    // 2) Match an active access_token (live token = replay password)
+    // 2) Match an active access_token — replay hanya untuk show yang tertaut ke token
     try {
       const { data: tok } = await (supabase as any)
         .from("access_tokens")
-        .select("id,is_blocked,valid_until,expires_at")
+        .select("id,is_blocked,valid_until,expires_at,show_id")
         .eq("token_code", t)
         .maybeSingle();
       if (tok && !tok.is_blocked) {
@@ -137,9 +142,12 @@ const ReplayPage = () => {
           (!tok.valid_until || new Date(tok.valid_until) > new Date()) &&
           (!tok.expires_at || new Date(tok.expires_at) > new Date());
         if (notExpired) {
-          const withVideo = schedules.filter((s) => s.youtube_url);
-          if (withVideo.length === 0) { setErr("Belum ada video replay tersedia."); return; }
+          if (!tok.show_id) { setErr("Token ini belum tertaut ke ID show manapun."); return; }
+          const withVideo = schedules.filter((s) => s.youtube_url && s.show_id === tok.show_id);
+          if (withVideo.length === 0) { setErr("Belum ada video replay untuk show token ini."); return; }
           sessionStorage.setItem(UNLOCK_KEY, t);
+          sessionStorage.setItem(UNLOCK_SHOW_KEY, tok.show_id);
+          setTokenShowId(tok.show_id);
           setActiveToken(t);
           setInputToken("");
           return;
@@ -149,6 +157,7 @@ const ReplayPage = () => {
 
     setErr("Sandi tidak valid.");
   };
+
 
   // Membership all-access mode
   const membershipMode = searchParams.get("m") === "1" && membershipActive;
