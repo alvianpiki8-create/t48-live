@@ -6,6 +6,7 @@ export interface Show {
   id: string;
   name: string;
   created_at: string;
+  show_code?: string | null;
 }
 
 interface ShowManagerProps {
@@ -15,11 +16,14 @@ interface ShowManagerProps {
 
 const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
   const [newShowName, setNewShowName] = useState("");
+  const [newShowCode, setNewShowCode] = useState("");
 
   const handleAddShow = async () => {
-    if (!newShowName.trim()) return;
-    await supabase.from("shows").insert({ name: newShowName.trim() });
+    if (!newShowName.trim() || !newShowCode.trim()) return;
+    const { error } = await supabase.from("shows").insert({ name: newShowName.trim(), show_code: newShowCode.trim() } as any);
+    if (error) { alert("Gagal menambah show: " + error.message); return; }
     setNewShowName("");
+    setNewShowCode("");
     onRefresh();
   };
 
@@ -35,28 +39,41 @@ const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
         <h2 className="font-semibold text-foreground">Manajemen Show</h2>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="space-y-2">
         <input
           type="text"
-          value={newShowName}
-          onChange={(e) => setNewShowName(e.target.value)}
-          placeholder="Nama show baru..."
-          className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          onKeyDown={(e) => e.key === "Enter" && handleAddShow()}
+          value={newShowCode}
+          onChange={(e) => setNewShowCode(e.target.value)}
+          placeholder="ID Show (wajib, contoh: SHOW-01)"
+          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <button
-          onClick={handleAddShow}
-          className="bg-primary text-primary-foreground px-3 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-all flex items-center gap-1"
-        >
-          <Plus size={14} />
-          Tambah
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={newShowName}
+            onChange={(e) => setNewShowName(e.target.value)}
+            placeholder="Nama show baru..."
+            className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            onKeyDown={(e) => e.key === "Enter" && handleAddShow()}
+          />
+          <button
+            onClick={handleAddShow}
+            disabled={!newShowName.trim() || !newShowCode.trim()}
+            className="bg-primary text-primary-foreground px-3 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-all flex items-center gap-1 disabled:opacity-50"
+          >
+            <Plus size={14} />
+            Tambah
+          </button>
+        </div>
       </div>
 
       <div className="space-y-1.5">
         {shows.map((show) => (
           <div key={show.id} className="flex items-center justify-between bg-secondary/30 rounded-lg px-3 py-2">
-            <span className="text-sm text-foreground">{show.name}</span>
+            <span className="text-sm text-foreground flex items-center gap-2 min-w-0">
+              {show.show_code && <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">{show.show_code}</span>}
+              <span className="truncate">{show.name}</span>
+            </span>
             <button
               onClick={() => handleDeleteShow(show.id)}
               className="p-1 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
@@ -69,6 +86,7 @@ const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
           <p className="text-xs text-muted-foreground text-center py-2">Belum ada show</p>
         )}
       </div>
+
     </div>
   );
 };
