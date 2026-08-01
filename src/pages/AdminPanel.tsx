@@ -272,6 +272,7 @@ const AdminPanel = () => {
       const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
         token_code,
         show_name: selectedShow || null,
+        show_id: shows.find((s) => s.name === selectedShow)?.id || null,
         access_hour: selectedHour || null,
         duration_days: duration,
       } as any));

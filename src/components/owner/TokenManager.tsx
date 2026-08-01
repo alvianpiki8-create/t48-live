@@ -55,11 +55,13 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
   const blockedTokens = tokens.filter((t) => t.is_blocked);
 
   const handleGenerateTokens = async () => {
+    const showRow = shows.find((s) => s.name === selectedShow);
     const newTokens = [];
     for (let i = 0; i < tokenCount; i++) {
       newTokens.push({
         token_code: generateTokenCode(),
         show_name: selectedShow || null,
+        show_id: showRow?.id || null,
         access_hour: selectedHour || null,
         duration_days: durationDays,
         max_uses: Math.max(1, Math.min(500, maxUses)),

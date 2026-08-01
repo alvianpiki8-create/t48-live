@@ -8,18 +8,27 @@ interface ReplaySchedule {
   replay_password: string;
   description: string | null;
   youtube_url: string | null;
+  show_id: string | null;
 }
+
+interface ShowOption { id: string; name: string; show_code: string | null }
 
 const ReplayScheduleManager = () => {
   const [schedules, setSchedules] = useState<ReplaySchedule[]>([]);
+  const [shows, setShows] = useState<ShowOption[]>([]);
+  const [showId, setShowId] = useState("");
   const [date, setDate] = useState("");
   const [password, setPassword] = useState("");
   const [desc, setDesc] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
 
   const fetch = useCallback(async () => {
-    const { data } = await supabase.from("replay_schedules").select("*").order("show_date", { ascending: false });
+    const [{ data }, { data: showData }] = await Promise.all([
+      supabase.from("replay_schedules").select("*").order("show_date", { ascending: false }),
+      supabase.from("shows").select("id,name,show_code").order("created_at", { ascending: true }),
+    ]);
     if (data) setSchedules(data as any);
+    if (showData) setShows(showData as any);
   }, []);
 
   useEffect(() => {
@@ -31,20 +40,27 @@ const ReplayScheduleManager = () => {
   }, [fetch]);
 
   const handleAdd = async () => {
-    if (!date || !password.trim() || !youtubeUrl.trim()) return;
+    if (!date || !password.trim() || !youtubeUrl.trim() || !showId) return;
     await supabase.from("replay_schedules").insert({
       show_date: date,
       replay_password: password.trim(),
       description: desc.trim() || null,
       youtube_url: youtubeUrl.trim(),
+      show_id: showId,
     } as any);
-    setDate(""); setPassword(""); setDesc(""); setYoutubeUrl("");
+    setDate(""); setPassword(""); setDesc(""); setYoutubeUrl(""); setShowId("");
     fetch();
   };
 
   const handleDelete = async (id: string) => {
     await supabase.from("replay_schedules").delete().eq("id", id);
     fetch();
+  };
+
+  const showLabel = (id: string | null) => {
+    const s = shows.find((x) => x.id === id);
+    if (!s) return null;
+    return s.show_code ? `${s.show_code} · ${s.name}` : s.name;
   };
 
   return (
@@ -56,6 +72,13 @@ const ReplayScheduleManager = () => {
 
       <div className="space-y-3 bg-secondary/20 rounded-lg p-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tambah Video Replay</p>
+        <select value={showId} onChange={(e) => setShowId(e.target.value)}
+          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+          <option value="">Pilih ID Show (wajib)</option>
+          {shows.map((s) => (
+            <option key={s.id} value={s.id}>{s.show_code ? `${s.show_code} · ${s.name}` : s.name}</option>
+          ))}
+        </select>
         <div className="grid grid-cols-2 gap-2">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
@@ -66,11 +89,12 @@ const ReplayScheduleManager = () => {
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
         <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Keterangan show (opsional)"
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-        <button onClick={handleAdd} disabled={!date || !password.trim() || !youtubeUrl.trim()}
+        <button onClick={handleAdd} disabled={!date || !password.trim() || !youtubeUrl.trim() || !showId}
           className="w-full bg-primary text-primary-foreground py-2 rounded-lg font-medium text-sm hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50">
           <Plus size={14} /> Tambah
         </button>
       </div>
+
 
       <div className="space-y-2">
         {schedules.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Belum ada video replay.</p>}
@@ -83,6 +107,7 @@ const ReplayScheduleManager = () => {
                   <Lock size={10} /> {s.replay_password}
                 </span>
               </div>
+              {showLabel(s.show_id) && <p className="text-[11px] text-primary mt-0.5">Show: {showLabel(s.show_id)}</p>}
               {s.description && <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>}
               {s.youtube_url && (
                 <a href={s.youtube_url} target="_blank" rel="noreferrer" className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1 mt-1 truncate">
