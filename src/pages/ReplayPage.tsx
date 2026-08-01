@@ -12,6 +12,7 @@ interface ReplaySchedule {
   replay_password: string;
   description: string | null;
   youtube_url: string | null;
+  show_id: string | null;
 }
 
 const ReplayPage = () => {
