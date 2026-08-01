@@ -522,6 +522,7 @@ export type Database = {
           id: string
           replay_password: string
           show_date: string
+          show_id: string | null
           youtube_url: string | null
         }
         Insert: {
@@ -530,6 +531,7 @@ export type Database = {
           id?: string
           replay_password: string
           show_date: string
+          show_id?: string | null
           youtube_url?: string | null
         }
         Update: {
@@ -538,9 +540,18 @@ export type Database = {
           id?: string
           replay_password?: string
           show_date?: string
+          show_id?: string | null
           youtube_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "replay_schedules_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       show_catalog: {
         Row: {
@@ -624,16 +635,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          show_code: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          show_code?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          show_code?: string | null
         }
         Relationships: []
       }
