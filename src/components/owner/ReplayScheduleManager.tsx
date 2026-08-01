@@ -107,6 +107,7 @@ const ReplayScheduleManager = () => {
                   <Lock size={10} /> {s.replay_password}
                 </span>
               </div>
+              {showLabel(s.show_id) && <p className="text-[11px] text-primary mt-0.5">Show: {showLabel(s.show_id)}</p>}
               {s.description && <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>}
               {s.youtube_url && (
                 <a href={s.youtube_url} target="_blank" rel="noreferrer" className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1 mt-1 truncate">
