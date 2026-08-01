@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
 const UNLOCK_KEY = "teamlive_replay_unlocked_token";
+const UNLOCK_SHOW_KEY = "teamlive_replay_unlocked_show";
 
 interface ReplaySchedule {
   id: string;
