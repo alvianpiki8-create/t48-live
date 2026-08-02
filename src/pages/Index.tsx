@@ -17,7 +17,7 @@ import { JKT48_MEMBERS } from "@/lib/jkt48Members";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
 import { useWeeklyViewers } from "@/hooks/useWeeklyViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
-import { getShowAccess, countdownText, formatShowSchedule, type ShowSchedule } from "@/lib/showSchedule";
+import { getShowAccess, getLiveShow, countdownText, formatShowSchedule, type ShowSchedule } from "@/lib/showSchedule";
 
 
 const resolveLineup = (value: any) => {
