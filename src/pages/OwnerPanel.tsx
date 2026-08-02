@@ -448,73 +448,56 @@ const OwnerPanel = () => {
           </button>
         </div>
 
-        {/* Show Manager */}
-        <ShowManager shows={shows} onRefresh={fetchShows} />
+        {section === "shows" && <ShowManager shows={shows} onRefresh={fetchShows} />}
 
-        {/* Lineup Manager */}
-        <LineupManager
-          selectedNames={((streamSettings as any)?.lineup || []).map((m: any) => m.name)}
-          streamSettingsId={streamSettings?.id || null}
-          onRefresh={fetchStreamSettings}
-        />
+        {section === "lineup" && (
+          <LineupManager
+            selectedNames={((streamSettings as any)?.lineup || []).map((m: any) => m.name)}
+            streamSettingsId={streamSettings?.id || null}
+            onRefresh={fetchStreamSettings}
+          />
+        )}
 
-        {/* Stream Settings (Countdown, Backup, Replay) */}
-        <StreamSettings settings={streamSettings} onRefresh={fetchStreamSettings} />
+        {section === "stream" && <StreamSettings settings={streamSettings} onRefresh={fetchStreamSettings} />}
+        {section === "replay" && <ReplayScheduleManager />}
+        {section === "catalog" && (
+          <>
+            <ShowCatalogManager />
+            <CatalogSlideManager />
+          </>
+        )}
+        {section === "coins" && <CoinApproval />}
+        {section === "moderator" && <ModeratorManager />}
+        {section === "admins" && <AdminManager />}
+        {section === "reports" && <ChatReportsManager />}
+        {section === "events" && <ChatEventManager />}
+        {section === "filter" && <ViewerFilter settings={streamSettings} onRefresh={fetchStreamSettings} />}
 
-        {/* Replay Schedule Manager */}
-        <ReplayScheduleManager />
+        {section === "tokens" && (
+          <TokenManager
+            tokens={tokens}
+            shows={shows}
+            loadingTokens={loadingTokens}
+            onRefresh={fetchTokens}
+            streamSettings={streamSettings}
+          />
+        )}
 
-        {/* Show Catalog Manager */}
-        <ShowCatalogManager />
+        {section === "membership" && (
+          <button
+            onClick={() => navigate("/membership")}
+            className="w-full bg-gradient-to-r from-primary/20 to-accent/30 border border-primary/30 rounded-xl p-4 hover:border-primary/50 transition-all flex items-center gap-3"
+          >
+            <div className="p-2 rounded-lg bg-primary/20 text-primary">
+              <CreditCard size={20} />
+            </div>
+            <div className="text-left">
+              <div className="text-foreground font-semibold text-sm">Membership & Public Link</div>
+              <div className="text-muted-foreground text-xs">Kelola paket membership & link publik</div>
+            </div>
+          </button>
+        )}
 
-        {/* Catalog Slider Manager */}
-        <CatalogSlideManager />
-
-        {/* Coin Approval */}
-        <CoinApproval />
-
-        {/* Moderator Manager */}
-        <ModeratorManager />
-
-        {/* Admin Manager (login by name + code) */}
-        <AdminManager />
-
-        {/* Chat Reports (real-time) */}
-        <ChatReportsManager />
-
-        {/* Voting & Quiz */}
-        <ChatEventManager />
-
-        {/* Viewer Filter */}
-        <ViewerFilter settings={streamSettings} onRefresh={fetchStreamSettings} />
-
-        {/* Token Manager */}
-        <TokenManager
-          tokens={tokens}
-          shows={shows}
-          loadingTokens={loadingTokens}
-          onRefresh={fetchTokens}
-          streamSettings={streamSettings}
-        />
-
-        {/* Link to Membership Panel */}
-        <button
-          onClick={() => navigate("/membership")}
-          className="w-full bg-gradient-to-r from-primary/20 to-accent/30 border border-primary/30 rounded-xl p-4 hover:border-primary/50 transition-all flex items-center gap-3"
-        >
-          <div className="p-2 rounded-lg bg-primary/20 text-primary">
-            <CreditCard size={20} />
-          </div>
-          <div className="text-left">
-            <div className="text-foreground font-semibold text-sm">Membership & Public Link</div>
-            <div className="text-muted-foreground text-xs">Kelola paket membership & link publik</div>
-          </div>
-        </button>
-
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="font-semibold text-foreground mb-2">Login Owner</h2>
-          <p className="text-xs text-muted-foreground">Owner panel sekarang memakai token khusus agar lebih cepat dan aman.</p>
-        </div>
 
         <p className="text-center text-muted-foreground/30 text-xs font-mono">@t48id</p>
       </main>
