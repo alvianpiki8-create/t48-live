@@ -38,6 +38,7 @@ const Index = () => {
   const [tokenShowId, setTokenShowId] = useState<string | null>(null);
   const [tokenShowName, setTokenShowName] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState<ShowSchedule | null>(null);
+  const [allShows, setAllShows] = useState<ShowSchedule[]>([]);
   const [now, setNow] = useState(() => new Date());
 
   const [accessDenied, setAccessDenied] = useState(false);
