@@ -404,24 +404,24 @@ const AdminPanel = () => {
 
           {tabKind === "normal" ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Show</label>
-                  <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)}
-                    className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-                    <option value="">-- Pilih --</option>
-                    {shows.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Jam Akses</label>
-                  <select value={selectedHour} onChange={(e) => setSelectedHour(e.target.value)}
-                    className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-                    <option value="">-- Pilih --</option>
-                    {hours.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Show (jam & tanggal otomatis dari show)</label>
+                <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)}
+                  className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                  <option value="">-- Pilih --</option>
+                  {shows.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.show_code ? `[${s.show_code}] ` : ""}{s.name}{s.show_date ? ` · ${s.show_date} ${s.access_hour || ""}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {selectedShow && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Token aktif otomatis: {formatShowSchedule(shows.find((s) => s.name === selectedShow) as any)}
+                  </p>
+                )}
               </div>
+
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Durasi</label>
                 <div className="grid grid-cols-6 gap-1">
@@ -626,21 +626,13 @@ const QrisSetoranCard = ({
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <QrCode size={12} /> Scan QRIS untuk setoran
-        </div>
-        <div className="w-56 h-56 rounded-lg overflow-hidden bg-white flex items-center justify-center border-2 border-border">
-          {qris ? (
-            <img src={qris} alt="QRIS Setoran" className="w-full h-full object-contain" />
-          ) : (
-            <div className="text-center text-muted-foreground text-xs px-4">
-              <QrCode size={40} className="mx-auto mb-2 opacity-50" />
-              QRIS belum di-upload oleh owner
-            </div>
-          )}
-        </div>
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center space-y-1">
+        <div className="text-sm font-bold text-foreground">Setor ke Admin</div>
+        <p className="text-xs text-muted-foreground">
+          Lakukan setoran langsung ke admin utama, lalu tekan tombol cek pembayaran di bawah.
+        </p>
       </div>
+
 
       {/* Cek Pembayaran */}
       {justPaid ? (
