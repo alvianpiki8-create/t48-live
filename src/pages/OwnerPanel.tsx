@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, KeyRound } from "lucide-react";
+import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, KeyRound, Menu } from "lucide-react";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
 import ShowManager, { Show } from "@/components/owner/ShowManager";
@@ -19,6 +19,26 @@ import ChatEventManager from "@/components/owner/ChatEventManager";
 
 const AUTH_KEY = "teamlive_owner_auth";
 const OWNER_TOKEN_KEY = "teamlive_owner_token";
+
+const MENU = [
+  { id: "channel", label: "Pengaturan Channel", icon: "⚙️" },
+  { id: "shows", label: "Show & Jadwal", icon: "🎬" },
+  { id: "tokens", label: "Token / Link Akses", icon: "🔑" },
+  { id: "lineup", label: "Lineup Member", icon: "👥" },
+  { id: "stream", label: "Countdown & Replay URL", icon: "⏱️" },
+  { id: "replay", label: "Jadwal Replay", icon: "🎞️" },
+  { id: "catalog", label: "Katalog Show & Slider", icon: "🛒" },
+  { id: "coins", label: "Approval Koin", icon: "🪙" },
+  { id: "moderator", label: "Moderator", icon: "🛡️" },
+  { id: "admins", label: "Admin & Tagihan", icon: "🧾" },
+  { id: "reports", label: "Laporan Chat", icon: "🚩" },
+  { id: "events", label: "Voting & Kuis", icon: "📊" },
+  { id: "filter", label: "Filter Penonton", icon: "🔎" },
+  { id: "membership", label: "Membership & Public Link", icon: "💳" },
+] as const;
+
+type SectionId = (typeof MENU)[number]["id"];
+
 
 const OwnerPanel = () => {
   const navigate = useNavigate();
