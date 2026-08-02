@@ -204,6 +204,36 @@ const Index = () => {
     );
   }
 
+  if (showAccess.state !== "open") {
+    const pending = showAccess.state === "pending";
+    return (
+      <><AntiInspect /><RainEffect />
+        <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
+          <div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center" style={{ animation: "fade-in 0.3s ease-out" }}>
+            <div className="text-4xl mb-4">{pending ? "⏳" : "🔒"}</div>
+            <h2 className="text-foreground font-semibold text-lg">
+              {pending ? "Show belum dimulai" : "Jadwal show sudah berakhir"}
+            </h2>
+            <p className="text-muted-foreground text-sm mt-2">
+              {showSchedule?.name ? `Show: ${showSchedule.name}` : ""}
+            </p>
+            <p className="text-muted-foreground text-sm">{formatShowSchedule(showSchedule)}</p>
+            {pending && (
+              <p className="mt-4 font-mono text-2xl font-bold text-primary">{countdownText(showAccess.start, now)}</p>
+            )}
+            <p className="text-muted-foreground text-xs mt-3">
+              {pending
+                ? "Token Anda akan aktif otomatis tepat pada jam show. Halaman ini terbuka sendiri."
+                : "Token ini hanya berlaku untuk show tersebut."}
+            </p>
+            <p className="text-muted-foreground/30 text-xs font-mono mt-6">@t48id</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+
   if (!nickname) {
     return (
       <><AntiInspect /><RainEffect />
