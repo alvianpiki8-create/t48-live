@@ -186,6 +186,8 @@ export const useRealtimeChat = () => {
   }, [scheduleFlush]);
 
 
+  const lastSentRef = useRef(0);
+
   const sendMessage = useCallback(async (nickname: string, text: string) => {
     const isOwner = nickname === "TEAM Live";
     if (isBanned && !isOwner) {
@@ -196,6 +198,15 @@ export const useRealtimeChat = () => {
       });
       return;
     }
+
+    // Throttle kirim: cegah spam & antrian insert yang bikin chat delay
+    const nowTs = Date.now();
+    if (!isOwner && nowTs - lastSentRef.current < 1200) {
+      toast({ title: "Tunggu sebentar", description: "Kirim pesan terlalu cepat." });
+      return;
+    }
+    lastSentRef.current = nowTs;
+
 
     const color = getColorForNickname(nickname);
     const deviceId = getDeviceId();
