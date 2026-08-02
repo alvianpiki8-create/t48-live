@@ -17,6 +17,8 @@ import { JKT48_MEMBERS } from "@/lib/jkt48Members";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
 import { useWeeklyViewers } from "@/hooks/useWeeklyViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
+import { getShowAccess, countdownText, formatShowSchedule, type ShowSchedule } from "@/lib/showSchedule";
+
 
 const resolveLineup = (value: any) => {
   if (!Array.isArray(value)) return [];
@@ -35,6 +37,9 @@ const Index = () => {
   const [tokenCode, setTokenCode] = useState<string | null>(null);
   const [tokenShowId, setTokenShowId] = useState<string | null>(null);
   const [tokenShowName, setTokenShowName] = useState<string | null>(null);
+  const [showSchedule, setShowSchedule] = useState<ShowSchedule | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessDeniedReason, setAccessDeniedReason] = useState<string>("");
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
