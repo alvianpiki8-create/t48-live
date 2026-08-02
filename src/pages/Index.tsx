@@ -4,6 +4,8 @@ import { Crown, ExternalLink, Settings } from "lucide-react";
 import RainEffect from "@/components/RainEffect";
 import LivePlayer from "@/components/LivePlayer";
 import ChannelInfo from "@/components/ChannelInfo";
+import IdnShowInfo from "@/components/IdnShowInfo";
+
 import CommentSection from "@/components/CommentSection";
 import NicknameModal from "@/components/NicknameModal";
 import AntiInspect from "@/components/AntiInspect";
