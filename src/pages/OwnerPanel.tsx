@@ -203,18 +203,52 @@ const OwnerPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50">
+      <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft size={20} />
+          <button onClick={() => setMenuOpen(true)} className="p-1.5 rounded-lg bg-secondary/60 text-foreground hover:bg-secondary transition-colors" title="Menu">
+            <Menu size={20} />
           </button>
-          <h1 className="text-lg font-bold text-foreground">Owner Panel</h1>
+          <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <h1 className="text-base font-bold text-foreground">
+            {MENU.find((m) => m.id === section)?.label || "Owner Panel"}
+          </h1>
         </div>
         <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <LogOut size={16} />
           Logout
         </button>
       </header>
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <nav
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-72 max-w-[80vw] h-full bg-card border-r border-border p-4 overflow-y-auto animate-fade-in"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-bold text-foreground">Menu Owner</span>
+              <button onClick={() => setMenuOpen(false)} className="p-1 rounded-md hover:bg-secondary text-muted-foreground"><X size={16} /></button>
+            </div>
+            <div className="space-y-1">
+              {MENU.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => { setSection(m.id); setMenuOpen(false); window.scrollTo({ top: 0 }); }}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    section === m.id ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {m.icon} {m.label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        </div>
+      )}
+
 
       <main className="max-w-lg mx-auto px-4 py-8 space-y-6">
         {/* Owner Watch Button */}
