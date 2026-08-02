@@ -139,10 +139,40 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [tokenShowId]);
 
+  // Gerbang jadwal show: token hanya aktif pada tanggal & jam show-nya
+  useEffect(() => {
+    if (!tokenShowId) { setShowSchedule(null); return; }
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("shows")
+        .select("id,name,show_code,show_date,access_hour,access_duration_hours")
+        .eq("id", tokenShowId)
+        .maybeSingle();
+      if (active) setShowSchedule((data as any) || null);
+    };
+    load();
+    const channel = supabase.channel(`show_schedule_${tokenShowId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shows", filter: `id=eq.${tokenShowId}` }, () => load())
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [tokenShowId]);
+
+  useEffect(() => {
+    if (!showSchedule?.show_date) return;
+    const tick = () => setNow(new Date());
+    tick();
+    const t = window.setInterval(tick, 1000);
+    return () => window.clearInterval(t);
+  }, [showSchedule]);
+
+  const showAccess = getShowAccess(showSchedule, now);
+
   const handleNickname = useCallback((name: string) => {
     sessionStorage.setItem("teamlive_nickname", name);
     setNickname(name);
   }, []);
+
 
   const handleSendMessage = useCallback((text: string) => {
     if (!nickname) return;
