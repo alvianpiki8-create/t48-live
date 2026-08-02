@@ -47,7 +47,8 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
   const [blockingTokenId, setBlockingTokenId] = useState<string | null>(null);
 
   const [selectedShow, setSelectedShow] = useState("");
-  const [durationDays, setDurationDays] = useState<number>(1);
+  const selectedShowRow = shows.find((s) => s.name === selectedShow) || null;
+
   const [maxUses, setMaxUses] = useState<number>(1);
 
   const activeTokens = tokens.filter((t) => !t.is_blocked);
