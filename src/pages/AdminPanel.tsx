@@ -270,20 +270,24 @@ const AdminPanel = () => {
     if (!session) return;
     setCreating(true); setGenerated(null);
     const token_code = generateTokenCode();
+    const showRow = shows.find((s) => s.name === selectedShow) || null;
+    const showHour = showRow?.access_hour || null;
     try {
       const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
         token_code,
         show_name: selectedShow || null,
-        show_id: shows.find((s) => s.name === selectedShow)?.id || null,
-        access_hour: selectedHour || null,
+        show_id: showRow?.id || null,
+        access_hour: showHour,
+        expires_at: showRow?.show_date || null,
         duration_days: duration,
       } as any));
       if (error) { alert("Gagal: " + netMessage(error.message)); setCreating(false); return; }
       await withRetry(() => supabase.from("admin_link_logs").insert({
         admin_id: session.id, admin_name: session.name, link_type: "normal",
-        token_code, show_name: selectedShow || null, duration_days: duration, access_hour: selectedHour || null,
+        token_code, show_name: selectedShow || null, duration_days: duration, access_hour: showHour,
       } as any));
-      finalizeGenerated(token_code, selectedShow || null, selectedHour || null);
+      finalizeGenerated(token_code, selectedShow || null, showHour);
+
     } catch (e: any) {
       alert("Gagal: " + netMessage(String(e?.message || e)));
     }
