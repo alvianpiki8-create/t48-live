@@ -46,6 +46,9 @@ const OwnerPanel = () => {
     return sessionStorage.getItem(AUTH_KEY) === "true";
   });
   const [ownerToken, setOwnerToken] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [section, setSection] = useState<SectionId>("channel");
+
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [saved, setSaved] = useState(false);
