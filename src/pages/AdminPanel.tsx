@@ -159,7 +159,7 @@ const AdminPanel = () => {
   const fetchData = useCallback(async () => {
     if (!session) return;
     const [s, m, l, ss] = await Promise.all([
-      supabase.from("shows").select("id,name").order("created_at", { ascending: true }),
+      supabase.from("shows").select("id,name,show_code,show_date,access_hour,access_duration_hours").order("created_at", { ascending: true }),
       supabase.from("memberships").select("id,name,type").eq("is_active", true).order("created_at", { ascending: true }),
       supabase.from("admin_link_logs").select("*").eq("admin_id", session.id).order("created_at", { ascending: false }).limit(50),
       supabase.from("stream_settings").select("replay_url, qris_image_url, payment_reminder_text").maybeSingle(),
