@@ -17,7 +17,7 @@ import { JKT48_MEMBERS } from "@/lib/jkt48Members";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
 import { useWeeklyViewers } from "@/hooks/useWeeklyViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
-import { getShowAccess, countdownText, formatShowSchedule, type ShowSchedule } from "@/lib/showSchedule";
+import { getShowAccess, getLiveShow, countdownText, formatShowSchedule, type ShowSchedule } from "@/lib/showSchedule";
 
 
 const resolveLineup = (value: any) => {
@@ -38,6 +38,7 @@ const Index = () => {
   const [tokenShowId, setTokenShowId] = useState<string | null>(null);
   const [tokenShowName, setTokenShowName] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState<ShowSchedule | null>(null);
+  const [allShows, setAllShows] = useState<ShowSchedule[]>([]);
   const [now, setNow] = useState(() => new Date());
 
   const [accessDenied, setAccessDenied] = useState(false);
@@ -163,15 +164,34 @@ const Index = () => {
     return () => { active = false; supabase.removeChannel(channel); };
   }, [tokenShowId]);
 
+  // Semua show (untuk deteksi show yang sedang live sekarang)
   useEffect(() => {
-    if (!showSchedule?.show_date) return;
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("shows")
+        .select("id,name,show_code,show_date,access_hour,access_duration_hours");
+      if (active) setAllShows(((data as any[]) || []) as ShowSchedule[]);
+    };
+    load();
+    const channel = supabase.channel("shows_all_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shows" }, () => load())
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
     const tick = () => setNow(new Date());
     tick();
     const t = window.setInterval(tick, 1000);
     return () => window.clearInterval(t);
-  }, [showSchedule]);
+  }, []);
 
   const showAccess = getShowAccess(showSchedule, now);
+  const liveShow = getLiveShow(allShows, now);
+  // Token show A tidak boleh masuk ke live show B
+  const wrongShow = !!liveShow && liveShow.id !== (tokenShowId || "");
+
 
   const handleNickname = useCallback((name: string) => {
     sessionStorage.setItem("teamlive_nickname", name);
@@ -225,6 +245,29 @@ const Index = () => {
               {pending
                 ? "Token Anda akan aktif otomatis tepat pada jam show. Halaman ini terbuka sendiri."
                 : "Token ini hanya berlaku untuk show tersebut."}
+            </p>
+            <p className="text-muted-foreground/30 text-xs font-mono mt-6">@t48id</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (wrongShow) {
+    return (
+      <><AntiInspect /><RainEffect />
+        <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
+          <div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center" style={{ animation: "fade-in 0.3s ease-out" }}>
+            <div className="text-4xl mb-4">🚫</div>
+            <h2 className="text-foreground font-semibold text-lg">Token beda show</h2>
+            <p className="text-muted-foreground text-sm mt-2">
+              Yang sedang live sekarang: <span className="text-foreground">{liveShow?.name}</span>
+              {liveShow?.show_code ? ` (${liveShow.show_code})` : ""}
+            </p>
+            <p className="text-muted-foreground text-sm mt-1">
+              {tokenShowName || showSchedule?.name
+                ? `Token Anda tertaut ke show "${tokenShowName || showSchedule?.name}", jadi tidak bisa dipakai di sini.`
+                : "Token Anda tidak tertaut ke show yang sedang live."}
             </p>
             <p className="text-muted-foreground/30 text-xs font-mono mt-6">@t48id</p>
           </div>
