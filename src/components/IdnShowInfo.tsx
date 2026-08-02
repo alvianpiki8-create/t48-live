@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Eye, Radio } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const IDN_API = "https://v5.jkt48connect.com/api/jkt48/idnplus?apikey=JKTCONNECT";
 
@@ -13,10 +14,12 @@ interface IdnShow {
 
 const IdnShowInfo = () => {
   const [show, setShow] = useState<IdnShow | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     const load = async () => {
+      if (!show) setLoading(true);
       try {
         const res = await fetch(IDN_API);
         const json = await res.json();
@@ -36,6 +39,8 @@ const IdnShowInfo = () => {
         );
       } catch {
         if (alive) setShow(null);
+      } finally {
+        if (alive) setLoading(false);
       }
     };
     load();
@@ -45,6 +50,19 @@ const IdnShowInfo = () => {
       clearInterval(id);
     };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-card border border-border rounded-xl overflow-hidden flex gap-3 p-3 animate-pulse">
+        <Skeleton className="w-20 h-20 rounded-lg flex-shrink-0" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+    );
+  }
 
   if (!show) return null;
 
