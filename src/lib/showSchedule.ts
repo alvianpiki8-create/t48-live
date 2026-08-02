@@ -37,7 +37,19 @@ export const getShowAccess = (show?: ShowSchedule | null, now: Date = new Date()
   return { state: "open", start, end };
 };
 
+/** Show yang sedang berlangsung sekarang (punya jadwal & jendela aksesnya terbuka). */
+export const getLiveShow = (shows: ShowSchedule[], now: Date = new Date()): ShowSchedule | null => {
+  const live = shows
+    .filter((s) => {
+      const { start, end } = getShowWindow(s);
+      return !!start && now >= start && (!end || now <= end);
+    })
+    .sort((a, b) => (getShowWindow(b).start!.getTime() - getShowWindow(a).start!.getTime()));
+  return live[0] || null;
+};
+
 export const formatShowSchedule = (show?: ShowSchedule | null) => {
+
   const { start } = getShowWindow(show);
   if (!start) return "Tanpa jadwal";
   return start.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
