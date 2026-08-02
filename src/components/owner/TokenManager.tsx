@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Plus, Ban, Copy, RefreshCw, Trash2, Check, Clock, Link } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Show } from "./ShowManager";
+import { formatShowSchedule } from "@/lib/showSchedule";
+
 
 interface AccessToken {
   id: string;
@@ -47,8 +49,10 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
   const [blockingTokenId, setBlockingTokenId] = useState<string | null>(null);
 
   const [selectedShow, setSelectedShow] = useState("");
-  const [selectedHour, setSelectedHour] = useState("");
   const [durationDays, setDurationDays] = useState<number>(1);
+  const selectedShowRow = shows.find((s) => s.name === selectedShow) || null;
+
+
   const [maxUses, setMaxUses] = useState<number>(1);
 
   const activeTokens = tokens.filter((t) => !t.is_blocked);
@@ -62,7 +66,8 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
         token_code: generateTokenCode(),
         show_name: selectedShow || null,
         show_id: showRow?.id || null,
-        access_hour: selectedHour || null,
+        access_hour: showRow?.access_hour || null,
+        expires_at: showRow?.show_date || null,
         duration_days: durationDays,
         max_uses: Math.max(1, Math.min(500, maxUses)),
       });
@@ -70,6 +75,7 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
     await supabase.from("access_tokens").insert(newTokens as any);
     onRefresh();
   };
+
 
   const handleUpdateMaxUses = async (tokenId: string, value: number) => {
     await supabase.from("access_tokens").update({ max_uses: Math.max(1, Math.min(500, value)) } as any).eq("id", tokenId);
@@ -175,24 +181,24 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
       <div className="space-y-3 bg-secondary/20 rounded-lg p-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Buat Token Baru</p>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Show</label>
-            <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)}
-              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">-- Pilih Show --</option>
-              {shows.map((s) => (<option key={s.id} value={s.name}>{s.name}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Jam Akses</label>
-            <select value={selectedHour} onChange={(e) => setSelectedHour(e.target.value)}
-              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">-- Pilih Jam --</option>
-              {hours.map((h) => (<option key={h} value={h}>{h}</option>))}
-            </select>
-          </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Show (jadwal & jam otomatis ikut show)</label>
+          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)}
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="">-- Pilih Show --</option>
+            {shows.map((s) => (
+              <option key={s.id} value={s.name}>
+                {s.show_code ? `[${s.show_code}] ` : ""}{s.name}{s.show_date ? ` · ${s.show_date} ${s.access_hour || ""}` : ""}
+              </option>
+            ))}
+          </select>
+          {selectedShowRow && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Token aktif otomatis: {formatShowSchedule(selectedShowRow as any)}
+            </p>
+          )}
         </div>
+
 
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Durasi Token (mulai saat dipakai)</label>

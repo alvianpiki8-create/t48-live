@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, KeyRound } from "lucide-react";
+import { Save, LogOut, ArrowLeft, Upload, X, CreditCard, Play, KeyRound, Menu } from "lucide-react";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
 import ShowManager, { Show } from "@/components/owner/ShowManager";
@@ -20,12 +20,35 @@ import ChatEventManager from "@/components/owner/ChatEventManager";
 const AUTH_KEY = "teamlive_owner_auth";
 const OWNER_TOKEN_KEY = "teamlive_owner_token";
 
+const MENU = [
+  { id: "channel", label: "Pengaturan Channel", icon: "⚙️" },
+  { id: "shows", label: "Show & Jadwal", icon: "🎬" },
+  { id: "tokens", label: "Token / Link Akses", icon: "🔑" },
+  { id: "lineup", label: "Lineup Member", icon: "👥" },
+  { id: "stream", label: "Countdown & Replay URL", icon: "⏱️" },
+  { id: "replay", label: "Jadwal Replay", icon: "🎞️" },
+  { id: "catalog", label: "Katalog Show & Slider", icon: "🛒" },
+  { id: "coins", label: "Approval Koin", icon: "🪙" },
+  { id: "moderator", label: "Moderator", icon: "🛡️" },
+  { id: "admins", label: "Admin & Tagihan", icon: "🧾" },
+  { id: "reports", label: "Laporan Chat", icon: "🚩" },
+  { id: "events", label: "Voting & Kuis", icon: "📊" },
+  { id: "filter", label: "Filter Penonton", icon: "🔎" },
+  { id: "membership", label: "Membership & Public Link", icon: "💳" },
+] as const;
+
+type SectionId = (typeof MENU)[number]["id"];
+
+
 const OwnerPanel = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem(AUTH_KEY) === "true";
   });
   const [ownerToken, setOwnerToken] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [section, setSection] = useState<SectionId>("channel");
+
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -203,18 +226,52 @@ const OwnerPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50">
+      <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft size={20} />
+          <button onClick={() => setMenuOpen(true)} className="p-1.5 rounded-lg bg-secondary/60 text-foreground hover:bg-secondary transition-colors" title="Menu">
+            <Menu size={20} />
           </button>
-          <h1 className="text-lg font-bold text-foreground">Owner Panel</h1>
+          <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <h1 className="text-base font-bold text-foreground">
+            {MENU.find((m) => m.id === section)?.label || "Owner Panel"}
+          </h1>
         </div>
         <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <LogOut size={16} />
           Logout
         </button>
       </header>
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <nav
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-72 max-w-[80vw] h-full bg-card border-r border-border p-4 overflow-y-auto animate-fade-in"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-bold text-foreground">Menu Owner</span>
+              <button onClick={() => setMenuOpen(false)} className="p-1 rounded-md hover:bg-secondary text-muted-foreground"><X size={16} /></button>
+            </div>
+            <div className="space-y-1">
+              {MENU.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => { setSection(m.id); setMenuOpen(false); window.scrollTo({ top: 0 }); }}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    section === m.id ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {m.icon} {m.label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        </div>
+      )}
+
 
       <main className="max-w-lg mx-auto px-4 py-8 space-y-6">
         {/* Owner Watch Button */}
@@ -232,7 +289,9 @@ const OwnerPanel = () => {
         </button>
 
         {/* Channel Settings */}
+        {section === "channel" && (
         <div className="bg-card border border-border rounded-xl p-6 space-y-5">
+
           <h2 className="font-semibold text-foreground">Pengaturan Channel</h2>
 
           <div>
@@ -447,74 +506,59 @@ const OwnerPanel = () => {
             {saved ? "Tersimpan ✓" : "Simpan Pengaturan"}
           </button>
         </div>
+        )}
 
-        {/* Show Manager */}
-        <ShowManager shows={shows} onRefresh={fetchShows} />
 
-        {/* Lineup Manager */}
-        <LineupManager
-          selectedNames={((streamSettings as any)?.lineup || []).map((m: any) => m.name)}
-          streamSettingsId={streamSettings?.id || null}
-          onRefresh={fetchStreamSettings}
-        />
+        {section === "shows" && <ShowManager shows={shows} onRefresh={fetchShows} />}
 
-        {/* Stream Settings (Countdown, Backup, Replay) */}
-        <StreamSettings settings={streamSettings} onRefresh={fetchStreamSettings} />
+        {section === "lineup" && (
+          <LineupManager
+            selectedNames={((streamSettings as any)?.lineup || []).map((m: any) => m.name)}
+            streamSettingsId={streamSettings?.id || null}
+            onRefresh={fetchStreamSettings}
+          />
+        )}
 
-        {/* Replay Schedule Manager */}
-        <ReplayScheduleManager />
+        {section === "stream" && <StreamSettings settings={streamSettings} onRefresh={fetchStreamSettings} />}
+        {section === "replay" && <ReplayScheduleManager />}
+        {section === "catalog" && (
+          <>
+            <ShowCatalogManager />
+            <CatalogSlideManager />
+          </>
+        )}
+        {section === "coins" && <CoinApproval />}
+        {section === "moderator" && <ModeratorManager />}
+        {section === "admins" && <AdminManager />}
+        {section === "reports" && <ChatReportsManager />}
+        {section === "events" && <ChatEventManager />}
+        {section === "filter" && <ViewerFilter settings={streamSettings} onRefresh={fetchStreamSettings} />}
 
-        {/* Show Catalog Manager */}
-        <ShowCatalogManager />
+        {section === "tokens" && (
+          <TokenManager
+            tokens={tokens}
+            shows={shows}
+            loadingTokens={loadingTokens}
+            onRefresh={fetchTokens}
+            streamSettings={streamSettings}
+          />
+        )}
 
-        {/* Catalog Slider Manager */}
-        <CatalogSlideManager />
+        {section === "membership" && (
+          <button
+            onClick={() => navigate("/membership")}
+            className="w-full bg-gradient-to-r from-primary/20 to-accent/30 border border-primary/30 rounded-xl p-4 hover:border-primary/50 transition-all flex items-center gap-3"
+          >
+            <div className="p-2 rounded-lg bg-primary/20 text-primary">
+              <CreditCard size={20} />
+            </div>
+            <div className="text-left">
+              <div className="text-foreground font-semibold text-sm">Membership & Public Link</div>
+              <div className="text-muted-foreground text-xs">Kelola paket membership & link publik</div>
+            </div>
+          </button>
+        )}
 
-        {/* Coin Approval */}
-        <CoinApproval />
-
-        {/* Moderator Manager */}
-        <ModeratorManager />
-
-        {/* Admin Manager (login by name + code) */}
-        <AdminManager />
-
-        {/* Chat Reports (real-time) */}
-        <ChatReportsManager />
-
-        {/* Voting & Quiz */}
-        <ChatEventManager />
-
-        {/* Viewer Filter */}
-        <ViewerFilter settings={streamSettings} onRefresh={fetchStreamSettings} />
-
-        {/* Token Manager */}
-        <TokenManager
-          tokens={tokens}
-          shows={shows}
-          loadingTokens={loadingTokens}
-          onRefresh={fetchTokens}
-          streamSettings={streamSettings}
-        />
-
-        {/* Link to Membership Panel */}
-        <button
-          onClick={() => navigate("/membership")}
-          className="w-full bg-gradient-to-r from-primary/20 to-accent/30 border border-primary/30 rounded-xl p-4 hover:border-primary/50 transition-all flex items-center gap-3"
-        >
-          <div className="p-2 rounded-lg bg-primary/20 text-primary">
-            <CreditCard size={20} />
-          </div>
-          <div className="text-left">
-            <div className="text-foreground font-semibold text-sm">Membership & Public Link</div>
-            <div className="text-muted-foreground text-xs">Kelola paket membership & link publik</div>
-          </div>
-        </button>
-
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="font-semibold text-foreground mb-2">Login Owner</h2>
-          <p className="text-xs text-muted-foreground">Owner panel sekarang memakai token khusus agar lebih cepat dan aman.</p>
-        </div>
 
         <p className="text-center text-muted-foreground/30 text-xs font-mono">@t48id</p>
       </main>

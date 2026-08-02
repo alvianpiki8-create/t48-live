@@ -632,22 +632,31 @@ export type Database = {
       }
       shows: {
         Row: {
+          access_duration_hours: number
+          access_hour: string | null
           created_at: string
           id: string
           name: string
           show_code: string | null
+          show_date: string | null
         }
         Insert: {
+          access_duration_hours?: number
+          access_hour?: string | null
           created_at?: string
           id?: string
           name: string
           show_code?: string | null
+          show_date?: string | null
         }
         Update: {
+          access_duration_hours?: number
+          access_hour?: string | null
           created_at?: string
           id?: string
           name?: string
           show_code?: string | null
+          show_date?: string | null
         }
         Relationships: []
       }
