@@ -449,6 +449,8 @@ const OwnerPanel = () => {
             {saved ? "Tersimpan ✓" : "Simpan Pengaturan"}
           </button>
         </div>
+        )}
+
 
         {section === "shows" && <ShowManager shows={shows} onRefresh={fetchShows} />}
 
