@@ -4,6 +4,8 @@ import { Crown, ExternalLink, Settings } from "lucide-react";
 import RainEffect from "@/components/RainEffect";
 import LivePlayer from "@/components/LivePlayer";
 import ChannelInfo from "@/components/ChannelInfo";
+import IdnShowInfo from "@/components/IdnShowInfo";
+
 import CommentSection from "@/components/CommentSection";
 import NicknameModal from "@/components/NicknameModal";
 import AntiInspect from "@/components/AntiInspect";
@@ -321,6 +323,8 @@ const Index = () => {
             )}
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
+          <IdnShowInfo />
+
           <LineupDisplay lineup={lineup} />
           {tokenShowName?.toLowerCase().startsWith("membership") && (
             <div className="rounded-xl border border-primary/30 bg-card/80 backdrop-blur-sm p-4 space-y-3 animate-fade-in">
