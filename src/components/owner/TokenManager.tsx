@@ -176,24 +176,24 @@ Jika ada kendala, segera hubungi Admin. Selamat menonton! 🥰`;
       <div className="space-y-3 bg-secondary/20 rounded-lg p-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Buat Token Baru</p>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Show</label>
-            <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)}
-              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">-- Pilih Show --</option>
-              {shows.map((s) => (<option key={s.id} value={s.name}>{s.name}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Jam Akses</label>
-            <select value={selectedHour} onChange={(e) => setSelectedHour(e.target.value)}
-              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">-- Pilih Jam --</option>
-              {hours.map((h) => (<option key={h} value={h}>{h}</option>))}
-            </select>
-          </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Show (jadwal & jam otomatis ikut show)</label>
+          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)}
+            className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="">-- Pilih Show --</option>
+            {shows.map((s) => (
+              <option key={s.id} value={s.name}>
+                {s.show_code ? `[${s.show_code}] ` : ""}{s.name}{s.show_date ? ` · ${s.show_date} ${s.access_hour || ""}` : ""}
+              </option>
+            ))}
+          </select>
+          {selectedShowRow && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Token aktif otomatis: {formatShowSchedule(selectedShowRow as any)}
+            </p>
+          )}
         </div>
+
 
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Durasi Token (mulai saat dipakai)</label>
