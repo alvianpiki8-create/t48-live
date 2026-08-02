@@ -304,41 +304,42 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                // Buffer cukup untuk stabil, tapi tidak berat di memori HP
-                backBufferLength: 15,
-                maxBufferLength: 20,
-                maxMaxBufferLength: 40,
-                maxBufferSize: 40 * 1000 * 1000,
+                // Buffer lebih panjang = anti patah-patah, tapi tetap hemat memori
+                backBufferLength: 10,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                maxBufferSize: 60 * 1000 * 1000,
                 maxBufferHole: 0.5,
-                // Dekat live edge -> latensi kecil, rebuffer tetap minim
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 8,
+                // Jarak aman dari live edge supaya tidak sering stall
+                liveSyncDurationCount: 4,
+                liveMaxLatencyDurationCount: 12,
                 liveDurationInfinity: true,
                 highBufferWatchdogPeriod: 2,
                 nudgeMaxRetry: 12,
                 nudgeOffset: 0.2,
-                manifestLoadingTimeOut: 6000,
+                manifestLoadingTimeOut: 8000,
                 manifestLoadingMaxRetry: 4,
                 manifestLoadingRetryDelay: 400,
-                levelLoadingTimeOut: 6000,
+                levelLoadingTimeOut: 8000,
                 levelLoadingMaxRetry: 4,
                 levelLoadingRetryDelay: 400,
-                fragLoadingTimeOut: 12000,
+                fragLoadingTimeOut: 20000,
                 fragLoadingMaxRetry: 8,
-                fragLoadingRetryDelay: 400,
+                fragLoadingRetryDelay: 500,
                 startFragPrefetch: true,
                 progressive: false,
-                // Start cepat: jangan test bandwidth dulu, biar frame pertama muncul instan,
-                // ABR tetap jalan untuk naik kualitas setelahnya
+                // Jangan decode resolusi lebih besar dari ukuran player -> jauh lebih ringan di HP
+                capLevelToPlayerSize: true,
                 testBandwidth: false,
                 startLevel: -1,
-                abrEwmaFastLive: 2,
-                abrEwmaSlowLive: 6,
-                abrEwmaDefaultEstimate: 1_800_000,
+                abrEwmaFastLive: 3,
+                abrEwmaSlowLive: 9,
+                abrEwmaDefaultEstimate: 1_200_000,
                 abrBandWidthFactor: 0.9,
-                abrBandWidthUpFactor: 0.8,
+                abrBandWidthUpFactor: 0.7,
                 abrMaxWithRealBitrate: true,
               });
+
 
               hls.loadSource(url);
               hls.attachMedia(video);
