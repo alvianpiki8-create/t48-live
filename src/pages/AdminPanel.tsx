@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2, Film, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, filterLogsSince } from "@/lib/adminPricing";
+import { formatShowSchedule } from "@/lib/showSchedule";
+
 
 const STORAGE_KEY = "teamlive_admin_session";
 const DURATION_OPTIONS = [1, 7, 15, 20, 30, 60];
@@ -16,7 +18,7 @@ const generateTokenCode = () => {
   return code;
 };
 
-interface Show { id: string; name: string; }
+interface Show { id: string; name: string; show_code?: string | null; show_date?: string | null; access_hour?: string | null; access_duration_hours?: number | null; }
 interface Membership { id: string; name: string; type: string; }
 interface StreamSettings { replay_url?: string; qris_image_url?: string; payment_reminder_text?: string; }
 
