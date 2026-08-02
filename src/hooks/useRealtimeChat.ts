@@ -85,6 +85,50 @@ export const useRealtimeChat = () => {
     return () => { supabase.removeChannel(banCh); clearInterval(banInterval); };
   }, []);
 
+  // Batch semua event realtime -> 1 render per interval (jauh lebih ringan saat rame)
+  const pendingRef = useRef<{ inserts: ChatMessage[]; updates: ChatMessage[]; deletes: string[] }>({
+    inserts: [],
+    updates: [],
+    deletes: [],
+  });
+  const flushTimerRef = useRef<number | null>(null);
+
+  const flush = useCallback(() => {
+    flushTimerRef.current = null;
+    const { inserts, updates, deletes } = pendingRef.current;
+    if (!inserts.length && !updates.length && !deletes.length) return;
+    pendingRef.current = { inserts: [], updates: [], deletes: [] };
+
+    setMessages((prev) => {
+      let next = prev;
+      if (updates.length) {
+        const byId = new Map(updates.map((m) => [m.id, m]));
+        next = next.map((m) => (byId.has(m.id) ? { ...m, ...byId.get(m.id)! } : m));
+      }
+      if (deletes.length) {
+        const gone = new Set(deletes);
+        next = next.filter((m) => !gone.has(m.id));
+      }
+      if (inserts.length) {
+        if (next === prev) next = [...prev];
+        for (const msg of inserts) {
+          const tempIdx = next.findIndex(
+            (p) => p.id.startsWith("tmp-") && p.nickname === msg.nickname && p.text === msg.text
+          );
+          if (tempIdx >= 0) next[tempIdx] = msg;
+          else next.push(msg);
+        }
+        if (next.length > 300) next = next.slice(-200);
+      }
+      return next === prev ? prev : [...next];
+    });
+  }, []);
+
+  const scheduleFlush = useCallback(() => {
+    if (flushTimerRef.current != null) return;
+    flushTimerRef.current = window.setTimeout(flush, 200);
+  }, [flush]);
+
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
@@ -100,7 +144,7 @@ export const useRealtimeChat = () => {
     load();
 
     const channel = supabase
-      .channel("realtime_chat")
+      .channel("realtime_chat", { config: { broadcast: { ack: false } } })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages" },
@@ -108,26 +152,18 @@ export const useRealtimeChat = () => {
           const msg = payload.new as ChatMessage;
           if (seenIds.current.has(msg.id)) return;
           seenIds.current.add(msg.id);
-          setMessages((prev) => {
-            const tempIdx = prev.findIndex(
-              (p) => p.id.startsWith("tmp-") && p.nickname === msg.nickname && p.text === msg.text
-            );
-            if (tempIdx >= 0) {
-              const next = [...prev];
-              next[tempIdx] = msg;
-              return next;
-            }
-            const updated = [...prev, msg];
-            return updated.length > 300 ? updated.slice(-200) : updated;
-          });
+          pendingRef.current.inserts.push(msg);
+          // Jangan biarkan antrian meledak kalau chat sangat ramai
+          if (pendingRef.current.inserts.length > 100) pendingRef.current.inserts.splice(0, pendingRef.current.inserts.length - 100);
+          scheduleFlush();
         }
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "chat_messages" },
         (payload) => {
-          const msg = payload.new as ChatMessage;
-          setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m)));
+          pendingRef.current.updates.push(payload.new as ChatMessage);
+          scheduleFlush();
         }
       )
       .on(
@@ -136,13 +172,21 @@ export const useRealtimeChat = () => {
         (payload) => {
           const id = (payload.old as any).id;
           seenIds.current.delete(id);
-          setMessages((prev) => prev.filter((m) => m.id !== id));
+          pendingRef.current.deletes.push(id);
+          scheduleFlush();
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+    return () => {
+      supabase.removeChannel(channel);
+      if (flushTimerRef.current != null) window.clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    };
+  }, [scheduleFlush]);
+
+
+  const lastSentRef = useRef(0);
 
   const sendMessage = useCallback(async (nickname: string, text: string) => {
     const isOwner = nickname === "TEAM Live";
@@ -154,6 +198,15 @@ export const useRealtimeChat = () => {
       });
       return;
     }
+
+    // Throttle kirim: cegah spam & antrian insert yang bikin chat delay
+    const nowTs = Date.now();
+    if (!isOwner && nowTs - lastSentRef.current < 1200) {
+      toast({ title: "Tunggu sebentar", description: "Kirim pesan terlalu cepat." });
+      return;
+    }
+    lastSentRef.current = nowTs;
+
 
     const color = getColorForNickname(nickname);
     const deviceId = getDeviceId();
