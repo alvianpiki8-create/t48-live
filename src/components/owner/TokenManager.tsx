@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Plus, Ban, Copy, RefreshCw, Trash2, Check, Clock, Link } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Show } from "./ShowManager";
+import { formatShowSchedule } from "@/lib/showSchedule";
+
 
 interface AccessToken {
   id: string;
@@ -47,7 +49,9 @@ const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings 
   const [blockingTokenId, setBlockingTokenId] = useState<string | null>(null);
 
   const [selectedShow, setSelectedShow] = useState("");
+  const [durationDays, setDurationDays] = useState<number>(1);
   const selectedShowRow = shows.find((s) => s.name === selectedShow) || null;
+
 
   const [maxUses, setMaxUses] = useState<number>(1);
 
