@@ -301,20 +301,26 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
         customType: {
           m3u8: (video: HTMLVideoElement, url: string) => {
             if (Hls.isSupported()) {
+              const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+              const conn: any = (navigator as any).connection || {};
+              const saveData = !!conn.saveData;
+              const slowNet = saveData || /(^|-)2g$/.test(String(conn.effectiveType || ""));
+              // Low-Latency HLS aktif; kalau playlist bukan LL-HLS, hls.js otomatis fallback ke mode normal
               const hls = new Hls({
                 enableWorker: true,
-                lowLatencyMode: false,
-                // Buffer lebih panjang = anti patah-patah, tapi tetap hemat memori
-                backBufferLength: 10,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                maxBufferSize: 60 * 1000 * 1000,
-                maxBufferHole: 0.5,
-                // Jarak aman dari live edge supaya tidak sering stall
-                liveSyncDurationCount: 4,
-                liveMaxLatencyDurationCount: 12,
+                lowLatencyMode: true,
+                // Buffer: cukup panjang untuk anti patah-patah, tetap hemat memori di HP
+                backBufferLength: isMobile ? 6 : 10,
+                maxBufferLength: isMobile ? 18 : 24,
+                maxMaxBufferLength: isMobile ? 40 : 60,
+                maxBufferSize: (isMobile ? 30 : 60) * 1000 * 1000,
+                maxBufferHole: 0.3,
+                // Jarak aman dari live edge (dipakai saat playlist non-LL)
+                liveSyncDurationCount: 3,
+                liveMaxLatencyDurationCount: 10,
                 liveDurationInfinity: true,
-                highBufferWatchdogPeriod: 2,
+                maxLiveSyncPlaybackRate: 1.5, // kejar live edge halus tanpa lompat/seek
+                highBufferWatchdogPeriod: 1,
                 nudgeMaxRetry: 12,
                 nudgeOffset: 0.2,
                 manifestLoadingTimeOut: 8000,
@@ -328,15 +334,17 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 fragLoadingRetryDelay: 500,
                 startFragPrefetch: true,
                 progressive: false,
-                // Jangan decode resolusi lebih besar dari ukuran player -> jauh lebih ringan di HP
+                // Jangan decode resolusi lebih besar dari ukuran player -> jauh lebih ringan
                 capLevelToPlayerSize: true,
+                capLevelOnFPSDrop: true,
                 testBandwidth: false,
                 startLevel: -1,
-                abrEwmaFastLive: 3,
-                abrEwmaSlowLive: 9,
-                abrEwmaDefaultEstimate: 1_200_000,
-                abrBandWidthFactor: 0.9,
-                abrBandWidthUpFactor: 0.7,
+                // ABR konservatif: naik pelan, turun cepat -> bitrate otomatis tetap ringan
+                abrEwmaFastLive: 2,
+                abrEwmaSlowLive: 8,
+                abrEwmaDefaultEstimate: slowNet ? 500_000 : isMobile ? 900_000 : 1_500_000,
+                abrBandWidthFactor: 0.85,
+                abrBandWidthUpFactor: 0.6,
                 abrMaxWithRealBitrate: true,
               });
 
@@ -345,6 +353,19 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               hls.attachMedia(video);
               (art as any).hls = hls;
               art.on("destroy", () => hls.destroy());
+
+              // Batasi bitrate otomatis: jangan pilih level di atas kemampuan layar/jaringan
+              const capBitrate = () => {
+                try {
+                  const maxBitrate = slowNet ? 900_000 : isMobile ? 2_500_000 : 5_000_000;
+                  const levels = hls.levels || [];
+                  let cap = -1;
+                  levels.forEach((l, i) => { if (l.bitrate <= maxBitrate) cap = i; });
+                  hls.autoLevelCapping = cap >= 0 ? cap : 0;
+                } catch {}
+              };
+              hls.on(Hls.Events.MANIFEST_PARSED, capBitrate);
+
 
               const seekToLive = () => {
                 try {
