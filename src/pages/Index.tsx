@@ -163,15 +163,34 @@ const Index = () => {
     return () => { active = false; supabase.removeChannel(channel); };
   }, [tokenShowId]);
 
+  // Semua show (untuk deteksi show yang sedang live sekarang)
   useEffect(() => {
-    if (!showSchedule?.show_date) return;
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("shows")
+        .select("id,name,show_code,show_date,access_hour,access_duration_hours");
+      if (active) setAllShows(((data as any[]) || []) as ShowSchedule[]);
+    };
+    load();
+    const channel = supabase.channel("shows_all_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shows" }, () => load())
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
     const tick = () => setNow(new Date());
     tick();
     const t = window.setInterval(tick, 1000);
     return () => window.clearInterval(t);
-  }, [showSchedule]);
+  }, []);
 
   const showAccess = getShowAccess(showSchedule, now);
+  const liveShow = getLiveShow(allShows, now);
+  // Token show A tidak boleh masuk ke live show B
+  const wrongShow = !!liveShow && liveShow.id !== (tokenShowId || "");
+
 
   const handleNickname = useCallback((name: string) => {
     sessionStorage.setItem("teamlive_nickname", name);
