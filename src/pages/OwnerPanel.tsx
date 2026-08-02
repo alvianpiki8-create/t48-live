@@ -232,7 +232,9 @@ const OwnerPanel = () => {
         </button>
 
         {/* Channel Settings */}
+        {section === "channel" && (
         <div className="bg-card border border-border rounded-xl p-6 space-y-5">
+
           <h2 className="font-semibold text-foreground">Pengaturan Channel</h2>
 
           <div>
