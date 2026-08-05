@@ -122,7 +122,7 @@ const ReplayPage = () => {
   }
 
 
-  if (membershipMode) {
+  if (membershipMode && membershipActive) {
     const withVideo = schedules.filter((s) => s.youtube_url);
     const active = withVideo.find((s) => s.id === selectedId) || withVideo[0];
     const videoId = active ? extractYouTubeVideoId(active.youtube_url || "") : null;
