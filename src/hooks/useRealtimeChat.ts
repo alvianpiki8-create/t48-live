@@ -189,7 +189,22 @@ export const useRealtimeChat = () => {
   const lastSentRef = useRef(0);
 
   const sendMessage = useCallback(async (nickname: string, text: string) => {
-    const isOwner = nickname === "TEAM Live";
+    // Official ("TEAM Live") messages are only possible with the owner panel token:
+    // the database refuses that nickname from normal clients, and the owner-chat
+    // edge function verifies the token before posting.
+    const ownerToken = sessionStorage.getItem("teamlive_owner_token") || "";
+    const wantsOwner = nickname.trim().toLowerCase() === "team live";
+    const isOwner = wantsOwner && Boolean(ownerToken);
+
+    if (wantsOwner && !isOwner) {
+      toast({
+        title: "Nama ini dilindungi",
+        description: "Nickname resmi hanya bisa dipakai lewat Owner Panel.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (isBanned && !isOwner) {
       toast({
         title: "Anda diblokir dari chat",
@@ -224,17 +239,25 @@ export const useRealtimeChat = () => {
     setMessages((prev) => [...prev, optimistic]);
 
     // Insert + moderate in parallel for instant fan-out to other viewers
-    const insertPromise = supabase
-      .from("chat_messages")
-      .insert({ nickname, text, color, device_id: deviceId } as any)
-      .select("id")
-      .maybeSingle();
+    const insertPromise = isOwner
+      ? supabase.functions
+          .invoke("owner-chat", { body: { ownerToken, nickname, text, color, deviceId } })
+          .then((res: any) => ({
+            data: res?.data?.id ? { id: res.data.id } : null,
+            error: res?.error || (res?.data?.error ? { message: res.data.error } : null),
+          }))
+      : supabase
+          .from("chat_messages")
+          .insert({ nickname, text, color, device_id: deviceId } as any)
+          .select("id")
+          .maybeSingle();
 
     const modPromise = isOwner
       ? Promise.resolve({ data: null, error: null } as any)
       : supabase.functions
           .invoke("moderate-chat", { body: { text } })
           .catch(() => ({ data: null, error: null } as any));
+
 
     const [{ data: inserted, error: insertError }, { data: modData }] = await Promise.all([
       insertPromise,
