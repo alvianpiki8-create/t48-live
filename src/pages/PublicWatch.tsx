@@ -12,6 +12,7 @@ import LineupDisplay from "@/components/LineupDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
+import { useFakeViewers } from "@/hooks/useFakeViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 
 interface PublicWatchProps {
@@ -21,7 +22,9 @@ interface PublicWatchProps {
 const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState<string | null>(() => sessionStorage.getItem("teamlive_nickname"));
-  const viewerCount = useViewerPresence();
+  const realViewerCount = useViewerPresence();
+  const fakeViewers = useFakeViewers();
+  const viewerCount = realViewerCount + fakeViewers;
   const { messages, sendMessage } = useRealtimeChat();
   const [countdownDatetime, setCountdownDatetime] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
