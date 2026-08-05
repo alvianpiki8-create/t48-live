@@ -197,8 +197,10 @@ const Index = () => {
   const isMembership = (tokenShowName || "").toLowerCase().startsWith("membership");
   const showAccess = isMembership ? ({ state: "open", start: null, end: null } as const) : getShowAccess(showSchedule, now);
   const liveShow = getLiveShow(allShows, now);
-  // Token show A tidak boleh masuk ke live show B (kecuali membership)
-  const wrongShow = !isMembership && !!liveShow && liveShow.id !== (tokenShowId || "");
+  // Token hanya boleh menonton show yang tertaut ke ID show-nya (kecuali membership)
+  const wrongShow =
+    !isMembership && (!tokenShowId || (!!liveShow && liveShow.id !== tokenShowId));
+
 
 
   const handleNickname = useCallback((name: string) => {
