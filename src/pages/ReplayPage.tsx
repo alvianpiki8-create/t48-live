@@ -227,7 +227,7 @@ const ReplayPage = () => {
     sessionStorage.removeItem(UNLOCK_KEY);
     sessionStorage.removeItem(UNLOCK_SHOW_KEY);
     setActiveToken(null);
-    setTokenShowId(null);
+    setSchedules([]);
   };
 
   const videoId = currentVideo ? extractYouTubeVideoId(currentVideo.youtube_url || "") : null;
