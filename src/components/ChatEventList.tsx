@@ -23,13 +23,11 @@ const ChatEventList = ({ nickname }: Props) => {
   const deviceId = getDeviceId();
 
   const fetchAll = useCallback(async () => {
-    const { data } = await supabase
-      .from("chat_events" as any)
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(5);
+    // Server-side RPC: correct_answer is only returned once it is revealed.
+    const { data } = await (supabase as any).rpc("get_chat_events_public", { p_limit: 5 });
     const list = ((data as any[]) || []) as EventRow[];
     setEvents(list);
+
     if (!list.length) { setStats({}); return; }
     const ids = list.map((e) => e.id);
     const { data: r } = await supabase
