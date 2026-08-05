@@ -675,6 +675,7 @@ export type Database = {
           channel_name: string | null
           countdown_background: string | null
           countdown_datetime: string | null
+          fake_viewers: number
           id: string
           idn_live_url: string | null
           is_singleton: boolean
@@ -709,6 +710,7 @@ export type Database = {
           channel_name?: string | null
           countdown_background?: string | null
           countdown_datetime?: string | null
+          fake_viewers?: number
           id?: string
           idn_live_url?: string | null
           is_singleton?: boolean
@@ -743,6 +745,7 @@ export type Database = {
           channel_name?: string | null
           countdown_background?: string | null
           countdown_datetime?: string | null
+          fake_viewers?: number
           id?: string
           idn_live_url?: string | null
           is_singleton?: boolean
