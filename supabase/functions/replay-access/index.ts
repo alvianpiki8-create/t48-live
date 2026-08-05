@@ -68,41 +68,58 @@ Deno.serve(async (req) => {
     }
 
     // 3) Unlock with a replay password OR a live access token.
-    //    A replay password only works when its schedule is tied to a show ID,
-    //    and it unlocks exactly the replays of that show.
+    //    A replay password unlocks the replays of the show it is tied to.
+    //    Failures return HTTP 200 with an `error` field so the client can show
+    //    the exact reason (supabase-js swallows bodies of non-2xx responses).
     if (action === "unlock") {
-      if (!secret) return json({ error: "missing_secret" }, 400);
+      if (!secret) return json({ error: "missing_secret" });
       const rows = await allSchedules();
 
       const matches = rows.filter((r) => (r.replay_password || "").trim() === secret);
       if (matches.length) {
         const linked = matches.filter((r) => r.show_id);
-        if (!linked.length) return json({ error: "no_show" }, 403);
-        const showId = linked[0].show_id;
-        const forShow = rows.filter((r) => r.show_id === showId && r.youtube_url);
-        if (!forShow.length) return json({ error: "no_video" }, 404);
-        return json({ mode: "password", show_id: showId, schedules: forShow.map(fullShape) });
+        if (linked.length) {
+          const showId = linked[0].show_id;
+          const forShow = rows.filter((r) => r.show_id === showId && r.youtube_url);
+          if (!forShow.length) return json({ error: "no_video" });
+          return json({ mode: "password", show_id: showId, schedules: forShow.map(fullShape) });
+        }
+        // Legacy schedules without a show ID: unlock only the exact matching rows.
+        const own = matches.filter((r) => r.youtube_url);
+        if (!own.length) return json({ error: "no_video" });
+        return json({ mode: "password", show_id: null, schedules: own.map(fullShape) });
       }
 
       const { data: tok } = await admin
         .from("access_tokens")
-        .select("id,is_blocked,valid_until,expires_at,show_id")
+        .select("id,is_blocked,valid_until,expires_at,show_id,show_name")
         .eq("token_code", secret)
         .maybeSingle();
 
       if (tok && !tok.is_blocked) {
+        // expires_at is a DATE — it stays valid through the end of that day.
+        const endOfDay = tok.expires_at ? new Date(`${tok.expires_at}T23:59:59Z`) : null;
         const notExpired =
           (!tok.valid_until || new Date(tok.valid_until) > new Date()) &&
-          (!tok.expires_at || new Date(tok.expires_at) > new Date());
-        if (!notExpired) return json({ error: "expired" }, 403);
-        if (!tok.show_id) return json({ error: "no_show" }, 403);
+          (!endOfDay || endOfDay > new Date());
+        if (!notExpired) return json({ error: "expired" });
+
+        // Membership tokens open every replay.
+        if ((tok.show_name || "").toLowerCase().startsWith("membership")) {
+          const all = rows.filter((r) => r.youtube_url);
+          if (!all.length) return json({ error: "no_video" });
+          return json({ mode: "membership", schedules: all.map(fullShape) });
+        }
+
+        if (!tok.show_id) return json({ error: "no_show" });
         const forShow = rows.filter((r) => r.youtube_url && r.show_id === tok.show_id);
-        if (!forShow.length) return json({ error: "no_video" }, 404);
+        if (!forShow.length) return json({ error: "no_video" });
         return json({ mode: "token", show_id: tok.show_id, schedules: forShow.map(fullShape) });
       }
 
-      return json({ error: "invalid_secret" }, 403);
+      return json({ error: "invalid_secret" });
     }
+
 
     // 4) Membership: all replays, verified server-side (JWT membership or membership token).
     if (action === "membership") {
