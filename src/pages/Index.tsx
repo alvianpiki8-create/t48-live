@@ -192,10 +192,12 @@ const Index = () => {
     return () => window.clearInterval(t);
   }, []);
 
-  const showAccess = getShowAccess(showSchedule, now);
+  // Token membership bebas akses semua show
+  const isMembership = (tokenShowName || "").toLowerCase().startsWith("membership");
+  const showAccess = isMembership ? ({ state: "open", start: null, end: null } as const) : getShowAccess(showSchedule, now);
   const liveShow = getLiveShow(allShows, now);
-  // Token show A tidak boleh masuk ke live show B
-  const wrongShow = !!liveShow && liveShow.id !== (tokenShowId || "");
+  // Token show A tidak boleh masuk ke live show B (kecuali membership)
+  const wrongShow = !isMembership && !!liveShow && liveShow.id !== (tokenShowId || "");
 
 
   const handleNickname = useCallback((name: string) => {
