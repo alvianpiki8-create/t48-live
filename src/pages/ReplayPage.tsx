@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { KeyRound, ArrowLeft, Film, Lock, Crown, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getAccessToken } from "@/lib/tokenStore";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
 const UNLOCK_KEY = "teamlive_replay_unlocked_token";
@@ -49,7 +50,7 @@ const ReplayPage = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await callReplay({ action: "membership", secret: sessionStorage.getItem("teamlive_token") || "" });
+      const res = await callReplay({ action: "membership", secret: getAccessToken() || "" });
       if (cancelled) return;
       if (res?.schedules) {
         setMembershipActive(true);

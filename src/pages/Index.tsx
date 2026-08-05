@@ -15,6 +15,7 @@ import OrderShowBanner from "@/components/OrderShowBanner";
 import LineupDisplay from "@/components/LineupDisplay";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
+import { getAccessToken, clearAccessToken } from "@/lib/tokenStore";
 import { JKT48_MEMBERS } from "@/lib/jkt48Members";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
 import { useFakeViewers } from "@/hooks/useFakeViewers";
@@ -64,32 +65,32 @@ const Index = () => {
   const [logoUrl, setLogoUrl] = useState("");
 
   useEffect(() => {
-    const token = sessionStorage.getItem("teamlive_token");
+    const token = getAccessToken();
     const deviceId = getDeviceId();
     if (!token) { setAccessDenied(true); return; }
 
     const validate = async () => {
       const { data, error } = await supabase.from("access_tokens").select("*").eq("token_code", token).maybeSingle();
       if (error || !data || data.is_blocked) {
-        sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
+        clearAccessToken(); setAccessDenied(true); return;
       }
       const maxUses = (data as any).max_uses || 1;
       if (maxUses > 1) {
         // Shared token: device must be registered in access_token_devices
         const { data: dev } = await supabase.from("access_token_devices" as any)
           .select("id").eq("token_id", data.id).eq("device_id", deviceId).maybeSingle();
-        if (!dev) { sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return; }
+        if (!dev) { clearAccessToken(); setAccessDenied(true); return; }
       } else {
         // Allow re-entry: if token is bound to another device, reject; else (unbound) bind to this device now
         if (data.device_id && data.device_id !== deviceId) {
-          sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
+          clearAccessToken(); setAccessDenied(true); return;
         }
         if (!data.device_id) {
           await supabase.from("access_tokens").update({ device_id: deviceId, used_at: new Date().toISOString() }).eq("token_code", token);
         }
       }
       if ((data as any).valid_until && new Date() > new Date((data as any).valid_until)) {
-        sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); return;
+        clearAccessToken(); setAccessDenied(true); return;
       }
       setTokenCode(data.token_code);
       setTokenShowId((data as any).show_id || null);
@@ -99,7 +100,7 @@ const Index = () => {
 
     const channel = supabase.channel("token_realtime")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "access_tokens", filter: `token_code=eq.${token}` }, (payload) => {
-        if ((payload.new as any).is_blocked) { sessionStorage.removeItem("teamlive_token"); setAccessDenied(true); }
+        if ((payload.new as any).is_blocked) { clearAccessToken(); setAccessDenied(true); }
       }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
@@ -377,13 +378,13 @@ const Index = () => {
                   return;
                 }
                 if (!confirm("Reset device akses? Anda harus memasukkan token lagi di perangkat baru.")) return;
-                const token = sessionStorage.getItem("teamlive_token");
+                const token = getAccessToken();
                 if (token) {
                   await supabase.from("access_tokens").update({ device_id: null }).eq("token_code", token);
                 }
                 log.count += 1;
                 localStorage.setItem(key, JSON.stringify(log));
-                sessionStorage.removeItem("teamlive_token");
+                clearAccessToken();
                 sessionStorage.removeItem("teamlive_nickname");
                 localStorage.removeItem("teamlive_device_id");
                 alert(`Device direset. Sisa hari ini: ${2 - log.count}x`);
