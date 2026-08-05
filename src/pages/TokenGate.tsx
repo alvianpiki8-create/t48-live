@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
+import { setAccessToken } from "@/lib/tokenStore";
 import RainEffect from "@/components/RainEffect";
 import AntiInspect from "@/components/AntiInspect";
 
@@ -99,7 +100,7 @@ const TokenGate = () => {
         }
       }
 
-      sessionStorage.setItem("teamlive_token", token);
+      setAccessToken(token);
       sessionStorage.setItem("teamlive_device_id", deviceId);
       navigate("/", { replace: true });
     };
