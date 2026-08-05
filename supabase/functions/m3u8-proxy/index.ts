@@ -317,10 +317,20 @@ function trimLiveWindow(lines: string[]) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // Fail closed: without a signing secret no token can be trusted.
+  if (!SECRET) {
+    console.error("OWNER_PANEL_TOKEN is not configured — refusing to sign proxy tokens");
+    return new Response(JSON.stringify({ error: "proxy_not_configured" }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const url = new URL(req.url);
   const publicBase = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
   const proxyOrigin = publicBase ? `${publicBase}/functions/v1/m3u8-proxy` : `${url.origin}${url.pathname}`;
   const fp = await fpHash(req);
+
 
   try {
     if (req.method === "POST") {
