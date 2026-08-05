@@ -245,7 +245,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     }
     let cancelled = false;
     const container = artContainerRef.current;
-    const isIdnAuto = activeServer.kind === "idn-auto";
+    
 
     (async () => {
       // Semua sumber m3u8 diputar langsung tanpa proxy.
