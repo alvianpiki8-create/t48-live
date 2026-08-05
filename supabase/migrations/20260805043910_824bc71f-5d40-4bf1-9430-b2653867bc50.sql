@@ -1,0 +1,1 @@
+ALTER TABLE public.stream_settings ADD COLUMN IF NOT EXISTS fake_viewers integer NOT NULL DEFAULT 0;

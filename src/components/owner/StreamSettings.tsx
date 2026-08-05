@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload, QrCode, Film, KeyRound } from "lucide-react";
+import { Save, Timer, Link2, Image as ImageIcon, Radio, Upload, QrCode, Film, KeyRound, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StreamSettingsProps {
@@ -33,6 +33,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
   const [catalogBgType, setCatalogBgType] = useState<"image" | "video">("image");
   const [qrisUrl, setQrisUrl] = useState("");
   const [paymentReminder, setPaymentReminder] = useState("");
+  const [fakeViewers, setFakeViewers] = useState(0);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [uploadingCatBg, setUploadingCatBg] = useState(false);
@@ -58,6 +59,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       setCatalogBgType(((settings as any).catalog_background_type as "image" | "video") || "image");
       setQrisUrl((settings as any).qris_image_url || "");
       setPaymentReminder((settings as any).payment_reminder_text || "");
+      setFakeViewers(Number((settings as any).fake_viewers) || 0);
     }
   }, [settings]);
 
@@ -137,6 +139,7 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
       catalog_background_type: catalogBgType,
       qris_image_url: qrisUrl,
       payment_reminder_text: paymentReminder,
+      fake_viewers: Math.max(0, Number(fakeViewers) || 0),
       updated_at: new Date().toISOString(),
     };
     let error: any = null;
@@ -172,6 +175,24 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
             <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
           </label>
         </div>
+      </div>
+
+      {/* Fake Penonton */}
+      <div>
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1">
+          <Users size={12} /> Penonton Tambahan (Fake)
+        </label>
+        <input
+          type="number"
+          min={0}
+          value={fakeViewers}
+          onChange={(e) => setFakeViewers(Math.max(0, Number(e.target.value) || 0))}
+          placeholder="0"
+          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Ditambahkan ke jumlah penonton asli. Isi <span className="font-mono">0</span> agar jumlah penonton murni real-time.
+        </p>
       </div>
 
       {/* Stream Source 1 */}

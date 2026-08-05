@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "@/lib/deviceId";
 import { JKT48_MEMBERS } from "@/lib/jkt48Members";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
+import { useFakeViewers } from "@/hooks/useFakeViewers";
 import { useWeeklyViewers } from "@/hooks/useWeeklyViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 import { getShowAccess, getLiveShow, countdownText, formatShowSchedule, type ShowSchedule } from "@/lib/showSchedule";
@@ -33,7 +34,9 @@ const resolveLineup = (value: any) => {
 const Index = () => {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState<string | null>(() => sessionStorage.getItem("teamlive_nickname"));
-  const viewerCount = useViewerPresence();
+  const realViewerCount = useViewerPresence();
+  const fakeViewers = useFakeViewers();
+  const viewerCount = realViewerCount + fakeViewers;
   const weeklyViewers = useWeeklyViewers();
   const { messages, sendMessage, isBanned, banReason } = useRealtimeChat();
   const [tokenCode, setTokenCode] = useState<string | null>(null);

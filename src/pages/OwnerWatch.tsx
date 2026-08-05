@@ -9,6 +9,7 @@ import LineupDisplay from "@/components/LineupDisplay";
 import OrderShowBanner from "@/components/OrderShowBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useViewerPresence } from "@/hooks/useViewerPresence";
+import { useFakeViewers } from "@/hooks/useFakeViewers";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 
 const OWNER_AUTH_KEY = "teamlive_owner_auth";
@@ -16,7 +17,9 @@ const OWNER_NICKNAME = "TEAM Live";
 
 const OwnerWatch = () => {
   const navigate = useNavigate();
-  const viewerCount = useViewerPresence();
+  const realViewerCount = useViewerPresence();
+  const fakeViewers = useFakeViewers();
+  const viewerCount = realViewerCount + fakeViewers;
   const { messages, sendMessage } = useRealtimeChat();
 
   const [videoId, setVideoId] = useState("");
