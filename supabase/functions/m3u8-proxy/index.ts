@@ -366,6 +366,13 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      if (!(await isAllowedTarget(target))) {
+        return new Response(JSON.stringify({ error: "host_not_allowed" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const headers: Record<string, string> = {};
       if (apiToken) headers["x-api-token"] = apiToken;
       const token = await makeToken(target, headers, fp, PLAYLIST_TTL_SEC);
