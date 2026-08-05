@@ -843,6 +843,20 @@ export type Database = {
     Functions: {
       cleanup_expired_access_tokens: { Args: never; Returns: undefined }
       generate_user_code: { Args: never; Returns: string }
+      get_chat_events_public: {
+        Args: { p_limit?: number }
+        Returns: {
+          correct_answer: string
+          created_at: string
+          ends_at: string
+          id: string
+          is_active: boolean
+          options: Json
+          question: string
+          reveal_answer: boolean
+          type: string
+        }[]
+      }
       reset_admin_link_logs: { Args: never; Returns: undefined }
     }
     Enums: {

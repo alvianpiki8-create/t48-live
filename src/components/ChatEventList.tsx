@@ -23,13 +23,11 @@ const ChatEventList = ({ nickname }: Props) => {
   const deviceId = getDeviceId();
 
   const fetchAll = useCallback(async () => {
-    const { data } = await supabase
-      .from("chat_events" as any)
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(5);
+    // Server-side RPC: correct_answer is only returned once it is revealed.
+    const { data } = await (supabase as any).rpc("get_chat_events_public", { p_limit: 5 });
     const list = ((data as any[]) || []) as EventRow[];
     setEvents(list);
+
     if (!list.length) { setStats({}); return; }
     const ids = list.map((e) => e.id);
     const { data: r } = await supabase
@@ -64,10 +62,11 @@ const ChatEventList = ({ nickname }: Props) => {
       const cur = prev[e.id] || { mine: null, total: 0, counts: {} };
       return { ...prev, [e.id]: { mine: opt, total: cur.total + 1, counts: { ...cur.counts, [opt]: (cur.counts[opt] || 0) + 1 } } };
     });
-    const isCorrect = e.type === "quiz" && e.correct_answer != null ? opt === e.correct_answer : null;
+    // is_correct is computed by the database trigger — never trusted from the client.
     const { error } = await supabase.from("chat_event_responses" as any).insert({
-      event_id: e.id, device_id: deviceId, nickname, answer: opt, is_correct: isCorrect,
+      event_id: e.id, device_id: deviceId, nickname, answer: opt,
     } as any);
+
     if (error && !/duplicate/i.test(error.message)) {
       // rollback
       setStats((prev) => {

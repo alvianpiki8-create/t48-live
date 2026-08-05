@@ -10,109 +10,89 @@ const UNLOCK_SHOW_KEY = "teamlive_replay_unlocked_show";
 interface ReplaySchedule {
   id: string;
   show_date: string;
-  replay_password: string;
   description: string | null;
   youtube_url: string | null;
   show_id: string | null;
 }
 
+const callReplay = async (payload: Record<string, unknown>) => {
+  const { data, error } = await supabase.functions.invoke("replay-access", { body: payload });
+  if (error) return null;
+  return data as any;
+};
+
 const ReplayPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [siteName, setSiteName] = useState<string>("TEAM Live");
+  // Only replays the server has actually unlocked for this visitor.
   const [schedules, setSchedules] = useState<ReplaySchedule[]>([]);
   const [inputToken, setInputToken] = useState("");
   const [activeToken, setActiveToken] = useState<string | null>(() => sessionStorage.getItem(UNLOCK_KEY));
-  const [tokenShowId, setTokenShowId] = useState<string | null>(() => sessionStorage.getItem(UNLOCK_SHOW_KEY));
   const [err, setErr] = useState("");
   const [membershipActive, setMembershipActive] = useState(false);
   const [checkingMembership, setCheckingMembership] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const fetchAll = useCallback(async () => {
-    const [{ data: sched }, { data: settings }] = await Promise.all([
-      supabase.from("replay_schedules").select("*").order("show_date", { ascending: false }),
-      supabase.from("stream_settings").select("site_name").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
-    ]);
-    setSchedules((sched as any) || []);
+  const fetchSiteName = useCallback(async () => {
+    const { data: settings } = await supabase
+      .from("stream_settings").select("site_name")
+      .order("updated_at", { ascending: false }).limit(1).maybeSingle();
     if (settings?.site_name) setSiteName(settings.site_name);
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { fetchSiteName(); }, [fetchSiteName]);
 
-  // Check membership session — authenticated user_membership OR valid membership token
+  const membershipMode = searchParams.get("m") === "1";
+
+  // Membership check + all-access list are both verified server-side.
   useEffect(() => {
     let cancelled = false;
-    const check = async () => {
-      try {
-        let active = false;
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data } = await (supabase as any)
-            .from("user_memberships")
-            .select("id,expires_at")
-            .eq("user_id", user.id)
-            .gt("expires_at", new Date().toISOString())
-            .limit(1)
-            .maybeSingle();
-          active = Boolean(data);
-        }
-        if (!active) {
-          const token = sessionStorage.getItem("teamlive_token");
-          if (token) {
-            const { data } = await (supabase as any)
-              .from("access_tokens")
-              .select("id,show_name,valid_until,is_blocked")
-              .eq("token_code", token)
-              .maybeSingle();
-            if (
-              data &&
-              !data.is_blocked &&
-              data.show_name?.toLowerCase().startsWith("membership") &&
-              (!data.valid_until || new Date(data.valid_until) > new Date())
-            ) {
-              active = true;
-            }
-          }
-        }
-        if (!cancelled) { setMembershipActive(active); setCheckingMembership(false); }
-      } catch {
-        if (!cancelled) setCheckingMembership(false);
+    (async () => {
+      const res = await callReplay({ action: "membership", secret: sessionStorage.getItem("teamlive_token") || "" });
+      if (cancelled) return;
+      if (res?.schedules) {
+        setMembershipActive(true);
+        if (membershipMode) setSchedules(res.schedules as ReplaySchedule[]);
+      } else {
+        setMembershipActive(false);
       }
-    };
-    check();
+      setCheckingMembership(false);
+    })();
     return () => { cancelled = true; };
-  }, []);
+  }, [membershipMode]);
+
+  // Restore a previous unlock (the secret is re-verified by the server every time).
+  useEffect(() => {
+    if (membershipMode || !activeToken) return;
+    let cancelled = false;
+    (async () => {
+      const res = await callReplay({ action: "unlock", secret: activeToken });
+      if (cancelled) return;
+      if (res?.schedules?.length) {
+        setSchedules(res.schedules as ReplaySchedule[]);
+      } else {
+        sessionStorage.removeItem(UNLOCK_KEY);
+        sessionStorage.removeItem(UNLOCK_SHOW_KEY);
+        setActiveToken(null);
+        setSchedules([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeToken, membershipMode]);
 
   useEffect(() => {
     const ch = supabase.channel("replay_page_rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "replay_schedules" }, fetchAll)
-      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "stream_settings" }, fetchSiteName)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [fetchAll]);
+  }, [fetchSiteName]);
 
-  // Video currently unlocked (either by matching a replay_schedule password, or by an access token tied to a show)
   const currentVideo = (() => {
     if (!activeToken) return null;
-    const t = activeToken.trim();
-    const direct = schedules.find((s) => s.replay_password.trim() === t);
-    if (direct) return direct;
-    // Token-based unlock: only replays linked to the same show as the token
-    if (!tokenShowId) return null;
-    const withVideo = schedules.filter((s) => s.youtube_url && s.show_id === tokenShowId);
-    return withVideo[0] || null;
+    const withVideo = schedules.filter((s) => s.youtube_url);
+    return withVideo.find((s) => s.id === selectedId) || withVideo[0] || null;
   })();
-
-  // If activeToken exists but no video available at all, auto-lock
-  useEffect(() => {
-    if (activeToken && schedules.length > 0 && !currentVideo) {
-      sessionStorage.removeItem(UNLOCK_KEY);
-      sessionStorage.removeItem(UNLOCK_SHOW_KEY);
-      setActiveToken(null);
-      setTokenShowId(null);
-    }
-  }, [activeToken, schedules, currentVideo]);
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,55 +100,29 @@ const ReplayPage = () => {
     const t = inputToken.trim();
     if (!t) { setErr("Masukkan sandi."); return; }
 
-    // 1) Match a replay_schedule password directly
-    const match = schedules.find((s) => s.replay_password.trim() === t);
-    if (match) {
-      if (!match.youtube_url) { setErr("Video belum diatur untuk sandi ini."); return; }
+    const res = await callReplay({ action: "unlock", secret: t });
+    if (res?.schedules?.length) {
       sessionStorage.setItem(UNLOCK_KEY, t);
-      sessionStorage.removeItem(UNLOCK_SHOW_KEY);
-      setTokenShowId(null);
+      if (res.show_id) sessionStorage.setItem(UNLOCK_SHOW_KEY, res.show_id);
+      else sessionStorage.removeItem(UNLOCK_SHOW_KEY);
+      setSchedules(res.schedules as ReplaySchedule[]);
       setActiveToken(t);
       setInputToken("");
       return;
     }
 
-    // 2) Match an active access_token — replay hanya untuk show yang tertaut ke token
-    try {
-      const { data: tok } = await (supabase as any)
-        .from("access_tokens")
-        .select("id,is_blocked,valid_until,expires_at,show_id")
-        .eq("token_code", t)
-        .maybeSingle();
-      if (tok && !tok.is_blocked) {
-        const notExpired =
-          (!tok.valid_until || new Date(tok.valid_until) > new Date()) &&
-          (!tok.expires_at || new Date(tok.expires_at) > new Date());
-        if (notExpired) {
-          if (!tok.show_id) { setErr("Token ini belum tertaut ke ID show manapun."); return; }
-          const withVideo = schedules.filter((s) => s.youtube_url && s.show_id === tok.show_id);
-          if (withVideo.length === 0) { setErr("Belum ada video replay untuk show token ini."); return; }
-          sessionStorage.setItem(UNLOCK_KEY, t);
-          sessionStorage.setItem(UNLOCK_SHOW_KEY, tok.show_id);
-          setTokenShowId(tok.show_id);
-          setActiveToken(t);
-          setInputToken("");
-          return;
-        }
-      }
-    } catch {}
-
+    if (res?.error === "no_video") { setErr("Video belum diatur untuk sandi ini."); return; }
+    if (res?.error === "expired") { setErr("Token sudah kadaluarsa."); return; }
+    if (res?.error === "no_show") { setErr("Token ini belum tertaut ke ID show manapun."); return; }
     setErr("Sandi tidak valid.");
   };
 
-
-  // Membership all-access mode
-  const membershipMode = searchParams.get("m") === "1" && membershipActive;
-
-  if (checkingMembership && searchParams.get("m") === "1") {
+  if (checkingMembership && membershipMode) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
-  if (membershipMode) {
+
+  if (membershipMode && membershipActive) {
     const withVideo = schedules.filter((s) => s.youtube_url);
     const active = withVideo.find((s) => s.id === selectedId) || withVideo[0];
     const videoId = active ? extractYouTubeVideoId(active.youtube_url || "") : null;
@@ -273,7 +227,7 @@ const ReplayPage = () => {
     sessionStorage.removeItem(UNLOCK_KEY);
     sessionStorage.removeItem(UNLOCK_SHOW_KEY);
     setActiveToken(null);
-    setTokenShowId(null);
+    setSchedules([]);
   };
 
   const videoId = currentVideo ? extractYouTubeVideoId(currentVideo.youtube_url || "") : null;

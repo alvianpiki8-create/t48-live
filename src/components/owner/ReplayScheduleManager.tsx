@@ -23,13 +23,17 @@ const ReplayScheduleManager = () => {
   const [youtubeUrl, setYoutubeUrl] = useState("");
 
   const fetch = useCallback(async () => {
-    const [{ data }, { data: showData }] = await Promise.all([
-      supabase.from("replay_schedules").select("*").order("show_date", { ascending: false }),
+    // Passwords/links are not publicly readable — the owner reads them via a
+    // server route that verifies the owner panel token.
+    const ownerToken = sessionStorage.getItem("teamlive_owner_token") || "";
+    const [{ data: replayRes }, { data: showData }] = await Promise.all([
+      supabase.functions.invoke("replay-access", { body: { action: "owner", secret: ownerToken } }),
       supabase.from("shows").select("id,name,show_code").order("created_at", { ascending: true }),
     ]);
-    if (data) setSchedules(data as any);
+    if ((replayRes as any)?.schedules) setSchedules((replayRes as any).schedules);
     if (showData) setShows(showData as any);
   }, []);
+
 
   useEffect(() => {
     fetch();

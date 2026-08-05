@@ -23,7 +23,8 @@ const ChatEventManager = () => {
   const [busy, setBusy] = useState(false);
 
   const fetchAll = useCallback(async () => {
-    const { data } = await supabase.from("chat_events" as any).select("*").order("created_at", { ascending: false }).limit(20);
+    // correct_answer is hidden by the server until the answer is revealed / event closed.
+    const { data } = await (supabase as any).rpc("get_chat_events_public", { p_limit: 20 });
     const list = ((data as any[]) || []) as EventRow[];
     setEvents(list);
     if (list.length) {
@@ -33,6 +34,7 @@ const ChatEventManager = () => {
       setCounts(c);
     }
   }, []);
+
 
   useEffect(() => {
     fetchAll();
