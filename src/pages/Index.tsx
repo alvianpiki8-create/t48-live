@@ -197,8 +197,10 @@ const Index = () => {
   const isMembership = (tokenShowName || "").toLowerCase().startsWith("membership");
   const showAccess = isMembership ? ({ state: "open", start: null, end: null } as const) : getShowAccess(showSchedule, now);
   const liveShow = getLiveShow(allShows, now);
-  // Token show A tidak boleh masuk ke live show B (kecuali membership)
-  const wrongShow = !isMembership && !!liveShow && liveShow.id !== (tokenShowId || "");
+  // Token hanya boleh menonton show yang tertaut ke ID show-nya (kecuali membership)
+  const wrongShow =
+    !isMembership && (!tokenShowId || (!!liveShow && liveShow.id !== tokenShowId));
+
 
 
   const handleNickname = useCallback((name: string) => {
@@ -267,16 +269,23 @@ const Index = () => {
         <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
           <div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm text-center" style={{ animation: "fade-in 0.3s ease-out" }}>
             <div className="text-4xl mb-4">🚫</div>
-            <h2 className="text-foreground font-semibold text-lg">Token beda show</h2>
-            <p className="text-muted-foreground text-sm mt-2">
-              Yang sedang live sekarang: <span className="text-foreground">{liveShow?.name}</span>
-              {liveShow?.show_code ? ` (${liveShow.show_code})` : ""}
-            </p>
+            <h2 className="text-foreground font-semibold text-lg">
+              {tokenShowId ? "Token beda show" : "Token tanpa ID show"}
+            </h2>
+            {liveShow && (
+              <p className="text-muted-foreground text-sm mt-2">
+                Yang sedang live sekarang: <span className="text-foreground">{liveShow.name}</span>
+                {liveShow.show_code ? ` (${liveShow.show_code})` : ""}
+              </p>
+            )}
             <p className="text-muted-foreground text-sm mt-1">
-              {tokenShowName || showSchedule?.name
-                ? `Token Anda tertaut ke show "${tokenShowName || showSchedule?.name}", jadi tidak bisa dipakai di sini.`
-                : "Token Anda tidak tertaut ke show yang sedang live."}
+              {!tokenShowId
+                ? "Token Anda belum tertaut ke ID show manapun, jadi tidak bisa dipakai menonton. Hubungi admin."
+                : tokenShowName || showSchedule?.name
+                  ? `Token Anda tertaut ke show "${tokenShowName || showSchedule?.name}", jadi tidak bisa dipakai di sini.`
+                  : "Token Anda tidak tertaut ke show yang sedang live."}
             </p>
+
             <p className="text-muted-foreground/30 text-xs font-mono mt-6">@t48id</p>
           </div>
         </div>

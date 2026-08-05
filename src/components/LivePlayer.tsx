@@ -245,28 +245,13 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
     }
     let cancelled = false;
     const container = artContainerRef.current;
-    const isIdnAuto = activeServer.kind === "idn-auto";
+    
 
     (async () => {
-      const rawUrl = activeServer.src;
-      let playUrl = rawUrl;
-
-      // IDN auto stream: hit URL directly with token header — no proxy fallback.
-      if (!isIdnAuto) {
-        try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 3500);
-          const probe = await fetch(rawUrl, { method: "GET", mode: "cors", signal: ctrl.signal, cache: "no-store" });
-          clearTimeout(timer);
-          if (!probe.ok) throw new Error("probe-not-ok");
-        } catch {
-          try {
-            const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { url: rawUrl } });
-            if (!error && data?.url) playUrl = data.url as string;
-          } catch {}
-        }
-      }
+      // Semua sumber m3u8 diputar langsung tanpa proxy.
+      const playUrl = activeServer.src;
       if (cancelled) return;
+
 
       if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
 

@@ -68,14 +68,20 @@ Deno.serve(async (req) => {
     }
 
     // 3) Unlock with a replay password OR a live access token.
+    //    A replay password only works when its schedule is tied to a show ID,
+    //    and it unlocks exactly the replays of that show.
     if (action === "unlock") {
       if (!secret) return json({ error: "missing_secret" }, 400);
       const rows = await allSchedules();
 
-      const direct = rows.find((r) => (r.replay_password || "").trim() === secret);
-      if (direct) {
-        if (!direct.youtube_url) return json({ error: "no_video" }, 404);
-        return json({ mode: "password", schedules: [fullShape(direct)] });
+      const matches = rows.filter((r) => (r.replay_password || "").trim() === secret);
+      if (matches.length) {
+        const linked = matches.filter((r) => r.show_id);
+        if (!linked.length) return json({ error: "no_show" }, 403);
+        const showId = linked[0].show_id;
+        const forShow = rows.filter((r) => r.show_id === showId && r.youtube_url);
+        if (!forShow.length) return json({ error: "no_video" }, 404);
+        return json({ mode: "password", show_id: showId, schedules: forShow.map(fullShape) });
       }
 
       const { data: tok } = await admin
