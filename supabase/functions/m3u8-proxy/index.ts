@@ -1,13 +1,74 @@
 // M3U8 proxy + signed short-lived token.
 // - Hides the real upstream URL and the x-api-token from viewers.
 // - Tokens are bound to client fingerprint (IP + UA hash) to prevent stealing.
-// - Playlist rewrites are parallelized and the HMAC key is cached at module
-//   scope for low-latency repeat calls (HLS hits this dozens of times/min).
+// - Only allow-listed streaming hosts (plus the stream URLs the owner configured)
+//   can be proxied, so this cannot be abused as an open/anonymous web proxy.
+// - Fails closed when the signing secret is missing (no hardcoded fallback).
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const SECRET = Deno.env.get("OWNER_PANEL_TOKEN") || "fallback-secret-change-me";
+const SECRET = Deno.env.get("OWNER_PANEL_TOKEN") || "";
 const PLAYLIST_TTL_SEC = 60 * 60 * 2; // 2 hours — avoids player reload loops while still fingerprint-bound
 const SEGMENT_TTL_SEC = 60;           // 1 min — short, segments rotate quickly
+
+// Known streaming CDNs used by the app.
+const ALLOWED_HOST_SUFFIXES = [
+  "jkt48connect.com",
+  "gstreamlive.com",
+  "idn.media",
+  "idnpics.com",
+  "akamaized.net",
+  "cloudfront.net",
+  "youtube.com",
+  "googlevideo.com",
+];
+
+const hostAllowedByList = (host: string) =>
+  ALLOWED_HOST_SUFFIXES.some((s) => host === s || host.endsWith(`.${s}`));
+
+// Hosts of the stream URLs the owner configured in the panel (RTMP/M3U8 servers).
+let ownerHostCache: { hosts: Set<string>; expiresAt: number } | null = null;
+async function ownerConfiguredHosts(): Promise<Set<string>> {
+  if (ownerHostCache && ownerHostCache.expiresAt > Date.now()) return ownerHostCache.hosts;
+  const hosts = new Set<string>();
+  try {
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } },
+    );
+    const { data } = await admin
+      .from("stream_settings")
+      .select("stream_source_url, stream_source_url_2, backup_video_url, replay_url, idn_live_url");
+    for (const row of (data as Record<string, string | null>[]) || []) {
+      for (const value of Object.values(row || {})) {
+        if (!value) continue;
+        try { hosts.add(new URL(value).hostname.toLowerCase()); } catch { /* ignore */ }
+      }
+    }
+  } catch (e) {
+    console.error("stream_settings host lookup failed:", e);
+  }
+  ownerHostCache = { hosts, expiresAt: Date.now() + 60_000 };
+  return hosts;
+}
+
+async function isAllowedTarget(raw: string): Promise<boolean> {
+  let u: URL;
+  try { u = new URL(raw); } catch { return false; }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  const host = u.hostname.toLowerCase();
+  // Block obvious internal/metadata targets outright.
+  if (
+    host === "localhost" || host.endsWith(".local") || host.endsWith(".internal") ||
+    /^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+    host === "[::1]"
+  ) return false;
+  if (hostAllowedByList(host)) return true;
+  return (await ownerConfiguredHosts()).has(host);
+}
+
 
 const IDN_API = "https://v5.jkt48connect.com/api/jkt48/idnplus?apikey=JKTCONNECT";
 const LIVE_API = "https://v5.jkt48connect.com/api/jkt48/live?apikey=JKTCONNECT";
