@@ -117,7 +117,10 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const artRef = useRef<Artplayer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const baseServers = useMemo(() => buildServers(videoId, sourceUrl, sourceUrl2), [videoId, sourceUrl, sourceUrl2]);
+  const baseServers = useMemo(
+    () => buildServers(videoId, sourceUrl, sourceUrl2, sourceUrlBackup),
+    [videoId, sourceUrl, sourceUrl2, sourceUrlBackup],
+  );
 
   // Auto-resolve IDN+ live stream fully in edge so the v4 x-api-token never hits the browser.
   const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
