@@ -221,6 +221,18 @@ const StreamSettings = ({ settings, onRefresh }: StreamSettingsProps) => {
         <p className="text-xs text-muted-foreground mt-1">Otomatis dipakai jika link utama gagal/kosong.</p>
       </div>
 
+      {/* Server Backup (M3U8) */}
+      <div>
+        <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1">
+          <Radio size={12} /> Server Backup (M3U8)
+        </label>
+        <input type="text" value={backupUrl} onChange={(e) => setBackupUrl(e.target.value)}
+          placeholder="https://...m3u8"
+          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+        <p className="text-xs text-muted-foreground mt-1">Tampil sebagai tombol server <span className="font-semibold">Backup</span> di halaman live.</p>
+      </div>
+
+
       {/* Countdown */}
       <div>
         <label className="text-sm text-muted-foreground mb-1 block">Waktu Countdown</label>
