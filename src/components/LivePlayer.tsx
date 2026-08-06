@@ -54,18 +54,23 @@ const isM3u8 = (url: string) => {
 
 const IDN_CACHE_KEY = "team-live-idn-proxy-v2";
 
-const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): ServerOption[] => {
+const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string, sourceUrlBackup: string): ServerOption[] => {
   const list: ServerOption[] = [];
   let ytCount = 0;
   let rtmpCount = 0;
 
-  const addUrl = (raw: string) => {
+  const addUrl = (raw: string, forcedLabel?: string) => {
     const url = (raw || "").trim();
     if (!url) return;
     if (isM3u8(url)) {
-      rtmpCount += 1;
-      list.push({ id: `rtmp-${list.length}`, kind: "m3u8", src: url, label: rtmpCount > 1 ? `RTMP ${rtmpCount}` : "RTMP" });
-    } else {
+      rtmpCount += forcedLabel ? 0 : 1;
+      list.push({
+        id: forcedLabel ? `backup-${list.length}` : `rtmp-${list.length}`,
+        kind: "m3u8",
+        src: url,
+        label: forcedLabel || (rtmpCount > 1 ? `RTMP ${rtmpCount}` : "RTMP"),
+      });
+    } else if (!forcedLabel) {
       const id = extractYouTubeVideoId(url);
       if (id) {
         ytCount += 1;
@@ -82,6 +87,7 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): S
 
   addUrl(sourceUrl);
   addUrl(sourceUrl2);
+  addUrl(sourceUrlBackup, "Backup");
 
   const seen = new Set<string>();
   return list.filter((s) => {
@@ -92,7 +98,7 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string): S
   });
 };
 
-const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceUrl2 = "" }: LivePlayerProps) => {
+const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceUrl2 = "", sourceUrlBackup = "" }: LivePlayerProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [wmPos, setWmPos] = useState(WM_POSITIONS[0]);
   const [wmVisible, setWmVisible] = useState(false);
