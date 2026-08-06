@@ -12,6 +12,7 @@ interface LivePlayerProps {
   sourceType?: "youtube" | "m3u8" | "auto";
   sourceUrl?: string;
   sourceUrl2?: string;
+  sourceUrlBackup?: string;
 }
 
 const WM_POSITIONS = [
