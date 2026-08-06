@@ -42,6 +42,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const [countdownBackground, setCountdownBackground] = useState("");
   const [streamSourceUrl, setStreamSourceUrl] = useState("");
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
+  const [streamBackupUrl, setStreamBackupUrl] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [membershipAllowed, setMembershipAllowed] = useState(mode !== "membership");
   const [membershipBlockedByOwner, setMembershipBlockedByOwner] = useState(false);
@@ -65,6 +66,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
       setCountdownBackground(data.countdown_background || "");
       setStreamSourceUrl(data.stream_source_url || "");
       setStreamSourceUrl2(data.stream_source_url_2 || "");
+      setStreamBackupUrl((data as any).backup_video_url || "");
       setLogoUrl(data.logo_url || "");
       setLineup(data.lineup || []);
       if (data.countdown_datetime) {
@@ -232,7 +234,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
             {countdownDatetime && !countdownDone ? (
               <div className="w-full" style={{ aspectRatio: "16/9" }}><CountdownOverlay targetDatetime={countdownDatetime} onComplete={() => setCountdownDone(true)} backgroundImage={countdownBackground} /></div>
             ) : (
-              <LivePlayer videoId={videoId} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} watermarkText="@t48id" />
+              <LivePlayer videoId={videoId} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl} watermarkText="@t48id" />
             )}
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />

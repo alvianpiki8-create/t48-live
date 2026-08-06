@@ -62,6 +62,7 @@ const Index = () => {
   const [countdownBackground, setCountdownBackground] = useState("");
   const [streamSourceUrl, setStreamSourceUrl] = useState("");
   const [streamSourceUrl2, setStreamSourceUrl2] = useState("");
+  const [streamBackupUrl, setStreamBackupUrl] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
 
   useEffect(() => {
@@ -128,6 +129,7 @@ const Index = () => {
       setCountdownBackground(tokenShow?.background_url || tokenShow?.image_url || data.countdown_background || "");
       setStreamSourceUrl(data.stream_source_url || "");
       setStreamSourceUrl2(data.stream_source_url_2 || "");
+      setStreamBackupUrl((data as any).backup_video_url || "");
       setLogoUrl(data.logo_url || "");
       setLineup(resolveLineup(tokenShow?.lineup || data.lineup || []));
       const countdownTarget = tokenShow?.show_date || data.countdown_datetime;
@@ -334,7 +336,7 @@ const Index = () => {
               </div>
             )}
             {(countdownDone || !countdownDatetime) && (
-              <LivePlayer videoId={videoId} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} watermarkText={tokenCode ? `T4-${tokenCode}` : "@t48id"} />
+              <LivePlayer videoId={videoId} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl} watermarkText={tokenCode ? `T4-${tokenCode}` : "@t48id"} />
             )}
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
