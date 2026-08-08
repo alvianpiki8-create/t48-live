@@ -156,6 +156,18 @@ const TokenGate = () => {
               <div className="text-4xl mb-4">🚫</div>
               <h2 className="text-foreground font-semibold">Akses Ditolak</h2>
               <p className="text-muted-foreground text-sm mt-2">{errorMsg}</p>
+              {canReset && (
+                <>
+                  <button
+                    onClick={handleReset}
+                    disabled={resetting}
+                    className="mt-4 w-full bg-primary text-primary-foreground text-sm py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {resetting ? "Mereset..." : "🔄 Reset Link Ini"}
+                  </button>
+                  <p className="text-muted-foreground text-xs mt-2">Sisa reset: {resetLeft} dari 3</p>
+                </>
+              )}
             </>
           )}
           {status === "blocked" && (
