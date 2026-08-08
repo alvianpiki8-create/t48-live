@@ -11,6 +11,30 @@ const TokenGate = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "error" | "blocked">("loading");
   const [errorMsg, setErrorMsg] = useState("");
+  const [canReset, setCanReset] = useState(false);
+  const [resetLeft, setResetLeft] = useState(0);
+  const [resetting, setResetting] = useState(false);
+
+  const handleReset = async () => {
+    if (!token) return;
+    setResetting(true);
+    const { data } = await supabase.functions.invoke("reset-token-device", {
+      body: { token, device_id: getDeviceId() },
+    });
+    setResetting(false);
+    const res = data as any;
+    if (res?.ok) {
+      setAccessToken(token);
+      navigate("/", { replace: true });
+      return;
+    }
+    if (res?.error === "limit_reached") {
+      setCanReset(false);
+      setErrorMsg("Batas reset link sudah habis (maks 3 kali). Hubungi admin.");
+    } else {
+      setErrorMsg("Gagal reset link. Coba lagi.");
+    }
+  };
 
   useEffect(() => {
     if (!token) {
