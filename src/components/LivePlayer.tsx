@@ -303,20 +303,21 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               // Low-Latency HLS aktif; kalau playlist bukan LL-HLS, hls.js otomatis fallback ke mode normal
               const hls = new Hls({
                 enableWorker: true,
-                lowLatencyMode: true,
-                // Buffer: cukup panjang untuk anti patah-patah, tetap hemat memori di HP
-                backBufferLength: isMobile ? 6 : 10,
-                maxBufferLength: isMobile ? 18 : 24,
-                maxMaxBufferLength: isMobile ? 40 : 60,
-                maxBufferSize: (isMobile ? 30 : 60) * 1000 * 1000,
+                // LL-HLS boros CPU di HP -> aktif hanya di desktop
+                lowLatencyMode: !isMobile,
+                // Buffer ringan: hemat memori & CPU, tetap anti patah-patah
+                backBufferLength: isMobile ? 4 : 8,
+                maxBufferLength: isMobile ? 12 : 20,
+                maxMaxBufferLength: isMobile ? 24 : 40,
+                maxBufferSize: (isMobile ? 18 : 40) * 1000 * 1000,
                 maxBufferHole: 0.3,
                 // Jarak aman dari live edge (dipakai saat playlist non-LL)
                 liveSyncDurationCount: 3,
                 liveMaxLatencyDurationCount: 10,
                 liveDurationInfinity: true,
                 maxLiveSyncPlaybackRate: 1.5, // kejar live edge halus tanpa lompat/seek
-                highBufferWatchdogPeriod: 1,
-                nudgeMaxRetry: 12,
+                highBufferWatchdogPeriod: 2,
+                nudgeMaxRetry: 10,
                 nudgeOffset: 0.2,
                 manifestLoadingTimeOut: 8000,
                 manifestLoadingMaxRetry: 4,
@@ -325,7 +326,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 levelLoadingMaxRetry: 4,
                 levelLoadingRetryDelay: 400,
                 fragLoadingTimeOut: 20000,
-                fragLoadingMaxRetry: 8,
+                fragLoadingMaxRetry: 6,
                 fragLoadingRetryDelay: 500,
                 startFragPrefetch: true,
                 progressive: false,
@@ -333,13 +334,14 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
                 capLevelToPlayerSize: true,
                 capLevelOnFPSDrop: true,
                 testBandwidth: false,
-                startLevel: -1,
+                // Mulai dari level ringan supaya load cepat, lalu ABR naikkan sendiri
+                startLevel: isMobile ? 0 : -1,
                 // ABR konservatif: naik pelan, turun cepat -> bitrate otomatis tetap ringan
                 abrEwmaFastLive: 2,
                 abrEwmaSlowLive: 8,
-                abrEwmaDefaultEstimate: slowNet ? 500_000 : isMobile ? 900_000 : 1_500_000,
-                abrBandWidthFactor: 0.85,
-                abrBandWidthUpFactor: 0.6,
+                abrEwmaDefaultEstimate: slowNet ? 400_000 : isMobile ? 700_000 : 1_500_000,
+                abrBandWidthFactor: 0.8,
+                abrBandWidthUpFactor: 0.5,
                 abrMaxWithRealBitrate: true,
               });
 
