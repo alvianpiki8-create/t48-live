@@ -354,7 +354,7 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
               // Batasi bitrate otomatis: jangan pilih level di atas kemampuan layar/jaringan
               const capBitrate = () => {
                 try {
-                  const maxBitrate = slowNet ? 900_000 : isMobile ? 2_500_000 : 5_000_000;
+                  const maxBitrate = slowNet ? 700_000 : isMobile ? 1_800_000 : 4_000_000;
                   const levels = hls.levels || [];
                   let cap = -1;
                   levels.forEach((l, i) => { if (l.bitrate <= maxBitrate) cap = i; });
