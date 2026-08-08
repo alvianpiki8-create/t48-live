@@ -54,6 +54,7 @@ export type Database = {
           id: string
           is_blocked: boolean
           max_uses: number
+          reset_count: number
           show_id: string | null
           show_name: string | null
           token_code: string
@@ -71,6 +72,7 @@ export type Database = {
           id?: string
           is_blocked?: boolean
           max_uses?: number
+          reset_count?: number
           show_id?: string | null
           show_name?: string | null
           token_code: string
@@ -88,6 +90,7 @@ export type Database = {
           id?: string
           is_blocked?: boolean
           max_uses?: number
+          reset_count?: number
           show_id?: string | null
           show_name?: string | null
           token_code?: string
@@ -543,15 +546,7 @@ export type Database = {
           show_id?: string | null
           youtube_url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "replay_schedules_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "shows"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       show_catalog: {
         Row: {
