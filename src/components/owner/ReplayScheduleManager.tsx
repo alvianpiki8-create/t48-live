@@ -62,8 +62,9 @@ const ReplayScheduleManager = () => {
   };
 
   const showLabel = (id: string | null) => {
+    if (!id) return null;
     const s = shows.find((x) => x.id === id);
-    if (!s) return null;
+    if (!s) return "ID show dihapus — replay tetap bisa ditonton";
     return s.show_code ? `${s.show_code} · ${s.name}` : s.name;
   };
 
