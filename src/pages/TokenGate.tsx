@@ -91,8 +91,11 @@ const TokenGate = () => {
             .select("id", { count: "exact", head: true })
             .eq("token_id", data.id);
           if ((count || 0) >= maxUses) {
+            const left = 3 - ((data as any).reset_count || 0);
+            setResetLeft(Math.max(0, left));
+            setCanReset(left > 0);
             setStatus("error");
-            setErrorMsg(`Kuota token penuh (maks ${maxUses} perangkat). Hubungi admin.`);
+            setErrorMsg(`Kuota token penuh (maks ${maxUses} perangkat).`);
             return;
           }
           await supabase.from("access_token_devices" as any).insert({ token_id: data.id, device_id: deviceId } as any);
