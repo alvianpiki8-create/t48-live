@@ -11,6 +11,30 @@ const TokenGate = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "error" | "blocked">("loading");
   const [errorMsg, setErrorMsg] = useState("");
+  const [canReset, setCanReset] = useState(false);
+  const [resetLeft, setResetLeft] = useState(0);
+  const [resetting, setResetting] = useState(false);
+
+  const handleReset = async () => {
+    if (!token) return;
+    setResetting(true);
+    const { data } = await supabase.functions.invoke("reset-token-device", {
+      body: { token, device_id: getDeviceId() },
+    });
+    setResetting(false);
+    const res = data as any;
+    if (res?.ok) {
+      setAccessToken(token);
+      navigate("/", { replace: true });
+      return;
+    }
+    if (res?.error === "limit_reached") {
+      setCanReset(false);
+      setErrorMsg("Batas reset link sudah habis (maks 3 kali). Hubungi admin.");
+    } else {
+      setErrorMsg("Gagal reset link. Coba lagi.");
+    }
+  };
 
   useEffect(() => {
     if (!token) {
@@ -67,8 +91,11 @@ const TokenGate = () => {
             .select("id", { count: "exact", head: true })
             .eq("token_id", data.id);
           if ((count || 0) >= maxUses) {
+            const left = 3 - ((data as any).reset_count || 0);
+            setResetLeft(Math.max(0, left));
+            setCanReset(left > 0);
             setStatus("error");
-            setErrorMsg(`Kuota token penuh (maks ${maxUses} perangkat). Hubungi admin.`);
+            setErrorMsg(`Kuota token penuh (maks ${maxUses} perangkat).`);
             return;
           }
           await supabase.from("access_token_devices" as any).insert({ token_id: data.id, device_id: deviceId } as any);
@@ -81,8 +108,11 @@ const TokenGate = () => {
       } else {
         // Single-device token (legacy behaviour)
         if (data.device_id && data.device_id !== deviceId) {
+          const left = 3 - ((data as any).reset_count || 0);
+          setResetLeft(Math.max(0, left));
+          setCanReset(left > 0);
           setStatus("error");
-          setErrorMsg("Token ini sudah digunakan di perangkat lain. Satu token hanya untuk satu perangkat.");
+          setErrorMsg("Token ini sudah digunakan di perangkat lain.");
           return;
         }
         if (!data.device_id) {
@@ -126,6 +156,18 @@ const TokenGate = () => {
               <div className="text-4xl mb-4">🚫</div>
               <h2 className="text-foreground font-semibold">Akses Ditolak</h2>
               <p className="text-muted-foreground text-sm mt-2">{errorMsg}</p>
+              {canReset && (
+                <>
+                  <button
+                    onClick={handleReset}
+                    disabled={resetting}
+                    className="mt-4 w-full bg-primary text-primary-foreground text-sm py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {resetting ? "Mereset..." : "🔄 Reset Link Ini"}
+                  </button>
+                  <p className="text-muted-foreground text-xs mt-2">Sisa reset: {resetLeft} dari 3</p>
+                </>
+              )}
             </>
           )}
           {status === "blocked" && (
