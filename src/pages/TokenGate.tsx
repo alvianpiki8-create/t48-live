@@ -108,8 +108,11 @@ const TokenGate = () => {
       } else {
         // Single-device token (legacy behaviour)
         if (data.device_id && data.device_id !== deviceId) {
+          const left = 3 - ((data as any).reset_count || 0);
+          setResetLeft(Math.max(0, left));
+          setCanReset(left > 0);
           setStatus("error");
-          setErrorMsg("Token ini sudah digunakan di perangkat lain. Satu token hanya untuk satu perangkat.");
+          setErrorMsg("Token ini sudah digunakan di perangkat lain.");
           return;
         }
         if (!data.device_id) {
