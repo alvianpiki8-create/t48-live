@@ -71,6 +71,10 @@ const CatalogPage = () => {
     };
     fetchShows();
 
+    // Sinkron jadwal show resmi (IDN+) otomatis, lalu muat ulang katalog
+    syncIdnShows().then((n) => { if (n > 0) fetchShows(); });
+
+
     const fetchBg = async () => {
       const { data } = await supabase.from("stream_settings").select("catalog_background_url, catalog_background_type" as any).order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (data) {
