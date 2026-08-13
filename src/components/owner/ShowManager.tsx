@@ -29,6 +29,24 @@ const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
   const [newDuration, setNewDuration] = useState(24);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Record<string, Partial<Show>>>({});
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncIdn = async (force = true) => {
+    setSyncing(true);
+    await syncIdnShows(force);
+    setSyncing(false);
+    onRefresh();
+  };
+
+  // Sinkron otomatis saat panel dibuka (throttle 5 menit)
+  useEffect(() => {
+    (async () => {
+      const n = await syncIdnShows();
+      if (n > 0) onRefresh();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const handleAddShow = async () => {
     if (!newShowName.trim() || !newShowCode.trim() || !newShowDate) return;
