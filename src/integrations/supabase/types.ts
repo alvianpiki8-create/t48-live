@@ -554,6 +554,7 @@ export type Database = {
           background_url: string | null
           created_at: string
           description: string | null
+          external_id: string | null
           id: string
           image_url: string | null
           is_active: boolean
@@ -567,6 +568,7 @@ export type Database = {
           background_url?: string | null
           created_at?: string
           description?: string | null
+          external_id?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -580,6 +582,7 @@ export type Database = {
           background_url?: string | null
           created_at?: string
           description?: string | null
+          external_id?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
