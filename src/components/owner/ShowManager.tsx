@@ -65,9 +65,17 @@ const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
       <div className="flex items-center gap-2">
         <Film size={18} className="text-primary" />
         <h2 className="font-semibold text-foreground">Manajemen Show & Jadwal</h2>
+        <button
+          onClick={handleSyncIdn}
+          disabled={syncing}
+          className="ml-auto flex items-center gap-1.5 text-xs bg-secondary hover:bg-secondary/70 text-foreground px-2.5 py-1.5 rounded-lg disabled:opacity-50"
+        >
+          <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
+          {syncing ? "Sinkron..." : "Sync Jadwal IDN"}
+        </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Setiap show wajib punya ID, judul, tanggal & jam. Link/token yang dibuat untuk show ini otomatis aktif tepat pada jadwalnya.
+        Setiap show wajib punya ID, judul, tanggal & jam. Jadwal resmi IDN+ (judul, ID show, jam, poster) tersinkron otomatis. Link/token yang dibuat untuk show ini otomatis aktif tepat pada jadwalnya.
       </p>
 
       <div className="space-y-2 bg-secondary/20 rounded-lg p-3">
