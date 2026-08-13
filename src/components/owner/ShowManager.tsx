@@ -85,7 +85,7 @@ const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
         <Film size={18} className="text-primary" />
         <h2 className="font-semibold text-foreground">Manajemen Show & Jadwal</h2>
         <button
-          onClick={handleSyncIdn}
+          onClick={() => handleSyncIdn(true)}
           disabled={syncing}
           className="ml-auto flex items-center gap-1.5 text-xs bg-secondary hover:bg-secondary/70 text-foreground px-2.5 py-1.5 rounded-lg disabled:opacity-50"
         >
