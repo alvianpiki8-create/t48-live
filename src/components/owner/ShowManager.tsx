@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Plus, Trash2, Film, CalendarClock, Save } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Film, CalendarClock, Save, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatShowSchedule } from "@/lib/showSchedule";
+import { syncIdnShows } from "@/lib/syncIdnShows";
 
 export interface Show {
   id: string;
