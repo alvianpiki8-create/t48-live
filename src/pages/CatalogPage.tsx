@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { celebrateShowPurchase } from "@/lib/celebration";
 import CatalogMembershipSection from "@/components/CatalogMembershipSection";
 import { JKT48_MEMBERS } from "@/lib/jkt48Members";
+import { syncIdnShows } from "@/lib/syncIdnShows";
 
 interface ShowItem {
   id: string;
