@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Plus, Trash2, Film, CalendarClock, Save } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Film, CalendarClock, Save, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatShowSchedule } from "@/lib/showSchedule";
+import { syncIdnShows } from "@/lib/syncIdnShows";
 
 export interface Show {
   id: string;
@@ -28,6 +29,24 @@ const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
   const [newDuration, setNewDuration] = useState(24);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Record<string, Partial<Show>>>({});
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncIdn = async (force = true) => {
+    setSyncing(true);
+    await syncIdnShows(force);
+    setSyncing(false);
+    onRefresh();
+  };
+
+  // Sinkron otomatis saat panel dibuka (throttle 5 menit)
+  useEffect(() => {
+    (async () => {
+      const n = await syncIdnShows();
+      if (n > 0) onRefresh();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const handleAddShow = async () => {
     if (!newShowName.trim() || !newShowCode.trim() || !newShowDate) return;
@@ -65,9 +84,17 @@ const ShowManager = ({ shows, onRefresh }: ShowManagerProps) => {
       <div className="flex items-center gap-2">
         <Film size={18} className="text-primary" />
         <h2 className="font-semibold text-foreground">Manajemen Show & Jadwal</h2>
+        <button
+          onClick={() => handleSyncIdn(true)}
+          disabled={syncing}
+          className="ml-auto flex items-center gap-1.5 text-xs bg-secondary hover:bg-secondary/70 text-foreground px-2.5 py-1.5 rounded-lg disabled:opacity-50"
+        >
+          <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
+          {syncing ? "Sinkron..." : "Sync Jadwal IDN"}
+        </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Setiap show wajib punya ID, judul, tanggal & jam. Link/token yang dibuat untuk show ini otomatis aktif tepat pada jadwalnya.
+        Setiap show wajib punya ID, judul, tanggal & jam. Jadwal resmi IDN+ (judul, ID show, jam, poster) tersinkron otomatis. Link/token yang dibuat untuk show ini otomatis aktif tepat pada jadwalnya.
       </p>
 
       <div className="space-y-2 bg-secondary/20 rounded-lg p-3">
