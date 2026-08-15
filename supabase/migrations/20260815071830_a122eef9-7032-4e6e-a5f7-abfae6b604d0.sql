@@ -1,0 +1,1 @@
+ALTER TABLE public.stream_settings ADD COLUMN IF NOT EXISTS video_id_2 text;

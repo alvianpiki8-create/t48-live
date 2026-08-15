@@ -23,6 +23,7 @@ const OwnerWatch = () => {
   const { messages, sendMessage } = useRealtimeChat();
 
   const [videoId, setVideoId] = useState("");
+  const [videoId2, setVideoId2] = useState("");
   const [channelName, setChannelName] = useState("TEAM Live");
   const [streamTitle, setStreamTitle] = useState("Siaran Langsung");
   const [channelAvatar, setChannelAvatar] = useState("");
@@ -35,6 +36,7 @@ const OwnerWatch = () => {
     const applySettings = (data: any) => {
       if (!data) return;
       setVideoId(data.video_id || "");
+      setVideoId2((data as any).video_id_2 || "");
       setChannelName(data.channel_name || "TEAM Live");
       setStreamTitle(data.stream_title || "Siaran Langsung");
       setChannelAvatar(data.channel_avatar || "");
@@ -94,7 +96,7 @@ const OwnerWatch = () => {
         </header>
 
         <main className="max-w-4xl mx-auto px-4 py-4 space-y-3">
-          <LivePlayer videoId={videoId} watermarkText="OWNER" />
+          <LivePlayer videoId={videoId} videoId2={videoId2} />
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
           <LineupDisplay lineup={lineup} />
           <CommentSection nickname={OWNER_NICKNAME} messages={messages} onSendMessage={handleSendMessage} isOwner />

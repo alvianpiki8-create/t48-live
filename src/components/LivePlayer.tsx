@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface LivePlayerProps {
   videoId: string;
+  videoId2?: string;
   sourceType?: "youtube" | "m3u8" | "auto";
   sourceUrl?: string;
   sourceUrl2?: string;
@@ -43,7 +44,7 @@ const isM3u8 = (url: string) => {
 
 const IDN_CACHE_KEY = "team-live-idn-proxy-v2";
 
-const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string, sourceUrlBackup: string): ServerOption[] => {
+const buildServers = (videoId: string, videoId2: string, sourceUrl: string, sourceUrl2: string, sourceUrlBackup: string): ServerOption[] => {
   const list: ServerOption[] = [];
   let ytCount = 0;
   let rtmpCount = 0;
@@ -74,6 +75,12 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string, so
     list.push({ id: `yt-main`, kind: "youtube", src: ytId, label: "YouTube" });
   }
 
+  const ytId2 = extractYouTubeVideoId((videoId2 || "").trim());
+  if (ytId2 && ytId2 !== ytId) {
+    ytCount += 1;
+    list.push({ id: `yt-main-2`, kind: "youtube", src: ytId2, label: "YouTube 2" });
+  }
+
   addUrl(sourceUrl);
   addUrl(sourceUrl2);
   addUrl(sourceUrlBackup, "Backup");
@@ -87,10 +94,8 @@ const buildServers = (videoId: string, sourceUrl: string, sourceUrl2: string, so
   });
 };
 
-const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceUrl2 = "", sourceUrlBackup = "" }: LivePlayerProps) => {
+const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", sourceUrlBackup = "" }: LivePlayerProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [wmPos, setWmPos] = useState(WM_POSITIONS[0]);
-  const [wmVisible, setWmVisible] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [ytQuality, setYtQuality] = useState("");
   const [muted, setMuted] = useState(true);
@@ -107,8 +112,8 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const baseServers = useMemo(
-    () => buildServers(videoId, sourceUrl, sourceUrl2, sourceUrlBackup),
-    [videoId, sourceUrl, sourceUrl2, sourceUrlBackup],
+    () => buildServers(videoId, videoId2, sourceUrl, sourceUrl2, sourceUrlBackup),
+    [videoId, videoId2, sourceUrl, sourceUrl2, sourceUrlBackup],
   );
 
   // Auto-resolve IDN+ live stream fully in edge so the v4 x-api-token never hits the browser.
@@ -208,20 +213,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
   }, []);
 
   useEffect(() => () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const showOnce = () => {
-      if (cancelled) return;
-      const next = WM_POSITIONS[Math.floor(Math.random() * WM_POSITIONS.length)];
-      setWmPos(next);
-      setWmVisible(true);
-      window.setTimeout(() => { if (!cancelled) setWmVisible(false); }, 2000);
-    };
-    showOnce();
-    const interval = window.setInterval(showOnce, 20000);
-    return () => { cancelled = true; window.clearInterval(interval); };
-  }, []);
 
   useEffect(() => {
     const handler = () => {
@@ -623,23 +614,6 @@ const LivePlayer = ({ videoId, watermarkText = "@t48id", sourceUrl = "", sourceU
           </div>
           )}
 
-          <div
-            className="absolute z-30 pointer-events-none select-none transition-opacity duration-500"
-            style={{
-              top: wmPos.top,
-              left: wmPos.left,
-              right: wmPos.right,
-              bottom: wmPos.bottom,
-              opacity: wmVisible ? 0.45 : 0,
-              fontSize: "9px",
-              fontFamily: "JetBrains Mono, monospace",
-              color: "hsl(var(--foreground))",
-              textShadow: "0 0 4px rgba(0,0,0,0.8)",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {watermarkText}
-          </div>
         </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">

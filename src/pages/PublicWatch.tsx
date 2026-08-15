@@ -33,6 +33,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
   const [allowMonthly, setAllowMonthly] = useState(true);
 
   const [videoId, setVideoId] = useState("");
+  const [videoId2, setVideoId2] = useState("");
   const [channelName, setChannelName] = useState("TEAM Live");
   const [siteName, setSiteName] = useState("TEAM Live");
   const [streamTitle, setStreamTitle] = useState("Siaran Langsung");
@@ -58,6 +59,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
       setAllowWeekly(data.allow_weekly_members ?? true);
       setAllowMonthly(data.allow_monthly_members ?? true);
       setVideoId(data.video_id || "");
+      setVideoId2((data as any).video_id_2 || "");
       setChannelName(data.channel_name || "TEAM Live");
       setSiteName(data.site_name || data.channel_name || "TEAM Live");
       setStreamTitle(data.stream_title || "Siaran Langsung");
@@ -234,7 +236,7 @@ const PublicWatch = ({ mode = "public" }: PublicWatchProps) => {
             {countdownDatetime && !countdownDone ? (
               <div className="w-full" style={{ aspectRatio: "16/9" }}><CountdownOverlay targetDatetime={countdownDatetime} onComplete={() => setCountdownDone(true)} backgroundImage={countdownBackground} /></div>
             ) : (
-              <LivePlayer videoId={videoId} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl} watermarkText="@t48id" />
+              <LivePlayer videoId={videoId} videoId2={videoId2} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl} />
             )}
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />

@@ -59,6 +59,7 @@ const OwnerPanel = () => {
   const [channelAvatar, setChannelAvatar] = useState("");
   const [channelAvatar2, setChannelAvatar2] = useState("");
   const [videoId, setVideoId] = useState("");
+  const [videoId2, setVideoId2] = useState("");
   const [streamTitle, setStreamTitle] = useState("Siaran Langsung");
   const [m3u8Url1, setM3u8Url1] = useState("");
   const [m3u8Url2, setM3u8Url2] = useState("");
@@ -111,6 +112,7 @@ const OwnerPanel = () => {
       setChannelAvatar((data as any).channel_avatar || "");
       setChannelAvatar2((data as any).channel_avatar_2 || "");
       setVideoId((data as any).video_id || "");
+      setVideoId2((data as any).video_id_2 || "");
       setStreamTitle((data as any).stream_title || "Siaran Langsung");
       setM3u8Url1((data as any).stream_source_url || "");
       setM3u8Url2((data as any).stream_source_url_2 || "");
@@ -147,11 +149,17 @@ const OwnerPanel = () => {
       return;
     }
     setVideoError("");
+    if (videoId2.trim() && !extractYouTubeVideoId(videoId2)) {
+      setVideoError("Link YouTube 2 tidak valid. Coba paste ulang URL atau Video ID.");
+      return;
+    }
     const normalizedVideoId = extractYouTubeVideoId(videoId) || "";
+    const normalizedVideoId2 = extractYouTubeVideoId(videoId2) || "";
 
     const detectType = (u: string) => (/m3u8/i.test(u) ? "m3u8" : "youtube");
     const updateData: any = {
       video_id: normalizedVideoId,
+      video_id_2: normalizedVideoId2,
       channel_name: channelName,
       site_name: siteName,
       stream_title: streamTitle,
@@ -178,6 +186,7 @@ const OwnerPanel = () => {
     }
 
     setVideoId(normalizedVideoId);
+    setVideoId2(normalizedVideoId2);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     fetchStreamSettings();
@@ -438,6 +447,28 @@ const OwnerPanel = () => {
                   <div className="px-3 py-2 bg-secondary/50 text-xs text-muted-foreground font-mono">
                     ID: {previewId}
                   </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">YouTube URL atau Video ID (Server YouTube 2)</label>
+            <input
+              type="text"
+              value={videoId2}
+              onChange={(e) => { setVideoId2(e.target.value); setVideoError(""); }}
+              placeholder="opsional — server YouTube cadangan"
+              className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Jika diisi, penonton dapat pilihan server "YouTube 2".</p>
+            {(() => {
+              const previewId2 = extractYouTubeVideoId(videoId2);
+              if (!previewId2) return null;
+              return (
+                <div className="mt-3 rounded-lg overflow-hidden border border-border">
+                  <img src={`https://i.ytimg.com/vi/${previewId2}/hqdefault.jpg`} alt="Preview thumbnail 2" className="w-full aspect-video object-cover" />
+                  <div className="px-3 py-2 bg-secondary/50 text-xs text-muted-foreground font-mono">ID: {previewId2}</div>
                 </div>
               );
             })()}
