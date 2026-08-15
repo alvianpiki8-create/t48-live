@@ -8,23 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface LivePlayerProps {
   videoId: string;
-  watermarkText?: string;
   sourceType?: "youtube" | "m3u8" | "auto";
   sourceUrl?: string;
   sourceUrl2?: string;
   sourceUrlBackup?: string;
 }
 
-const WM_POSITIONS = [
-  { top: "6%", left: "4%" },
-  { top: "6%", right: "4%" },
-  { top: "50%", left: "4%" },
-  { top: "50%", right: "4%" },
-  { bottom: "12%", left: "4%" },
-  { bottom: "12%", right: "4%" },
-  { top: "30%", left: "40%" },
-  { bottom: "30%", right: "30%" },
-];
 
 const YT_QUALITY = [
   { label: "Auto", value: "" },
