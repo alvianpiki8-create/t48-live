@@ -693,6 +693,7 @@ export type Database = {
           stream_title: string | null
           updated_at: string
           video_id: string | null
+          video_id_2: string | null
         }
         Insert: {
           access_days?: number | null
@@ -728,6 +729,7 @@ export type Database = {
           stream_title?: string | null
           updated_at?: string
           video_id?: string | null
+          video_id_2?: string | null
         }
         Update: {
           access_days?: number | null
@@ -763,6 +765,7 @@ export type Database = {
           stream_title?: string | null
           updated_at?: string
           video_id?: string | null
+          video_id_2?: string | null
         }
         Relationships: []
       }
