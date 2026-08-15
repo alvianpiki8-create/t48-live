@@ -338,7 +338,7 @@ const Index = () => {
               </div>
             )}
             {(countdownDone || !countdownDatetime) && (
-              <LivePlayer videoId={videoId} videoId2={videoId2} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl}` : "@t48id"} />
+              <LivePlayer videoId={videoId} videoId2={videoId2} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl} />
             )}
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
