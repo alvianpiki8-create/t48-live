@@ -54,6 +54,7 @@ const Index = () => {
   const [siteName, setSiteName] = useState("TEAM Live");
 
   const [videoId, setVideoId] = useState("");
+  const [videoId2, setVideoId2] = useState("");
   const [channelName, setChannelName] = useState("TEAM Live");
   const [streamTitle, setStreamTitle] = useState("Siaran Langsung");
   const [channelAvatar, setChannelAvatar] = useState("");
@@ -121,6 +122,7 @@ const Index = () => {
         tokenShow = show;
       }
       setVideoId(data.video_id || "");
+      setVideoId2((data as any).video_id_2 || "");
       setChannelName(data.channel_name || "TEAM Live");
       setSiteName(data.site_name || data.channel_name || "TEAM Live");
       setStreamTitle(tokenShow?.title || data.stream_title || "Siaran Langsung");
@@ -336,7 +338,7 @@ const Index = () => {
               </div>
             )}
             {(countdownDone || !countdownDatetime) && (
-              <LivePlayer videoId={videoId} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl} watermarkText={tokenCode ? `T4-${tokenCode}` : "@t48id"} />
+              <LivePlayer videoId={videoId} videoId2={videoId2} sourceUrl={streamSourceUrl} sourceUrl2={streamSourceUrl2} sourceUrlBackup={streamBackupUrl}` : "@t48id"} />
             )}
           </div>
           <ChannelInfo channelName={channelName} channelAvatar={channelAvatar} channelAvatar2={channelAvatar2} viewerCount={viewerCount} streamTitle={streamTitle} />
