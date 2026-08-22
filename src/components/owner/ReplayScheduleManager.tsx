@@ -94,7 +94,7 @@ const ReplayScheduleManager = () => {
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
         <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Keterangan show (opsional)"
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-        <button onClick={handleAdd} disabled={!date || !password.trim() || !youtubeUrl.trim() || !showId}
+        <button onClick={handleAdd} disabled={!date || !password.trim() || !youtubeUrl.trim()}
           className="w-full bg-primary text-primary-foreground py-2 rounded-lg font-medium text-sm hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50">
           <Plus size={14} /> Tambah
         </button>
