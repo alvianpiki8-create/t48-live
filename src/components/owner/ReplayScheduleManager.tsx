@@ -44,13 +44,13 @@ const ReplayScheduleManager = () => {
   }, [fetch]);
 
   const handleAdd = async () => {
-    if (!date || !password.trim() || !youtubeUrl.trim() || !showId) return;
+    if (!date || !password.trim() || !youtubeUrl.trim()) return;
     await supabase.from("replay_schedules").insert({
       show_date: date,
       replay_password: password.trim(),
       description: desc.trim() || null,
       youtube_url: youtubeUrl.trim(),
-      show_id: showId,
+      show_id: showId || null,
     } as any);
     setDate(""); setPassword(""); setDesc(""); setYoutubeUrl(""); setShowId("");
     fetch();
@@ -79,7 +79,7 @@ const ReplayScheduleManager = () => {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tambah Video Replay</p>
         <select value={showId} onChange={(e) => setShowId(e.target.value)}
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-          <option value="">Pilih ID Show (wajib)</option>
+          <option value="">Tanpa ID Show — hanya sandi & membership</option>
           {shows.map((s) => (
             <option key={s.id} value={s.id}>{s.show_code ? `${s.show_code} · ${s.name}` : s.name}</option>
           ))}
@@ -94,7 +94,7 @@ const ReplayScheduleManager = () => {
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
         <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Keterangan show (opsional)"
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-        <button onClick={handleAdd} disabled={!date || !password.trim() || !youtubeUrl.trim() || !showId}
+        <button onClick={handleAdd} disabled={!date || !password.trim() || !youtubeUrl.trim()}
           className="w-full bg-primary text-primary-foreground py-2 rounded-lg font-medium text-sm hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50">
           <Plus size={14} /> Tambah
         </button>
