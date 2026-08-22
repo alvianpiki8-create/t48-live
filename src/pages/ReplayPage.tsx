@@ -22,11 +22,37 @@ const callReplay = async (payload: Record<string, unknown>) => {
   return data as any;
 };
 
+const fmtLong = (d: string) =>
+  new Date(d + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+const fmtShort = (d: string) =>
+  new Date(d + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+
+/** Thumbnail otomatis dari YouTube — tidak perlu diatur owner. */
+const Thumb = ({ url, title }: { url: string | null; title: string }) => {
+  const id = extractYouTubeVideoId(url || "");
+  const [src, setSrc] = useState(id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : "");
+  if (!id || !src) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-secondary/40">
+        <Film size={20} className="text-muted-foreground opacity-60" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={`Thumbnail replay ${title}`}
+      loading="lazy"
+      onError={() => setSrc(`https://i.ytimg.com/vi/${id}/mqdefault.jpg`)}
+      className="w-full h-full object-cover"
+    />
+  );
+};
+
 const ReplayPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [siteName, setSiteName] = useState<string>("TEAM Live");
-  // Only replays the server has actually unlocked for this visitor.
   const [schedules, setSchedules] = useState<ReplaySchedule[]>([]);
   const [inputToken, setInputToken] = useState("");
   const [activeToken, setActiveToken] = useState<string | null>(() => sessionStorage.getItem(UNLOCK_KEY));
@@ -46,7 +72,6 @@ const ReplayPage = () => {
 
   const membershipMode = searchParams.get("m") === "1";
 
-  // Membership check + all-access list are both verified server-side.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -63,7 +88,6 @@ const ReplayPage = () => {
     return () => { cancelled = true; };
   }, [membershipMode]);
 
-  // Restore a previous unlock (the secret is re-verified by the server every time).
   useEffect(() => {
     if (membershipMode || !activeToken) return;
     let cancelled = false;
@@ -89,12 +113,6 @@ const ReplayPage = () => {
     return () => { supabase.removeChannel(ch); };
   }, [fetchSiteName]);
 
-  const currentVideo = (() => {
-    if (!activeToken) return null;
-    const withVideo = schedules.filter((s) => s.youtube_url);
-    return withVideo.find((s) => s.id === selectedId) || withVideo[0] || null;
-  })();
-
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
@@ -118,87 +136,36 @@ const ReplayPage = () => {
     setErr("Sandi tidak valid.");
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem(UNLOCK_KEY);
+    sessionStorage.removeItem(UNLOCK_SHOW_KEY);
+    setActiveToken(null);
+    setSchedules([]);
+    setSelectedId(null);
+  };
+
   if (checkingMembership && membershipMode) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
+  const unlocked = (membershipMode && membershipActive) || Boolean(activeToken);
+  const withVideo = unlocked ? schedules.filter((s) => s.youtube_url) : [];
+  const active = withVideo.find((s) => s.id === selectedId) || withVideo[0] || null;
+  const activeVideoId = active ? extractYouTubeVideoId(active.youtube_url || "") : null;
 
-  if (membershipMode && membershipActive) {
-    const withVideo = schedules.filter((s) => s.youtube_url);
-    const active = withVideo.find((s) => s.id === selectedId) || withVideo[0];
-    const videoId = active ? extractYouTubeVideoId(active.youtube_url || "") : null;
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50">
-          <div className="flex items-center gap-2 min-w-0">
-            <Crown size={18} className="text-primary shrink-0" />
-            <h1 className="text-sm font-bold text-foreground truncate">Replay Membership</h1>
-          </div>
-          <button onClick={() => navigate("/membership-live")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ArrowLeft size={14} /> Kembali ke Live
-          </button>
-        </header>
-        <main className="max-w-4xl mx-auto p-4 space-y-4">
-          {active && videoId ? (
-            <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
-              <iframe
-                key={active.id}
-                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`}
-                title="Replay" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen className="w-full h-full border-0"
-              />
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
-              <Film size={40} className="mx-auto mb-3 opacity-50" />
-              Belum ada video replay tersedia.
-            </div>
-          )}
-          {active && (
-            <div className="text-sm text-foreground font-semibold">
-              {active.description || new Date(active.show_date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-            </div>
-          )}
-          <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Daftar Video ({withVideo.length})</p>
-            <div className="grid gap-2">
-              {withVideo.map((s) => {
-                const isActive = active?.id === s.id;
-                return (
-                  <button key={s.id} onClick={() => setSelectedId(s.id)}
-                    className={`text-left rounded-lg border p-3 flex items-center gap-3 transition-all ${isActive ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-secondary/30"}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>
-                      <Play size={14} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-foreground truncate">
-                        {s.description || new Date(s.show_date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">{new Date(s.show_date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <p className="text-[10px] text-muted-foreground text-center pt-3">{siteName}</p>
-        </main>
-      </div>
-    );
-  }
-
-  if (!activeToken || !currentVideo) {
+  // ---- Locked screen ----
+  if (!unlocked || !active) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="bg-card border border-border rounded-xl p-8 w-full max-w-sm" style={{ animation: "fade-in 0.3s ease-out" }}>
+        <div className="bg-card border border-border rounded-2xl p-8 w-full max-w-sm" style={{ animation: "fade-in 0.3s ease-out" }}>
           <div className="text-center mb-6">
             <div className="inline-flex p-3 rounded-full bg-primary/10 mb-3"><Lock size={24} className="text-primary" /></div>
             <h1 className="text-xl font-bold text-foreground">Halaman Replay</h1>
-            <p className="text-muted-foreground text-sm mt-1">1 video = 1 sandi. Masukkan sandi untuk menonton.</p>
+            <p className="text-muted-foreground text-sm mt-1">Masukkan sandi replay untuk menonton.</p>
           </div>
           <form onSubmit={handleUnlock} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1.5"><KeyRound size={14} /> Sandi Replay</label>
+              <label className="text-sm text-muted-foreground mb-1 flex items-center gap-1.5"><KeyRound size={14} /> Sandi Replay</label>
               <input
                 type="password" value={inputToken} onChange={(e) => setInputToken(e.target.value)} autoComplete="off"
                 className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center font-mono tracking-[0.25em]"
@@ -211,7 +178,7 @@ const ReplayPage = () => {
               Buka Replay
             </button>
           </form>
-          {membershipActive && (
+          {membershipActive && !membershipMode && (
             <button onClick={() => navigate("/replay?m=1")} className="w-full mt-3 bg-secondary text-foreground py-2 rounded-lg text-xs font-semibold hover:bg-accent flex items-center justify-center gap-1.5">
               <Crown size={12} /> Buka Semua Replay (Membership)
             </button>
@@ -224,49 +191,90 @@ const ReplayPage = () => {
     );
   }
 
-  const handleLogout = () => {
-    sessionStorage.removeItem(UNLOCK_KEY);
-    sessionStorage.removeItem(UNLOCK_SHOW_KEY);
-    setActiveToken(null);
-    setSchedules([]);
-  };
-
-  const videoId = currentVideo ? extractYouTubeVideoId(currentVideo.youtube_url || "") : null;
+  // ---- Unlocked screen (token & membership berbagi tata letak yang sama) ----
+  const activeTitle = active.description || fmtLong(active.show_date);
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50">
+      <header className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur">
         <div className="flex items-center gap-2 min-w-0">
-          <Film size={18} className="text-primary shrink-0" />
+          {membershipMode ? <Crown size={18} className="text-primary shrink-0" /> : <Film size={18} className="text-primary shrink-0" />}
           <h1 className="text-sm font-bold text-foreground truncate">
-            Replay · {currentVideo.description || new Date(currentVideo.show_date + 'T00:00:00').toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+            {membershipMode ? "Replay Membership" : "Halaman Replay"}
           </h1>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <button onClick={handleLogout} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <Lock size={12} /> Kunci
-          </button>
-          <button onClick={() => navigate("/")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+          {!membershipMode && (
+            <button onClick={handleLogout} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <Lock size={12} /> Kunci
+            </button>
+          )}
+          <button onClick={() => navigate(membershipMode ? "/membership-live" : "/")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
             <ArrowLeft size={14} /> Kembali
           </button>
         </div>
       </header>
-      <main className="max-w-3xl mx-auto p-4">
-        {videoId ? (
-          <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+
+      <main className="max-w-5xl mx-auto p-4 space-y-5">
+        <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video shadow-lg">
+          {activeVideoId ? (
             <iframe
-              src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`}
-              title="Replay" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              key={active.id}
+              src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?rel=0&modestbranding=1&autoplay=1`}
+              title={`Replay ${activeTitle}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen className="w-full h-full border-0"
             />
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
-            <Film size={40} className="mx-auto mb-3 opacity-50" />
-            Video replay untuk sandi ini belum tersedia.
-          </div>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
+              <Film size={40} className="mb-3 opacity-50" /> Video belum tersedia.
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2 className="text-base font-bold text-foreground">{activeTitle}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{fmtShort(active.show_date)}</p>
+        </div>
+
+        {withVideo.length > 1 && (
+          <section className="space-y-3">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Daftar Video ({withVideo.length})</p>
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
+              {withVideo.map((s) => {
+                const isActive = active.id === s.id;
+                const title = s.description || fmtLong(s.show_date);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => { setSelectedId(s.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    className={`group text-left rounded-xl overflow-hidden border transition-all ${isActive ? "border-primary ring-1 ring-primary/40" : "border-border hover:border-primary/50"} bg-card`}
+                  >
+                    <div className="relative aspect-video bg-secondary/40">
+                      <Thumb url={s.youtube_url} title={title} />
+                      <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${isActive ? "bg-primary/20 opacity-100" : "bg-black/30 opacity-0 group-hover:opacity-100"}`}>
+                        <span className="w-9 h-9 rounded-full bg-background/85 flex items-center justify-center">
+                          <Play size={15} className="text-foreground ml-0.5" />
+                        </span>
+                      </div>
+                      {isActive && (
+                        <span className="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wide bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                          Diputar
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-xs font-semibold text-foreground line-clamp-2">{title}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{fmtShort(s.show_date)}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
         )}
-        <p className="text-[10px] text-muted-foreground text-center mt-3">{siteName}</p>
+
+        <p className="text-[10px] text-muted-foreground text-center pt-2">{siteName}</p>
       </main>
     </div>
   );
