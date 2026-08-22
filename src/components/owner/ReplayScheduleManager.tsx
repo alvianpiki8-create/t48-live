@@ -79,7 +79,7 @@ const ReplayScheduleManager = () => {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tambah Video Replay</p>
         <select value={showId} onChange={(e) => setShowId(e.target.value)}
           className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-          <option value="">Pilih ID Show (wajib)</option>
+          <option value="">Tanpa ID Show — hanya sandi & membership</option>
           {shows.map((s) => (
             <option key={s.id} value={s.id}>{s.show_code ? `${s.show_code} · ${s.name}` : s.name}</option>
           ))}
