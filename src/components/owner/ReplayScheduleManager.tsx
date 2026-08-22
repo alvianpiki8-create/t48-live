@@ -44,13 +44,13 @@ const ReplayScheduleManager = () => {
   }, [fetch]);
 
   const handleAdd = async () => {
-    if (!date || !password.trim() || !youtubeUrl.trim() || !showId) return;
+    if (!date || !password.trim() || !youtubeUrl.trim()) return;
     await supabase.from("replay_schedules").insert({
       show_date: date,
       replay_password: password.trim(),
       description: desc.trim() || null,
       youtube_url: youtubeUrl.trim(),
-      show_id: showId,
+      show_id: showId || null,
     } as any);
     setDate(""); setPassword(""); setDesc(""); setYoutubeUrl(""); setShowId("");
     fetch();
