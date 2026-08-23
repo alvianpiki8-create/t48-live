@@ -75,15 +75,15 @@ const MembershipPanel = () => {
     e.preventDefault();
     setLoginLoading(true);
     setLoginError("");
-    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { token: ownerToken } });
+    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { email: ownerToken } });
     setLoginLoading(false);
     if (!error && (data as any)?.valid) {
       setIsAuthenticated(true);
       sessionStorage.setItem(AUTH_KEY, "true");
-      sessionStorage.setItem(OWNER_TOKEN_KEY, ownerToken.trim());
+      sessionStorage.setItem(OWNER_TOKEN_KEY, (data as any)?.token || "");
       setLoginError("");
     } else {
-      setLoginError("Token owner salah");
+      setLoginError("Email owner tidak dikenali");
     }
   };
 
