@@ -208,14 +208,14 @@ const OwnerPanel = () => {
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1.5"><KeyRound size={14} /> Token Owner</label>
+              <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-1.5"><KeyRound size={14} /> Email Owner</label>
               <input
-                type="password"
-                inputMode="numeric"
+                type="email"
+                autoComplete="email"
                 value={ownerToken}
                 onChange={(e) => setOwnerToken(e.target.value)}
-                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center font-mono tracking-[0.25em]"
-                placeholder="•••••"
+                className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
+                placeholder="email owner"
               />
             </div>
             {loginError && <p className="text-destructive text-sm">{loginError}</p>}
