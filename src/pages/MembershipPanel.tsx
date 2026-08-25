@@ -161,12 +161,14 @@ const MembershipPanel = () => {
   };
 
   const createMembershipToken = async (m: Membership): Promise<string | null> => {
-    const days = m.type === "weekly" ? 7 : 30;
+    const days = membershipDays(m.type);
     const token_code = generateTokenCode();
     const { error } = await supabase.from("access_tokens").insert({
       token_code,
       duration_days: days,
-      show_name: `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`,
+      show_name: `Membership ${membershipLabel(m.type)}`,
+      max_uses: 3,
+      expires_at: null,
     } as any);
     if (error) {
       alert("Gagal membuat token membership: " + error.message);
@@ -178,8 +180,9 @@ const MembershipPanel = () => {
   const handleCopyMembershipText = async (m: Membership) => {
     const code = await createMembershipToken(m);
     if (!code) return;
-    const typeLabel = m.type === "weekly" ? "mingguan" : "bulanan";
-    const duration = m.type === "weekly" ? "7 hari" : "30 hari";
+    const typeLabel = membershipLabel(m.type).toLowerCase();
+    const duration = `${membershipDays(m.type)} hari`;
+
     const link = `${window.location.origin}/watch/${code}`;
 
     const text = `🤩TERIMAKASIH TELAH MELAKUKAN PEMBELIAN MEMBERSHIP (${typeLabel})
