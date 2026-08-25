@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { MEMBERSHIP_PLANS, membershipDays, membershipLabel, type MembershipType } from "@/lib/membership";
 
 const AUTH_KEY = "teamlive_owner_auth";
 const OWNER_TOKEN_KEY = "teamlive_owner_token";
@@ -25,7 +26,7 @@ const MembershipPanel = () => {
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState<"weekly" | "monthly">("weekly");
+  const [newType, setNewType] = useState<MembershipType>("weekly");
   const [newPrice, setNewPrice] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
@@ -394,10 +395,10 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                     <span className="font-semibold text-foreground text-sm">{m.name}</span>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
-                        {m.type === "weekly" ? "Mingguan" : "Bulanan"}
+                        {membershipLabel(m.type)}
                       </span>
                       <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                        <Ticket size={9} /> {m.type === "weekly" ? "7 hari" : "30 hari"} sejak link dibuka
+                        <Ticket size={9} /> {membershipDays(m.type)} hari sejak link dibuka
                       </span>
                       <span className="text-xs text-primary font-medium">
                         {m.price.toLocaleString("id-ID")} Koin
