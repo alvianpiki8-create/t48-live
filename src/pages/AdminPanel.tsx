@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2, Film, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, filterLogsSince } from "@/lib/adminPricing";
+import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, PRICE_MEMBERSHIP_BIMONTHLY, PRICE_MEMBERSHIP_YEARLY, filterLogsSince } from "@/lib/adminPricing";
+import { membershipDays, membershipLabel } from "@/lib/membership";
 import { formatShowSchedule } from "@/lib/showSchedule";
 
 
 const STORAGE_KEY = "teamlive_admin_session";
-const DURATION_OPTIONS = [1, 7, 15, 20, 30, 60];
+const DURATION_OPTIONS = [1, 7, 15, 30, 60, 365];
+
 
 interface AdminSession { id: string; name: string; }
 
@@ -299,13 +301,15 @@ const AdminPanel = () => {
     const m = memberships.find((x) => x.id === selMembership);
     if (!m) return;
     setCreating(true); setGenerated(null);
-    const days = m.type === "weekly" ? 7 : 30;
+    const days = membershipDays(m.type);
     const token_code = generateTokenCode();
-    const showName = `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`;
+    const showName = `Membership ${membershipLabel(m.type)}`;
     try {
-      // Membership uses TOKEN-BASED link (not public membership link)
+      // Membership uses TOKEN-BASED link (not public membership link).
+      // Membership dipakai lintas perangkat (HP + browser lain), jadi kapasitas 3 perangkat
+      // supaya tidak muncul "link sudah dipakai" padahal pemiliknya sendiri.
       const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
-        token_code, duration_days: days, show_name: showName,
+        token_code, duration_days: days, show_name: showName, max_uses: 3, expires_at: null,
       } as any));
       if (error) { alert("Gagal: " + netMessage(error.message)); setCreating(false); return; }
       await withRetry(() => supabase.from("admin_link_logs").insert({
@@ -316,6 +320,7 @@ const AdminPanel = () => {
     } catch (e: any) {
       alert("Gagal: " + netMessage(String(e?.message || e)));
     }
+
     setCreating(false);
   };
 
@@ -451,7 +456,7 @@ const AdminPanel = () => {
                 <select value={selMembership} onChange={(e) => setSelMembership(e.target.value)}
                   className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
                   <option value="">-- Pilih Paket --</option>
-                  {memberships.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.type === "weekly" ? "7 hari" : "30 hari"})</option>)}
+                  {memberships.map((m) => <option key={m.id} value={m.id}>{m.name} ({membershipLabel(m.type)} · {membershipDays(m.type)} hari)</option>)}
                 </select>
                 <p className="text-[10px] text-muted-foreground mt-1">Membership memakai link bertoken (bukan link publik).</p>
               </div>
@@ -603,23 +608,34 @@ const QrisSetoranCard = ({
         <h2 className="text-sm font-semibold text-foreground">Setoran Saya</h2>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="grid grid-cols-5 gap-1.5 text-center">
         <div className="bg-secondary/30 rounded-lg py-2">
           <div className="text-[10px] text-muted-foreground">🎬 Show</div>
           <div className="text-sm font-bold text-foreground">{tally.normal}</div>
           <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_NORMAL)}</div>
         </div>
         <div className="bg-secondary/30 rounded-lg py-2">
-          <div className="text-[10px] text-muted-foreground">🎫 Mingguan</div>
+          <div className="text-[10px] text-muted-foreground">🎫 7hr</div>
           <div className="text-sm font-bold text-foreground">{tally.weekly}</div>
           <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_WEEKLY)}</div>
         </div>
         <div className="bg-secondary/30 rounded-lg py-2">
-          <div className="text-[10px] text-muted-foreground">🎫 Bulanan</div>
+          <div className="text-[10px] text-muted-foreground">🎫 30hr</div>
           <div className="text-sm font-bold text-foreground">{tally.monthly}</div>
           <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_MONTHLY)}</div>
         </div>
+        <div className="bg-secondary/30 rounded-lg py-2">
+          <div className="text-[10px] text-muted-foreground">🎫 60hr</div>
+          <div className="text-sm font-bold text-foreground">{tally.bimonthly}</div>
+          <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_BIMONTHLY)}</div>
+        </div>
+        <div className="bg-secondary/30 rounded-lg py-2">
+          <div className="text-[10px] text-muted-foreground">🎫 365hr</div>
+          <div className="text-sm font-bold text-foreground">{tally.yearly}</div>
+          <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_YEARLY)}</div>
+        </div>
       </div>
+
 
       <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 text-center space-y-0.5">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Belum Dibayar</div>

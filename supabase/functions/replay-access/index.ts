@@ -97,12 +97,12 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (tok && !tok.is_blocked) {
-        // expires_at is a DATE — it stays valid through the end of that day.
-        const endOfDay = tok.expires_at ? new Date(`${tok.expires_at}T23:59:59Z`) : null;
-        const notExpired =
-          (!tok.valid_until || new Date(tok.valid_until) > new Date()) &&
-          (!endOfDay || endOfDay > new Date());
-        if (!notExpired) return json({ error: "expired" });
+        // Masa berlaku HANYA dihitung dari valid_until (diisi saat link pertama
+        // kali dibuka). expires_at hanya tanggal show, bukan tanggal kadaluarsa —
+        // dulu ini bikin link "kadaluarsa" padahal belum dipakai.
+        if (tok.valid_until && new Date(tok.valid_until) <= new Date()) {
+          return json({ error: "expired" });
+        }
 
         // Membership tokens open every replay.
         if ((tok.show_name || "").toLowerCase().startsWith("membership")) {
@@ -111,10 +111,15 @@ Deno.serve(async (req) => {
           return json({ mode: "membership", schedules: all.map(fullShape) });
         }
 
-        if (!tok.show_id) return json({ error: "no_show" });
-        const forShow = rows.filter((r) => r.youtube_url && r.show_id === tok.show_id);
-        if (!forShow.length) return json({ error: "no_video" });
-        return json({ mode: "token", show_id: tok.show_id, schedules: forShow.map(fullShape) });
+        // Cadangan: replay yang sandinya persis kode token ini (owner bisa
+        // menautkan replay ke token tanpa ID show).
+        const byPassword = rows.filter((r) => r.youtube_url && (r.replay_password || "").trim() === secret);
+        const forShow = tok.show_id
+          ? rows.filter((r) => r.youtube_url && r.show_id === tok.show_id)
+          : [];
+        const merged = [...forShow, ...byPassword.filter((r) => !forShow.some((f) => f.id === r.id))];
+        if (!merged.length) return json({ error: tok.show_id ? "no_video" : "no_show" });
+        return json({ mode: "token", show_id: tok.show_id, schedules: merged.map(fullShape) });
       }
 
       return json({ error: "invalid_secret" });

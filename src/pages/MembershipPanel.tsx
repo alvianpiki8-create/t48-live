@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, CreditCard, Link2, Calendar, Copy, Check, Link, Ticket, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { MEMBERSHIP_PLANS, membershipDays, membershipLabel, type MembershipType } from "@/lib/membership";
 
 const AUTH_KEY = "teamlive_owner_auth";
 const OWNER_TOKEN_KEY = "teamlive_owner_token";
@@ -25,7 +26,7 @@ const MembershipPanel = () => {
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState<"weekly" | "monthly">("weekly");
+  const [newType, setNewType] = useState<MembershipType>("weekly");
   const [newPrice, setNewPrice] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
@@ -161,12 +162,14 @@ const MembershipPanel = () => {
   };
 
   const createMembershipToken = async (m: Membership): Promise<string | null> => {
-    const days = m.type === "weekly" ? 7 : 30;
+    const days = membershipDays(m.type);
     const token_code = generateTokenCode();
     const { error } = await supabase.from("access_tokens").insert({
       token_code,
       duration_days: days,
-      show_name: `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`,
+      show_name: `Membership ${membershipLabel(m.type)}`,
+      max_uses: 3,
+      expires_at: null,
     } as any);
     if (error) {
       alert("Gagal membuat token membership: " + error.message);
@@ -178,8 +181,9 @@ const MembershipPanel = () => {
   const handleCopyMembershipText = async (m: Membership) => {
     const code = await createMembershipToken(m);
     if (!code) return;
-    const typeLabel = m.type === "weekly" ? "mingguan" : "bulanan";
-    const duration = m.type === "weekly" ? "7 hari" : "30 hari";
+    const typeLabel = membershipLabel(m.type).toLowerCase();
+    const duration = `${membershipDays(m.type)} hari`;
+
     const link = `${window.location.origin}/watch/${code}`;
 
     const text = `🤩TERIMAKASIH TELAH MELAKUKAN PEMBELIAN MEMBERSHIP (${typeLabel})
@@ -348,12 +352,14 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={newType}
-                onChange={(e) => setNewType(e.target.value as "weekly" | "monthly")}
+                onChange={(e) => setNewType(e.target.value as MembershipType)}
                 className="bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="weekly">Mingguan</option>
-                <option value="monthly">Bulanan</option>
+                {MEMBERSHIP_PLANS.map((p) => (
+                  <option key={p.type} value={p.type}>{p.label}</option>
+                ))}
               </select>
+
               <input
                 type="number"
                 value={newPrice}
@@ -389,10 +395,10 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
                     <span className="font-semibold text-foreground text-sm">{m.name}</span>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
-                        {m.type === "weekly" ? "Mingguan" : "Bulanan"}
+                        {membershipLabel(m.type)}
                       </span>
                       <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                        <Ticket size={9} /> {m.type === "weekly" ? "7 hari" : "30 hari"} sejak link dibuka
+                        <Ticket size={9} /> {membershipDays(m.type)} hari sejak link dibuka
                       </span>
                       <span className="text-xs text-primary font-medium">
                         {m.price.toLocaleString("id-ID")} Koin

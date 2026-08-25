@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Check, Coins, Copy, Crown, ExternalLink, Play, Sparkles, Zap } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { membershipDays, membershipLabel } from "@/lib/membership";
 import { celebrateShowPurchase } from "@/lib/celebration";
 
 interface Profile {
@@ -37,10 +38,10 @@ interface CatalogMembershipSectionProps {
 }
 
 const getBenefits = (type: string) => {
-  const isMonthly = type === "monthly";
+  const days = membershipDays(type);
   return [
-    `Akses livestreaming ${isMonthly ? "30" : "7"} hari`,
-    `Hemat uang hingga ${isMonthly ? "70" : "78"}% daripada beli satuan`,
+    `Akses livestreaming ${days} hari`,
+    days >= 60 ? "Hemat maksimal daripada beli satuan" : `Hemat uang hingga ${days >= 30 ? "70" : "78"}% daripada beli satuan`,
     "Mendapatkan akses replay",
   ];
 };
@@ -154,7 +155,7 @@ const CatalogMembershipSection = ({ user, profile, onCoinsChange, trialAvailable
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-bold text-foreground">{plan.name}</h3>
-                  <p className="text-xs text-muted-foreground">{plan.type === "monthly" ? "Bulanan" : "Mingguan"}</p>
+                  <p className="text-xs text-muted-foreground">{membershipLabel(plan.type)}</p>
                 </div>
                 <div className="text-right">
                   <div className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-sm font-bold text-primary"><Coins size={14} /> {plan.price}</div>
