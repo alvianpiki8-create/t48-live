@@ -301,13 +301,15 @@ const AdminPanel = () => {
     const m = memberships.find((x) => x.id === selMembership);
     if (!m) return;
     setCreating(true); setGenerated(null);
-    const days = m.type === "weekly" ? 7 : 30;
+    const days = membershipDays(m.type);
     const token_code = generateTokenCode();
-    const showName = `Membership ${m.type === "weekly" ? "Mingguan" : "Bulanan"}`;
+    const showName = `Membership ${membershipLabel(m.type)}`;
     try {
-      // Membership uses TOKEN-BASED link (not public membership link)
+      // Membership uses TOKEN-BASED link (not public membership link).
+      // Membership dipakai lintas perangkat (HP + browser lain), jadi kapasitas 3 perangkat
+      // supaya tidak muncul "link sudah dipakai" padahal pemiliknya sendiri.
       const { error } = await withRetry<any>(() => supabase.from("access_tokens").insert({
-        token_code, duration_days: days, show_name: showName,
+        token_code, duration_days: days, show_name: showName, max_uses: 3, expires_at: null,
       } as any));
       if (error) { alert("Gagal: " + netMessage(error.message)); setCreating(false); return; }
       await withRetry(() => supabase.from("admin_link_logs").insert({
@@ -318,6 +320,7 @@ const AdminPanel = () => {
     } catch (e: any) {
       alert("Gagal: " + netMessage(String(e?.message || e)));
     }
+
     setCreating(false);
   };
 
