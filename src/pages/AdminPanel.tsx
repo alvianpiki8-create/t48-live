@@ -456,7 +456,7 @@ const AdminPanel = () => {
                 <select value={selMembership} onChange={(e) => setSelMembership(e.target.value)}
                   className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring">
                   <option value="">-- Pilih Paket --</option>
-                  {memberships.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.type === "weekly" ? "7 hari" : "30 hari"})</option>)}
+                  {memberships.map((m) => <option key={m.id} value={m.id}>{m.name} ({membershipLabel(m.type)} · {membershipDays(m.type)} hari)</option>)}
                 </select>
                 <p className="text-[10px] text-muted-foreground mt-1">Membership memakai link bertoken (bukan link publik).</p>
               </div>
