@@ -608,23 +608,34 @@ const QrisSetoranCard = ({
         <h2 className="text-sm font-semibold text-foreground">Setoran Saya</h2>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="grid grid-cols-5 gap-1.5 text-center">
         <div className="bg-secondary/30 rounded-lg py-2">
           <div className="text-[10px] text-muted-foreground">🎬 Show</div>
           <div className="text-sm font-bold text-foreground">{tally.normal}</div>
           <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_NORMAL)}</div>
         </div>
         <div className="bg-secondary/30 rounded-lg py-2">
-          <div className="text-[10px] text-muted-foreground">🎫 Mingguan</div>
+          <div className="text-[10px] text-muted-foreground">🎫 7hr</div>
           <div className="text-sm font-bold text-foreground">{tally.weekly}</div>
           <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_WEEKLY)}</div>
         </div>
         <div className="bg-secondary/30 rounded-lg py-2">
-          <div className="text-[10px] text-muted-foreground">🎫 Bulanan</div>
+          <div className="text-[10px] text-muted-foreground">🎫 30hr</div>
           <div className="text-sm font-bold text-foreground">{tally.monthly}</div>
           <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_MONTHLY)}</div>
         </div>
+        <div className="bg-secondary/30 rounded-lg py-2">
+          <div className="text-[10px] text-muted-foreground">🎫 60hr</div>
+          <div className="text-sm font-bold text-foreground">{tally.bimonthly}</div>
+          <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_BIMONTHLY)}</div>
+        </div>
+        <div className="bg-secondary/30 rounded-lg py-2">
+          <div className="text-[10px] text-muted-foreground">🎫 365hr</div>
+          <div className="text-sm font-bold text-foreground">{tally.yearly}</div>
+          <div className="text-[9px] text-muted-foreground">×{formatIDR(PRICE_MEMBERSHIP_YEARLY)}</div>
+        </div>
       </div>
+
 
       <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 text-center space-y-0.5">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Belum Dibayar</div>
