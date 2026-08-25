@@ -351,12 +351,14 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={newType}
-                onChange={(e) => setNewType(e.target.value as "weekly" | "monthly")}
+                onChange={(e) => setNewType(e.target.value as MembershipType)}
                 className="bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="weekly">Mingguan</option>
-                <option value="monthly">Bulanan</option>
+                {MEMBERSHIP_PLANS.map((p) => (
+                  <option key={p.type} value={p.type}>{p.label}</option>
+                ))}
               </select>
+
               <input
                 type="number"
                 value={newPrice}
