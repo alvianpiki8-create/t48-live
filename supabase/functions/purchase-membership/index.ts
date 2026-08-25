@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const durationDays = membership.type === "monthly" ? 30 : 7;
+    const DAYS: Record<string, number> = { weekly: 7, monthly: 30, bimonthly: 60, yearly: 365 };
+    const durationDays = DAYS[membership.type as string] ?? 30;
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
     const { error: coinError } = await admin
