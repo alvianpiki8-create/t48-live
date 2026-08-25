@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut, Plus, Copy, Check, Link as LinkIcon, KeyRound, Crown, ShieldAlert, RefreshCw, FileText, QrCode, Wallet, PlayCircle, Loader2, Film, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, filterLogsSince } from "@/lib/adminPricing";
+import { tallyLogs, formatIDR, priceOf, PRICE_NORMAL, PRICE_MEMBERSHIP_WEEKLY, PRICE_MEMBERSHIP_MONTHLY, PRICE_MEMBERSHIP_BIMONTHLY, PRICE_MEMBERSHIP_YEARLY, filterLogsSince } from "@/lib/adminPricing";
+import { membershipDays, membershipLabel } from "@/lib/membership";
 import { formatShowSchedule } from "@/lib/showSchedule";
 
 
 const STORAGE_KEY = "teamlive_admin_session";
-const DURATION_OPTIONS = [1, 7, 15, 20, 30, 60];
+const DURATION_OPTIONS = [1, 7, 15, 30, 60, 365];
+
 
 interface AdminSession { id: string; name: string; }
 
