@@ -39,7 +39,7 @@ const generateTokenCode = () => {
   return code;
 };
 
-const DURATION_OPTIONS = [1, 7, 15, 20, 30, 60];
+const DURATION_OPTIONS = [1, 7, 15, 30, 60, 365];
 
 const TokenManager = ({ tokens, shows, loadingTokens, onRefresh, streamSettings }: TokenManagerProps) => {
   const [tokenCount, setTokenCount] = useState(1);
