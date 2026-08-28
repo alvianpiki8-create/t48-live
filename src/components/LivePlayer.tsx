@@ -363,7 +363,6 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
                   || baseServers.find((server) => server.kind === "m3u8");
                 if (!fallback) return;
                 userPickedRef.current = false;
-                setHasStarted(false);
                 setActiveServerId(fallback.id);
               };
 
