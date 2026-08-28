@@ -42,7 +42,7 @@ const isM3u8 = (url: string) => {
   return false;
 };
 
-const IDN_CACHE_KEY = "team-live-idn-proxy-v2";
+const IDN_CACHE_KEY = "team-live-idn-playable-v3";
 
 const buildServers = (videoId: string, videoId2: string, sourceUrl: string, sourceUrl2: string, sourceUrlBackup: string): ServerOption[] => {
   const list: ServerOption[] = [];
@@ -191,13 +191,13 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
   useEffect(() => {
     if (!servers.length) { setActiveServerId(""); return; }
     const current = servers.find((s) => s.id === activeServerId);
-    const idn = servers.find((s) => s.kind === "idn-auto");
     const yt = servers.find((s) => s.kind === "youtube");
+    const regularHls = servers.find((s) => s.kind === "m3u8");
+    const idn = servers.find((s) => s.kind === "idn-auto");
     if (!current) {
-      setActiveServerId((idn || yt || servers[0]).id);
-    } else if (!userPickedRef.current && current.kind === "youtube" && idn) {
-      // YT was auto-picked first; IDN resolved later — swap to IDN.
-      setActiveServerId(idn.id);
+      // Jangan jadikan URL IDN yang belum terbukti playable sebagai server awal.
+      // CDN IDN dapat membalas manifest tetapi menolak segmennya berdasarkan region.
+      setActiveServerId((yt || regularHls || idn || servers[0]).id);
     }
   }, [servers, activeServerId]);
 
@@ -280,21 +280,19 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
               const conn: any = (navigator as any).connection || {};
               const saveData = !!conn.saveData;
               const slowNet = saveData || /(^|-)2g$/.test(String(conn.effectiveType || ""));
-              // IDN (IVS) segmennya pendek & sering jitter -> butuh bantalan buffer lebih tebal
+              // IDN (IVS) perlu mulai dengan buffer kecil; buffer 30-90 detik membuat
+              // pemutar terlihat loading sangat lama sebelum frame pertama muncul.
               const isIdn = /live-video\.net|gstreamlive|idn/i.test(url);
               const hls = new Hls({
                 enableWorker: true,
-                // LL-HLS bikin sering rebuffer di stream IDN & HP -> matikan
                 lowLatencyMode: !isMobile && !isIdn,
-                // Bantalan buffer: cukup tebal supaya tidak patah-patah / buffering
-                backBufferLength: isIdn ? 30 : isMobile ? 10 : 20,
-                maxBufferLength: isIdn ? (isMobile ? 30 : 45) : isMobile ? 20 : 30,
-                maxMaxBufferLength: isIdn ? 90 : isMobile ? 40 : 60,
-                maxBufferSize: (isIdn ? 60 : isMobile ? 30 : 50) * 1000 * 1000,
+                backBufferLength: isIdn ? 12 : isMobile ? 10 : 20,
+                maxBufferLength: isIdn ? 12 : isMobile ? 20 : 30,
+                maxMaxBufferLength: isIdn ? 24 : isMobile ? 40 : 60,
+                maxBufferSize: (isIdn ? 24 : isMobile ? 30 : 50) * 1000 * 1000,
                 maxBufferHole: 0.5,
-                // Jarak aman dari live edge (dipakai saat playlist non-LL)
-                liveSyncDurationCount: isIdn ? 5 : 3,
-                liveMaxLatencyDurationCount: isIdn ? 20 : 10,
+                liveSyncDurationCount: isIdn ? 3 : 3,
+                liveMaxLatencyDurationCount: isIdn ? 8 : 10,
                 liveDurationInfinity: true,
                 maxLiveSyncPlaybackRate: 1.2, // kejar live edge halus tanpa lompat/seek
                 highBufferWatchdogPeriod: 3,
@@ -317,7 +315,7 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
                 capLevelOnFPSDrop: true,
                 testBandwidth: false,
                 // Mulai dari level ringan supaya load cepat, lalu ABR naikkan sendiri
-                startLevel: isMobile ? 0 : -1,
+                startLevel: isIdn || isMobile ? 0 : -1,
                 // ABR konservatif: naik pelan, turun cepat -> bitrate otomatis tetap ringan
                 abrEwmaFastLive: 2,
                 abrEwmaSlowLive: 8,
@@ -359,12 +357,35 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
                 } catch {}
               };
 
-              // Stall watchdog: hanya lompat ke live jika jauh tertinggal (>20s)
+              const fallbackFromIdn = () => {
+                if (!isIdn || cancelled) return;
+                const fallback = baseServers.find((server) => server.kind === "youtube")
+                  || baseServers.find((server) => server.kind === "m3u8");
+                if (!fallback) return;
+                userPickedRef.current = false;
+                setHasStarted(false);
+                setActiveServerId(fallback.id);
+              };
+
+              // Stall watchdog: lompat ke live edge bila tertinggal. Jika IDN tidak
+              // menghasilkan frame sama sekali, segera pindah ke server yang sehat.
+              let lastTime = -1;
+              let stalledChecks = 0;
               const stallTimer = window.setInterval(() => {
+                if (video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA || video.currentTime <= lastTime + 0.05) {
+                  stalledChecks += 1;
+                } else {
+                  stalledChecks = 0;
+                }
+                lastTime = video.currentTime;
+                if (isIdn && stalledChecks >= 3) {
+                  fallbackFromIdn();
+                  return;
+                }
                 if (video.paused || !video.duration) return;
                 const live = hls.liveSyncPosition;
                 if (live && Number.isFinite(live) && live - video.currentTime > 20) seekToLive();
-              }, 5000);
+              }, 4000);
               art.on("destroy", () => {
                 window.clearInterval(stallTimer);
               });
@@ -373,6 +394,11 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
               hls.on(Hls.Events.ERROR, (_e, data) => {
                 if (!data.fatal) return;
                 if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                  if (isIdn && recoverAttempts >= 1) {
+                    fallbackFromIdn();
+                    return;
+                  }
+                  recoverAttempts += 1;
                   hls.startLoad();
                   setTimeout(seekToLive, 800);
                 } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
@@ -380,11 +406,7 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
                   if (recoverAttempts <= 2) {
                     hls.recoverMediaError();
                   } else {
-                    hls.destroy();
-                    const fresh = new Hls({ enableWorker: true, lowLatencyMode: true });
-                    fresh.loadSource(url);
-                    fresh.attachMedia(video);
-                    (art as any).hls = fresh;
+                    fallbackFromIdn();
                   }
                 }
               });
