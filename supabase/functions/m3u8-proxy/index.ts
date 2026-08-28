@@ -21,6 +21,7 @@ const ALLOWED_HOST_SUFFIXES = [
   "cloudfront.net",
   "youtube.com",
   "googlevideo.com",
+  "live-video.net",
 ];
 
 const hostAllowedByList = (host: string) =>
@@ -256,15 +257,56 @@ async function resolveIdnLive() {
   const candidates = await idnCandidates();
   for (const show of candidates) {
     const slugOrId = show?.slug || show?.identifier || show?.url_key || show?.showid || show?.show_id;
-    if (!slugOrId) continue;
-    const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
-    try {
-      const token = await generateStreamToken(String(slugOrId), isSlug);
-      const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
-      if (!url) continue;
-      return { url, token, qualities, name: show?.name || show?.title || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
-    } catch (e) {
-      console.error("idn candidate failed:", slugOrId, String(e));
+    const name = show?.name || show?.title || show?.member?.name || "IDN Live";
+    if (slugOrId) {
+      const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
+      try {
+        const token = await generateStreamToken(String(slugOrId), isSlug);
+        const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
+        if (url) {
+          return { url, token, qualities, name, slug: String(slugOrId), isSlug, direct: false };
+        }
+      } catch (e) {
+        console.error("idn candidate failed:", slugOrId, String(e));
+      }
+    }
+    // Fallback: API IDN menyediakan URL IVS langsung. JANGAN diproxy — CDN IVS
+    // membatasi region, jadi harus diambil langsung oleh browser penonton.
+    const playbackUrl = typeof show?.playback_url === "string" && show.playback_url.includes(".m3u8") ? show.playback_url : "";
+    if (playbackUrl) {
+      // Room berbayar (idnliveplus) mengunci playback dengan token auth IVS —
+      // URL mentahnya membalas "invalid_playback_auth_token". Validasi dulu;
+      // kalau ternyata terkunci, lanjut ke kandidat lain yang bisa diputar.
+      try {
+        const probe = await (await fetch(playbackUrl, { signal: AbortSignal.timeout(6000) })).text();
+        if (probe.includes("#EXTM3U")) {
+          return {
+            url: playbackUrl, token: "", qualities: [], name,
+            slug: String(slugOrId || show?.showId || show?.identifier || ""),
+            isSlug: true, direct: true,
+          };
+        }
+        console.error("idn playback_url not playable:", slugOrId, probe.slice(0, 120));
+      } catch (e) {
+        console.error("idn playback_url probe failed:", slugOrId, String(e));
+      }
+      continue;
+    }
+    // Live member gratis: streaming_url_list tidak bisa divalidasi dari sini
+    // (region-locked), tapi bisa diputar langsung oleh browser penonton.
+    const directUrl = Array.isArray(show?.streaming_url_list)
+      ? (show.streaming_url_list.find((s: any) => typeof s?.url === "string" && s.url.includes(".m3u8"))?.url || "")
+      : "";
+    if (directUrl) {
+      return {
+        url: directUrl,
+        token: "",
+        qualities: [],
+        name,
+        slug: String(slugOrId || show?.showId || show?.identifier || ""),
+        isSlug: true,
+        direct: true,
+      };
     }
   }
   return null;
@@ -361,6 +403,19 @@ Deno.serve(async (req) => {
       if (body?.action === "resolve-idn") {
         const resolved = await cachedResolveIdnLive();
         if (!resolved) return new Response(JSON.stringify({ live: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // Direct (IVS) URLs must NOT be proxied: the CDN is region-locked, so the
+        // viewer's browser has to fetch them directly.
+        if (resolved.direct) {
+          return new Response(JSON.stringify({
+            live: true,
+            direct: true,
+            url: resolved.url,
+            startupQuality: "Auto",
+            name: resolved.name,
+            slug: resolved.slug,
+            qualities: [],
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
         const headers: Record<string, string> = { "x-api-token": resolved.token };
         const startup = pickStartupQuality(resolved.qualities) || { url: resolved.url, name: "Auto" };
         const proxied = await makeToken(startup.url, headers, fp, PLAYLIST_TTL_SEC);
