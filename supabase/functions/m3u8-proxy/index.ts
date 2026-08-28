@@ -21,6 +21,7 @@ const ALLOWED_HOST_SUFFIXES = [
   "cloudfront.net",
   "youtube.com",
   "googlevideo.com",
+  "live-video.net",
 ];
 
 const hostAllowedByList = (host: string) =>
