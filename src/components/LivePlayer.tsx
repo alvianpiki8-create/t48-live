@@ -280,25 +280,27 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
               const conn: any = (navigator as any).connection || {};
               const saveData = !!conn.saveData;
               const slowNet = saveData || /(^|-)2g$/.test(String(conn.effectiveType || ""));
-              // Low-Latency HLS aktif; kalau playlist bukan LL-HLS, hls.js otomatis fallback ke mode normal
+              // IDN (IVS) segmennya pendek & sering jitter -> butuh bantalan buffer lebih tebal
+              const isIdn = /live-video\.net|gstreamlive|idn/i.test(url);
               const hls = new Hls({
                 enableWorker: true,
-                // LL-HLS boros CPU di HP -> aktif hanya di desktop
-                lowLatencyMode: !isMobile,
-                // Buffer ringan: hemat memori & CPU, tetap anti patah-patah
-                backBufferLength: isMobile ? 4 : 8,
-                maxBufferLength: isMobile ? 12 : 20,
-                maxMaxBufferLength: isMobile ? 24 : 40,
-                maxBufferSize: (isMobile ? 18 : 40) * 1000 * 1000,
-                maxBufferHole: 0.3,
+                // LL-HLS bikin sering rebuffer di stream IDN & HP -> matikan
+                lowLatencyMode: !isMobile && !isIdn,
+                // Bantalan buffer: cukup tebal supaya tidak patah-patah / buffering
+                backBufferLength: isIdn ? 30 : isMobile ? 10 : 20,
+                maxBufferLength: isIdn ? (isMobile ? 30 : 45) : isMobile ? 20 : 30,
+                maxMaxBufferLength: isIdn ? 90 : isMobile ? 40 : 60,
+                maxBufferSize: (isIdn ? 60 : isMobile ? 30 : 50) * 1000 * 1000,
+                maxBufferHole: 0.5,
                 // Jarak aman dari live edge (dipakai saat playlist non-LL)
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 10,
+                liveSyncDurationCount: isIdn ? 5 : 3,
+                liveMaxLatencyDurationCount: isIdn ? 20 : 10,
                 liveDurationInfinity: true,
-                maxLiveSyncPlaybackRate: 1.5, // kejar live edge halus tanpa lompat/seek
-                highBufferWatchdogPeriod: 2,
+                maxLiveSyncPlaybackRate: 1.2, // kejar live edge halus tanpa lompat/seek
+                highBufferWatchdogPeriod: 3,
                 nudgeMaxRetry: 10,
                 nudgeOffset: 0.2,
+
                 manifestLoadingTimeOut: 8000,
                 manifestLoadingMaxRetry: 4,
                 manifestLoadingRetryDelay: 400,
