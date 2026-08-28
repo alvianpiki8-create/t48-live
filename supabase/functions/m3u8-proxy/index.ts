@@ -438,7 +438,8 @@ Deno.serve(async (req) => {
 
     return new Response("method not allowed", { status: 405, headers: corsHeaders });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
+    console.error("m3u8-proxy failure:", e);
+    return new Response(JSON.stringify({ error: String(e), v: "idn-2026-08-28" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
