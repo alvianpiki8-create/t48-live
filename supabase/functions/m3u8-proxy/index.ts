@@ -257,15 +257,30 @@ async function resolveIdnLive() {
   const candidates = await idnCandidates();
   for (const show of candidates) {
     const slugOrId = show?.slug || show?.identifier || show?.url_key || show?.showid || show?.show_id;
-    if (!slugOrId) continue;
-    const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
-    try {
-      const token = await generateStreamToken(String(slugOrId), isSlug);
-      const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
-      if (!url) continue;
-      return { url, token, qualities, name: show?.name || show?.title || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
-    } catch (e) {
-      console.error("idn candidate failed:", slugOrId, String(e));
+    const name = show?.name || show?.title || show?.member?.name || "IDN Live";
+    if (slugOrId) {
+      const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
+      try {
+        const token = await generateStreamToken(String(slugOrId), isSlug);
+        const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
+        if (url) {
+          return { url, token, qualities, name, slug: String(slugOrId), isSlug };
+        }
+      } catch (e) {
+        console.error("idn candidate failed:", slugOrId, String(e));
+      }
+    }
+    // Fallback: API IDN menyediakan playback_url (IVS) langsung untuk show yang sedang live.
+    // Dipakai saat CTV /stream menolak (mis. "IDN API error: 403" untuk room berbayar).
+    if (typeof show?.playback_url === "string" && show.playback_url.includes(".m3u8")) {
+      return {
+        url: show.playback_url,
+        token: "",
+        qualities: [],
+        name,
+        slug: String(slugOrId || show?.showId || ""),
+        isSlug: true,
+      };
     }
   }
   return null;
