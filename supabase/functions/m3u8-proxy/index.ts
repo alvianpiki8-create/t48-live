@@ -382,6 +382,19 @@ Deno.serve(async (req) => {
       if (body?.action === "resolve-idn") {
         const resolved = await cachedResolveIdnLive();
         if (!resolved) return new Response(JSON.stringify({ live: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // Direct (IVS) URLs must NOT be proxied: the CDN is region-locked, so the
+        // viewer's browser has to fetch them directly.
+        if (resolved.direct) {
+          return new Response(JSON.stringify({
+            live: true,
+            direct: true,
+            url: resolved.url,
+            startupQuality: "Auto",
+            name: resolved.name,
+            slug: resolved.slug,
+            qualities: [],
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
         const headers: Record<string, string> = { "x-api-token": resolved.token };
         const startup = pickStartupQuality(resolved.qualities) || { url: resolved.url, name: "Auto" };
         const proxied = await makeToken(startup.url, headers, fp, PLAYLIST_TTL_SEC);
