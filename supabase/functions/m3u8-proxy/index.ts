@@ -264,22 +264,27 @@ async function resolveIdnLive() {
         const token = await generateStreamToken(String(slugOrId), isSlug);
         const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
         if (url) {
-          return { url, token, qualities, name, slug: String(slugOrId), isSlug };
+          return { url, token, qualities, name, slug: String(slugOrId), isSlug, direct: false };
         }
       } catch (e) {
         console.error("idn candidate failed:", slugOrId, String(e));
       }
     }
-    // Fallback: API IDN menyediakan playback_url (IVS) langsung untuk show yang sedang live.
-    // Dipakai saat CTV /stream menolak (mis. "IDN API error: 403" untuk room berbayar).
-    if (typeof show?.playback_url === "string" && show.playback_url.includes(".m3u8")) {
+    // Fallback: API IDN menyediakan URL IVS langsung. JANGAN diproxy — CDN IVS
+    // membatasi region, jadi harus diambil langsung oleh browser penonton.
+    const directUrl =
+      (typeof show?.playback_url === "string" && show.playback_url.includes(".m3u8") && show.playback_url) ||
+      (Array.isArray(show?.streaming_url_list) && show.streaming_url_list.find((s: any) => typeof s?.url === "string" && s.url.includes(".m3u8"))?.url) ||
+      "";
+    if (directUrl) {
       return {
-        url: show.playback_url,
+        url: directUrl,
         token: "",
         qualities: [],
         name,
-        slug: String(slugOrId || show?.showId || ""),
+        slug: String(slugOrId || show?.showId || show?.identifier || ""),
         isSlug: true,
+        direct: true,
       };
     }
   }
