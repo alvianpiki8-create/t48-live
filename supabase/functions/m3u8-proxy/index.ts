@@ -231,30 +231,53 @@ async function getStreamURL(token: string, slugOrId: string, isSlug: boolean) {
   };
 }
 
-async function resolveIdnLive() {
-  const pick = (arr: any[]) => arr.find((s) => s?.status === "live" || s?.is_live) || arr[0];
-  let show: any = null;
-  try { show = pick((await (await fetch(IDN_API)).json())?.data || []); } catch {}
-  if (!show) {
+// Kumpulkan kandidat show yang benar-benar LIVE (bukan yang masih "scheduled"),
+// karena API stream membalas 403 untuk show yang belum mulai.
+async function idnCandidates(): Promise<any[]> {
+  const out: any[] = [];
+  try {
+    const data = (await (await fetch(IDN_API)).json())?.data || [];
+    for (const s of data) if (s?.status === "live" || s?.is_live) out.push(s);
+  } catch { /* ignore */ }
+  try {
     const live = await (await fetch(LIVE_API)).json();
     const arr = Array.isArray(live?.data) ? live.data : (Array.isArray(live) ? live : []);
-    show = arr.find((s) => (s.type === "idn" || s.platform === "idn") && (s.is_live || s.status === "live")) || arr[0];
+    for (const s of arr) {
+      if (s?.type === "idn" || s?.platform === "idn" || s?.slug) {
+        if (s?.is_live === false) continue;
+        out.push(s);
+      }
+    }
+  } catch { /* ignore */ }
+  return out;
+}
+
+async function resolveIdnLive() {
+  const candidates = await idnCandidates();
+  for (const show of candidates) {
+    const slugOrId = show?.slug || show?.identifier || show?.url_key || show?.showid || show?.show_id;
+    if (!slugOrId) continue;
+    const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
+    try {
+      const token = await generateStreamToken(String(slugOrId), isSlug);
+      const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
+      if (!url) continue;
+      return { url, token, qualities, name: show?.name || show?.title || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
+    } catch (e) {
+      console.error("idn candidate failed:", slugOrId, String(e));
+    }
   }
-  const slugOrId = show?.slug || show?.identifier || show?.url_key || show?.showid || show?.show_id;
-  if (!slugOrId) return null;
-  const isSlug = Boolean(show?.slug || show?.identifier || show?.url_key);
-  const token = await generateStreamToken(String(slugOrId), isSlug);
-  const { url, qualities } = await getStreamURL(token, String(slugOrId), isSlug);
-  if (!url) return null;
-  return { url, token, qualities, name: show?.name || show?.member?.name || "IDN Live", slug: String(slugOrId), isSlug };
+  return null;
 }
 
 async function cachedResolveIdnLive() {
   if (idnCache && idnCache.expiresAt > Date.now()) return idnCache.value;
   const value = await resolveIdnLive();
-  if (value) idnCache = { value, expiresAt: Date.now() + 45_000 };
+  // Cache hasil kosong sebentar juga supaya tidak spam API saat belum ada show live.
+  idnCache = { value, expiresAt: Date.now() + (value ? 45_000 : 20_000) };
   return value;
 }
+
 
 const qualityHeight = (q: any) => Number(String(q?.name || q?.resolution || "").match(/(\d{3,4})/)?.[1] || 0);
 const pickStartupQuality = (qualities: any[]) => {
