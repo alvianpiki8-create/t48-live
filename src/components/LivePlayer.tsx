@@ -31,6 +31,7 @@ interface ServerOption {
   src: string;
   label: string;
   token?: string;
+  unavailable?: boolean;
 }
 
 const isM3u8 = (url: string) => {
@@ -117,7 +118,13 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
   );
 
   // Auto-resolve IDN+ live stream fully in edge so the v4 x-api-token never hits the browser.
-  const [idnServer, setIdnServer] = useState<ServerOption | null>(null);
+  const [idnServer, setIdnServer] = useState<ServerOption>({
+    id: "idn-auto",
+    kind: "idn-auto",
+    src: "",
+    label: "IDN",
+    unavailable: true,
+  });
   const [idnQualities, setIdnQualities] = useState<{ name: string; url: string }[]>([]);
   const [idnMasterUrl, setIdnMasterUrl] = useState("");
   const [idnQuality, setIdnQuality] = useState<string>(""); // selected quality name; "" = auto/master
@@ -141,7 +148,14 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
         const { data, error } = await supabase.functions.invoke("m3u8-proxy", { body: { action: "resolve-idn" } });
         if (error) throw error;
         if (cancelled) return;
-        if (!data?.live || !data?.url) { setIdnServer(null); setIdnQualities([]); currentIdnSlugRef.current = ""; return; }
+        if (!data?.live || !data?.url) {
+          const unavailableServer: ServerOption = { id: "idn-auto", kind: "idn-auto", src: "", label: "IDN", unavailable: true };
+          idnServerRef.current = unavailableServer;
+          setIdnServer(unavailableServer);
+          setIdnQualities([]);
+          currentIdnSlugRef.current = "";
+          return;
+        }
         if (currentIdnSlugRef.current === data.slug && idnServerRef.current) return;
         currentIdnSlugRef.current = data.slug || "idn";
         setIdnMasterUrl(data.url as string);
@@ -150,7 +164,7 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
           url: q.name === data.startupQuality ? data.url : q.url,
         })));
         setIdnQuality(data.startupQuality || "");
-        const nextServer = { id: "idn-auto", kind: "idn-auto" as const, src: data.url as string, label: "IDN" };
+        const nextServer = { id: "idn-auto", kind: "idn-auto" as const, src: data.url as string, label: "IDN", unavailable: false };
         idnServerRef.current = nextServer;
         setIdnServer(nextServer);
         try {
@@ -163,7 +177,9 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
           }));
         } catch {}
       } catch {
-        if (!cancelled && !idnServerRef.current) setIdnServer(null);
+        if (!cancelled && !idnServerRef.current) {
+          setIdnServer({ id: "idn-auto", kind: "idn-auto", src: "", label: "IDN", unavailable: true });
+        }
       }
     };
     resolve();
@@ -184,7 +200,7 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
   }, [idnQuality, idnMasterUrl, idnQualities]);
 
   const servers = useMemo<ServerOption[]>(
-    () => (idnServer ? [...baseServers, idnServer] : baseServers),
+    () => [...baseServers, idnServer],
     [baseServers, idnServer],
   );
 
@@ -229,7 +245,7 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
 
   // ArtPlayer for m3u8 server
   useEffect(() => {
-    if (!activeServer || (activeServer.kind !== "m3u8" && activeServer.kind !== "idn-auto") || !artContainerRef.current) {
+    if (!activeServer || !activeServer.src || (activeServer.kind !== "m3u8" && activeServer.kind !== "idn-auto") || !artContainerRef.current) {
       if (artRef.current) { artRef.current.destroy(false); artRef.current = null; }
       return;
     }
@@ -514,7 +530,7 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
   };
 
   const VolIcon = muted || volume === 0 ? VolumeX : Volume2;
-  const hasVideo = Boolean(activeServer);
+  const hasVideo = Boolean(activeServer?.src && !activeServer.unavailable);
   const isYT = activeServer?.kind === "youtube";
 
   return (
@@ -638,6 +654,13 @@ const LivePlayer = ({ videoId, videoId2 = "", sourceUrl = "", sourceUrl2 = "", s
           )}
 
         </>
+        ) : activeServer?.kind === "idn-auto" ? (
+          <div className="absolute inset-0 flex items-center justify-center px-6">
+            <div className="text-center">
+              <div className="text-foreground text-base font-semibold">Server IDN belum tersedia</div>
+              <div className="text-muted-foreground text-sm mt-1">Sumber IDN sedang menolak akses. Pilih YouTube atau RTMP sementara.</div>
+            </div>
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
