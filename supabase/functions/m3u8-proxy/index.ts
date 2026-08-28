@@ -255,7 +255,13 @@ async function idnCandidates(): Promise<any[]> {
 
 async function resolveIdnLive() {
   const candidates = await idnCandidates();
-  for (const show of candidates) {
+  // Saat theater IDN+ sedang live, jangan jatuh ke live pribadi member.
+  // Keduanya memakai platform yang sama tetapi kontennya berbeda.
+  const theaterCandidates = candidates.filter((show) =>
+    show?.live_type === "idnliveplus" || Boolean(show?.showId || show?.showid || show?.show_id)
+  );
+  const selectedCandidates = theaterCandidates.length > 0 ? theaterCandidates : candidates;
+  for (const show of selectedCandidates) {
     const slugOrId = show?.slug || show?.identifier || show?.url_key || show?.showid || show?.show_id;
     const name = show?.name || show?.title || show?.member?.name || "IDN Live";
     if (slugOrId) {
@@ -278,8 +284,11 @@ async function resolveIdnLive() {
       // URL mentahnya membalas "invalid_playback_auth_token". Validasi dulu;
       // kalau ternyata terkunci, lanjut ke kandidat lain yang bisa diputar.
       try {
-        const probe = await (await fetch(playbackUrl, { signal: AbortSignal.timeout(6000) })).text();
-        if (probe.includes("#EXTM3U")) {
+        const response = await fetch(playbackUrl, { signal: AbortSignal.timeout(6000) });
+        const probe = await response.text();
+        // Respons error IVS berbentuk JSON dan dapat menyebut URL .m3u8.
+        // Hanya terima body yang benar-benar dimulai dengan header playlist HLS.
+        if (response.ok && probe.trimStart().startsWith("#EXTM3U")) {
           return {
             url: playbackUrl, token: "", qualities: [], name,
             slug: String(slugOrId || show?.showId || show?.identifier || ""),
