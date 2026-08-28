@@ -1,0 +1,2 @@
+ALTER TABLE public.memberships DROP CONSTRAINT IF EXISTS memberships_type_check;
+ALTER TABLE public.memberships ADD CONSTRAINT memberships_type_check CHECK (type = ANY (ARRAY['weekly','monthly','bimonthly','yearly']));
