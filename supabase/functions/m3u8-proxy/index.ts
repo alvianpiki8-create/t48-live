@@ -272,10 +272,31 @@ async function resolveIdnLive() {
     }
     // Fallback: API IDN menyediakan URL IVS langsung. JANGAN diproxy — CDN IVS
     // membatasi region, jadi harus diambil langsung oleh browser penonton.
-    const directUrl =
-      (typeof show?.playback_url === "string" && show.playback_url.includes(".m3u8") && show.playback_url) ||
-      (Array.isArray(show?.streaming_url_list) && show.streaming_url_list.find((s: any) => typeof s?.url === "string" && s.url.includes(".m3u8"))?.url) ||
-      "";
+    const playbackUrl = typeof show?.playback_url === "string" && show.playback_url.includes(".m3u8") ? show.playback_url : "";
+    if (playbackUrl) {
+      // Room berbayar (idnliveplus) mengunci playback dengan token auth IVS —
+      // URL mentahnya membalas "invalid_playback_auth_token". Validasi dulu;
+      // kalau ternyata terkunci, lanjut ke kandidat lain yang bisa diputar.
+      try {
+        const probe = await (await fetch(playbackUrl, { signal: AbortSignal.timeout(6000) })).text();
+        if (probe.includes("#EXTM3U")) {
+          return {
+            url: playbackUrl, token: "", qualities: [], name,
+            slug: String(slugOrId || show?.showId || show?.identifier || ""),
+            isSlug: true, direct: true,
+          };
+        }
+        console.error("idn playback_url not playable:", slugOrId, probe.slice(0, 120));
+      } catch (e) {
+        console.error("idn playback_url probe failed:", slugOrId, String(e));
+      }
+      continue;
+    }
+    // Live member gratis: streaming_url_list tidak bisa divalidasi dari sini
+    // (region-locked), tapi bisa diputar langsung oleh browser penonton.
+    const directUrl = Array.isArray(show?.streaming_url_list)
+      ? (show.streaming_url_list.find((s: any) => typeof s?.url === "string" && s.url.includes(".m3u8"))?.url || "")
+      : "";
     if (directUrl) {
       return {
         url: directUrl,
