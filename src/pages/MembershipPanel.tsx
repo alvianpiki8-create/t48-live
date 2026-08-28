@@ -89,18 +89,20 @@ const MembershipPanel = () => {
   };
 
   const handleAdd = async () => {
-    if (!newName.trim()) return;
-    await supabase.from("memberships").insert({
+    if (!newName.trim()) { alert("Nama paket wajib diisi"); return; }
+    const { error } = await supabase.from("memberships").insert({
       name: newName.trim(),
       type: newType,
       price: parseInt(newPrice) || 0,
       description: newDesc.trim() || null,
     });
+    if (error) { alert("Gagal menambah membership: " + error.message); return; }
     setNewName("");
     setNewPrice("");
     setNewDesc("");
     fetchMemberships();
   };
+
 
   const handleToggle = async (m: Membership) => {
     await supabase.from("memberships").update({ is_active: !m.is_active }).eq("id", m.id);
