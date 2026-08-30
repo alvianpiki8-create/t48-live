@@ -139,7 +139,7 @@ const OwnerPanel = () => {
       sessionStorage.setItem(AUTH_KEY, "true");
       sessionStorage.setItem(OWNER_TOKEN_KEY, (data as any)?.token || "");
     } else {
-      setLoginError("Email owner tidak dikenali");
+      setLoginError("Sandi owner salah");
     }
   };
 

@@ -84,7 +84,7 @@ const MembershipPanel = () => {
       sessionStorage.setItem(OWNER_TOKEN_KEY, (data as any)?.token || "");
       setLoginError("");
     } else {
-      setLoginError("Email owner tidak dikenali");
+      setLoginError("Sandi owner salah");
     }
   };
 
