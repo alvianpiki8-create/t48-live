@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const valid = email === OWNER_EMAIL;
+    const valid = input === OWNER_PASSWORD;
     return new Response(JSON.stringify({ valid, token: valid ? secret : undefined }), {
       status: valid ? 200 : 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
