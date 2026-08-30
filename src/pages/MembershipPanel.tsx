@@ -76,7 +76,7 @@ const MembershipPanel = () => {
     e.preventDefault();
     setLoginLoading(true);
     setLoginError("");
-    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { email: ownerToken } });
+    const { data, error } = await supabase.functions.invoke("validate-owner-token", { body: { password: ownerToken } });
     setLoginLoading(false);
     if (!error && (data as any)?.valid) {
       setIsAuthenticated(true);
@@ -84,7 +84,7 @@ const MembershipPanel = () => {
       sessionStorage.setItem(OWNER_TOKEN_KEY, (data as any)?.token || "");
       setLoginError("");
     } else {
-      setLoginError("Email owner tidak dikenali");
+      setLoginError("Sandi owner salah");
     }
   };
 
@@ -234,8 +234,8 @@ Jika ada kendala bisa chat admin, jangan malu malu yaa🥰`;
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 flex items-center gap-1.5"><KeyRound size={14} /> Email Owner</label>
-              <input type="email" autoComplete="email" value={ownerToken} onChange={(e) => setOwnerToken(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center" placeholder="email owner" />
+              <label className="text-sm text-muted-foreground mb-1 flex items-center gap-1.5"><KeyRound size={14} /> Sandi Owner</label>
+              <input type="password" autoComplete="current-password" value={ownerToken} onChange={(e) => setOwnerToken(e.target.value)} className="w-full bg-input border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center" placeholder="sandi owner" />
             </div>
             {loginError && <p className="text-destructive text-sm">{loginError}</p>}
             <button type="submit" disabled={loginLoading || !ownerToken.trim()} className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50">{loginLoading ? "Memeriksa..." : "Masuk Owner"}</button>

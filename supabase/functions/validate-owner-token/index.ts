@@ -4,15 +4,19 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Satu-satunya akses owner: email di bawah ini (tanpa sandi).
-const OWNER_EMAIL = "t48id@gmail.com";
+// Satu-satunya akses owner: sandi di bawah ini.
+const OWNER_PASSWORD = "JKL95BKL";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const body = await req.json();
-    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    const input = typeof body?.password === "string"
+      ? body.password.trim()
+      : typeof body?.email === "string"
+        ? body.email.trim()
+        : "";
     const secret = Deno.env.get("OWNER_PANEL_TOKEN");
 
     if (!secret) {
@@ -22,7 +26,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const valid = email === OWNER_EMAIL;
+    const valid = input === OWNER_PASSWORD;
     return new Response(JSON.stringify({ valid, token: valid ? secret : undefined }), {
       status: valid ? 200 : 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
